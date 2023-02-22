@@ -31,6 +31,7 @@ async def tg_new_member(update, context):
 
 async def wiretapping(update, context):
     #check if chat id is the same as in config
+    #let's test how do branches and merges work
     #TODO: we need to rewrite all this to support multiple chats. May be we should add chat_id to users table
     if update.message.chat.id == int(config['BOT']['CHAT_ID']):
         if len(update.message.new_chat_members) > 0: #user added
