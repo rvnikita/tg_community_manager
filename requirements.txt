@@ -1,4 +1,0 @@
-requests
-python-telegram-bot
-psycopg2
-configparser
