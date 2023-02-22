@@ -20,10 +20,10 @@ async def status_update():
     conn = None
     try:
         conn = psycopg2.connect(user=config['DB']['DB_USER'],
-          password = config['DB']['DB_PASSWORD'],
-          host = config['DB']['DB_HOST'],
-          port = config['DB']['DB_PORT'],
-          database = config['DB']['DB_DATABASE'])
+                                password=config['DB']['DB_PASSWORD'],
+                                host=config['DB']['DB_HOST'],
+                                port=config['DB']['DB_PORT'],
+                                database=config['DB']['DB_DATABASE'])
 
         sql = "SELECT * FROM users"
         cur = conn.cursor(cursor_factory = psycopg2.extras.RealDictCursor)
