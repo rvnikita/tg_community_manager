@@ -83,9 +83,9 @@ def main() -> None:
 
     # Start the Bot
     application.run_polling()
-        
 
 if __name__ == '__main__':
     main()
 
 #let's test how can we automate the deploy. We will push this to main first, then switch to to_heroku and merge and push.
+#we are in dev branch now
