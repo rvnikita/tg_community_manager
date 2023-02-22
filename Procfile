@@ -1,2 +1,2 @@
-worker: python3 code/dispatcher.py
-worker: python3 code/wiretapping.py
+dispatcher: python3 code/dispatcher.py
+wiretapping: python3 code/wiretapping.py
