@@ -3,19 +3,15 @@ import os
 import configparser
 from telegram import ForceReply, Update, Bot
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
-from datetime import datetime, timezone
-import psycopg2
-
-admin_log(f"Starting {__file__} in {os.environ['MODE']} mode at {os.uname()}")
-
-chat_id = os.environ['CHAT_ID']
-bot_key = os.environ['BOT_KEY']
-bot_nickname = os.environ['BOT_NICKNAME']
 
 config = configparser.ConfigParser()
+config.read('config/settings.ini')
 config.read('config/bot.ini')
+config.read('config/db.ini')
 
-bot = Bot(bot_key)
+admin_log(f"Starting {__file__} in {config['BOT']['MODE']} mode at {os.uname()}")
+
+bot = Bot(config['BOT']['KEY'])
 
 ########################
 
@@ -26,12 +22,14 @@ async def tg_new_member(update, context):
     
     if delete_NEW_CHAT_MEMBERS_message == True:
         await bot.delete_message(update.message.chat.id,update.message.id)
+        admin_log(f"Deleted {update.message.id} message from {update.message.chat.id} chat ")
+
     
 async def tg_text(update, context):
     return
 
 def main() -> None:
-    application = Application.builder().token(bot_key).build()
+    application = Application.builder().token(config['BOT']['KEY']).build()
     
     application.add_handler(MessageHandler(filters.TEXT, tg_text))
     application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, tg_new_member))
