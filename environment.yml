@@ -1,8 +1,0 @@
-name: tg_community_manager
-channels:
-  - conda-forge
-dependencies:
-  - requests
-  - python-telegram-bot
-  - psycopg2
-  - configparser
