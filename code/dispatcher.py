@@ -5,9 +5,10 @@ from telegram import Bot
 from telegram.ext import Application, MessageHandler, filters
 
 config = configparser.ConfigParser()
-config.read('config/settings.ini')
-config.read('config/bot.ini')
-config.read('config/db.ini')
+config_path = os.path.dirname(os.path.dirname(__file__)) + '/config/' #we need this trick to get path to config folder
+config.read(config_path + 'settings.ini')
+config.read(config_path + 'bot.ini')
+config.read(config_path + 'db.ini')
 
 admin_log(f"Starting {__file__} in {config['BOT']['MODE']} mode at {os.uname()}")
 

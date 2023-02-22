@@ -4,8 +4,9 @@ import requests
 
 
 config = configparser.ConfigParser()
-config.read('config/settings.ini')
-config.read('config/bot.ini')
+config_path = os.path.dirname(os.path.dirname(__file__)) + '/config/' #we need this trick to get path to config folder
+config.read(config_path + 'settings.ini')
+config.read(config_path + 'bot.ini')
 
 def admin_log(text):
 
