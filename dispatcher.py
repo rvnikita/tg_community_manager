@@ -1,8 +1,8 @@
 from admin_log import admin_log
 import os
 import configparser
-from telegram import ForceReply, Update, Bot
-from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
+from telegram import Bot
+from telegram.ext import Application, MessageHandler, filters
 
 config = configparser.ConfigParser()
 config.read('config/settings.ini')
