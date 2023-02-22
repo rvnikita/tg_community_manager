@@ -27,7 +27,7 @@ async def tg_new_member(update, context):
     if delete_NEW_CHAT_MEMBERS_message == True:
         await bot.delete_message(update.message.chat.id,update.message.id)
 
-        admin_log(f"Joining message deleted from chat {update.message.chat.title} ({update.message.chat.id}) for user {update.message.from_user.username} ({update.message.from_user.id})
+        admin_log(f"Joining message deleted from chat {update.message.chat.title} ({update.message.chat.id}) for user {update.message.from_user.username} ({update.message.from_user.id})")
 
 async def wiretapping(update, context):
     #check if chat id is the same as in config
