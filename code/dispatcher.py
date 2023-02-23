@@ -32,12 +32,15 @@ async def tg_new_member(update, context):
 async def wiretapping(update, context):
     #check if chat id is the same as in config
     #TODO: we need to rewrite all this to support multiple chats. May be we should add chat_id to users table
-    if update.message.chat.id == int(config['BOT']['CHAT_ID']):
-        if len(update.message.new_chat_members) > 0: #user added
-            db_update_user(update.message.new_chat_members[0].id, update.message.new_chat_members[0].username, datetime.now())
-        else:
-            db_update_user(update.message.from_user.id, update.message.from_user.username, datetime.now())
-        #admin_log(f"{update.message.from_user.username} ({update.message.from_user.id}): {update.message.text}")
+    try:
+        if update.message.chat.id == int(config['BOT']['CHAT_ID']):
+            if len(update.message.new_chat_members) > 0: #user added
+                db_update_user(update.message.new_chat_members[0].id, update.message.new_chat_members[0].username, datetime.now())
+            else:
+                db_update_user(update.message.from_user.id, update.message.from_user.username, datetime.now())
+            #admin_log(f"{update.message.from_user.username} ({update.message.from_user.id}): {update.message.text}")
+    except Exception as e:
+        print(e)
 
 
 def db_update_user(user_id, username, last_message_datetime):
