@@ -58,7 +58,10 @@ async def status_update():
                 conn.close()
 
 async def main() -> None:
-    await status_update()
+    try:
+        await status_update()
+    except Exception as e:
+        admin_log(f"Error in file {__file__}: {e}")
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -72,20 +72,19 @@ def db_update_user(user_id, username, last_message_datetime):
 
 
 def main() -> None:
-    application = Application.builder().token(config['BOT']['KEY']).build()
+    try:
+        application = Application.builder().token(config['BOT']['KEY']).build()
 
-    #delete new member message
-    application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, tg_new_member))
+        #delete new member message
+        application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, tg_new_member))
 
-    #wiretapping
-    application.add_handler(MessageHandler(filters.TEXT, wiretapping))
-    application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, wiretapping))
+        #wiretapping
+        application.add_handler(MessageHandler(filters.TEXT, wiretapping))
+        application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, wiretapping))
 
-    # Start the Bot
-    application.run_polling()
-
+        # Start the Bot
+        application.run_polling()
+    except Exception as e:
+        admin_log(f"Error in file {__file__}: {e}")
 if __name__ == '__main__':
     main()
-
-#let's test how can we automate the deploy. We will push this to main first, then switch to to_heroku and merge and push.
-#we are in dev branch now
