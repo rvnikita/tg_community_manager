@@ -40,7 +40,7 @@ async def wiretapping(update, context):
                 db_update_user(update.message.from_user.id, update.message.from_user.username, datetime.now())
             #admin_log(f"{update.message.from_user.username} ({update.message.from_user.id}): {update.message.text}")
     except Exception as e:
-        admin_log(f"Error in wiretapping: {e}")
+        admin_log(f"Error in wiretapping: {e}\n{update.message}")
         print(e)
 
 
