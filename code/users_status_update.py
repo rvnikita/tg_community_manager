@@ -47,7 +47,7 @@ async def status_update():
                 print(user_update_sql)
                 cur.execute(user_update_sql)
                 conn.commit()
-                admin_log(f"User @{user_row['username']} ({user_row['id']}) status changed to {status}")
+                admin_log(f"User @{user_row['username']} ({user_row['id']}) status changed to {status}", critical=True)
 
         conn.commit()
         cur.close()
@@ -61,7 +61,7 @@ async def main() -> None:
     try:
         await status_update()
     except Exception as e:
-        admin_log(f"Error in file {__file__}: {e}")
+        admin_log(f"Error in file {__file__}: {e}", critical=True)
 
 if __name__ == "__main__":
     asyncio.run(main())

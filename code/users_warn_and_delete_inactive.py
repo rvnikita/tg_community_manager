@@ -82,7 +82,7 @@ async def main() -> None:
         await warn_inactive()
         await delete_inactive()
     except Exception as e:
-        admin_log(f"Error in {__file__}: {e}")
+        admin_log(f"Error in {__file__}: {e}", critical=True)
 
 if __name__ == "__main__":
     asyncio.run(main())

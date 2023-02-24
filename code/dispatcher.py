@@ -85,6 +85,6 @@ def main() -> None:
         # Start the Bot
         application.run_polling()
     except Exception as e:
-        admin_log(f"Error in file {__file__}: {e}")
+        admin_log(f"Error in file {__file__}: {e}", critical=True)
 if __name__ == '__main__':
     main()
