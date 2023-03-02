@@ -69,12 +69,17 @@ async def wiretapping(update, context):
 
             #check if response.choices[0].message.content contains "yes" without case sensitivity
             if "yes" in response.choices[0].message.content.lower():
-                admin_log("Question detected" + update.message.text, critical=False)
+                rows = openai_helper.get_nearest_vectors(update.message.text, 0)
 
-                rows = openai_helper.get_nearest_vectors(update.message.text)
+                admin_log("Question detected " + update.message.text, critical=False)
 
                 if len(rows) > 0:
-                    admin_log("Vectors detected" + rows, critical=False)
+                    admin_log("Vectors detected " + rows + rows[0][['similarity']], critical=False)
+
+                    #TODO this is a debug solution to skip questions with high similarity
+                    if rows[0]['similarity'] > config['OPENAI']['SIMILARITY_THRESHOLD']:
+                        admin_log("Skipp, similarity=" + rows + rows[0]['similarity'] + f" while threshold={config['OPENAI']['SIMILARITY_THRESHOLD']}", critical=False)
+                        return #skip this message
 
                     messages = [
                         {"role": "system",
