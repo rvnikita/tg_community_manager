@@ -69,9 +69,13 @@ async def wiretapping(update, context):
 
             #check if response.choices[0].message.content contains "yes" without case sensitivity
             if "yes" in response.choices[0].message.content.lower():
+                admin_log("Question detected" + update.message.text, critical=False)
+
                 rows = openai_helper.get_nearest_vectors(update.message.text)
 
                 if len(rows) > 0:
+                    admin_log("Vectors detected" + rows, critical=False)
+
                     messages = [
                         {"role": "system",
                          "content": f"Answer in one Russian message based on user question and embedding vectors. Do not mention embedding. Be applicable and short."},
