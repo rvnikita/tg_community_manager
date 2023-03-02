@@ -1,8 +1,11 @@
 from admin_log import admin_log
+import openai_helper
+
 import os
 import configparser
 from telegram import Bot
 from telegram.ext import Application, MessageHandler, filters
+import openai
 
 from datetime import datetime
 import psycopg2
@@ -11,6 +14,7 @@ config = configparser.ConfigParser()
 config_path = os.path.dirname(os.path.dirname(__file__)) + '/config/' #we need this trick to get path to config folder
 config.read(config_path + 'settings.ini')
 config.read(config_path + 'bot.ini')
+config.read(config_path + 'openai.ini')
 config.read(config_path + 'db.ini')
 
 admin_log(f"Starting {__file__} in {config['BOT']['MODE']} mode at {os.uname()}")
@@ -31,7 +35,7 @@ async def tg_new_member(update, context):
 
 async def wiretapping(update, context):
     #TODO: we need to rewrite all this to support multiple chats. May be we should add chat_id to users table
-    if update.message is None:
+    if update.message is not None:
         # check if chat id is the same as in config
         if update.message.chat.id == int(config['BOT']['CHAT_ID']):
             if len(update.message.new_chat_members) > 0: #user added
@@ -39,6 +43,56 @@ async def wiretapping(update, context):
             else:
                 db_update_user(update.message.from_user.id, update.message.from_user.username, datetime.now())
             #admin_log(f"{update.message.from_user.username} ({update.message.from_user.id}): {update.message.text}")
+
+        if update.message.chat.id == -1001588101140: #O1 chat  #debug_chat = -1001688952630
+            #TODO: we need to support multiple chats, settings in db etc
+
+            #Let's here check if we know an answer for a question and send it to user
+            openai.api_key = config['OPENAI']['KEY']
+
+            messages = [
+                {"role": "system",
+                 "content": f"Answer only yes or no"},
+                {"role": "user", "content": f"Is this a question: \"{update.message.text}\""}
+            ]
+
+            response = openai.ChatCompletion.create(
+                model=config['OPENAI']['COMPLETION_MODEL'],
+                messages=messages,
+                temperature=float(config['OPENAI']['TEMPERATURE']),
+                max_tokens=int(config['OPENAI']['MAX_TOKENS']),
+                top_p=1,
+                frequency_penalty=0,
+                presence_penalty=0
+            )
+
+            #check if response.choices[0].message.content contains "yes" without case sensitivity
+            if "yes" in response.choices[0].message.content.lower():
+                rows = openai_helper.get_nearest_vectors(update.message.text)
+
+                if len(rows) > 0:
+                    messages = [
+                        {"role": "system",
+                         "content": f"Answer in Russian based on user question and context vectors."},
+                        {"role": "user", "content": f"\"{update.message.text}\""}
+                    ]
+
+                    for i in range(len(rows)):
+                        messages.append({"role": "system", "content": f"Context Title {i}: {rows[i]['title']}\n Context Body {i}: {rows[i]['body']}"})
+
+                    response = openai.ChatCompletion.create(
+                        model=config['OPENAI']['COMPLETION_MODEL'],
+                        messages=messages,
+                        temperature=float(config['OPENAI']['TEMPERATURE']),
+                        max_tokens=int(config['OPENAI']['MAX_TOKENS']),
+                        top_p=1,
+                        frequency_penalty=0,
+                        presence_penalty=0
+                    )
+                    #print rows[0]['similarity'] value with 2 signs after dot
+                    await bot.send_message(update.message.chat.id, response.choices[0].message.content + f" ({rows[0]['similarity']:.2f})", reply_to_message_id=update.message.message_id)
+
+
 
 def db_update_user(user_id, username, last_message_datetime):
     #TODO: we need to relocate this function to another location
