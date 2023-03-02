@@ -74,11 +74,11 @@ async def wiretapping(update, context):
                 admin_log("Question detected " + update.message.text, critical=False)
 
                 if len(rows) > 0:
-                    admin_log("Vectors detected " + rows + rows[0][['similarity']], critical=False)
+                    admin_log("Vectors detected " + str(rows) + str(rows[0]['similarity']), critical=False)
 
                     #TODO this is a debug solution to skip questions with high similarity
-                    if rows[0]['similarity'] > config['OPENAI']['SIMILARITY_THRESHOLD']:
-                        admin_log("Skipp, similarity=" + rows + rows[0]['similarity'] + f" while threshold={config['OPENAI']['SIMILARITY_THRESHOLD']}", critical=False)
+                    if rows[0]['similarity'] < float(config['OPENAI']['SIMILARITY_THRESHOLD']):
+                        admin_log("Skip, similarity=" + str(rows[0]['similarity']) + f" while threshold={config['OPENAI']['SIMILARITY_THRESHOLD']}", critical=False)
                         return #skip this message
 
                     messages = [
