@@ -52,7 +52,7 @@ async def status_update():
         conn.commit()
         cur.close()
     except (Exception, psycopg2.DatabaseError) as error:
-        print(error)
+        admin_log(f"Error in file {__file__}: {error}", critical=True)
     finally:
         if conn is not None:
                 conn.close()

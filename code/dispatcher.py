@@ -65,7 +65,7 @@ def db_update_user(user_id, username, last_message_datetime):
         # close communication with the database
         cur.close()
     except (Exception, psycopg2.DatabaseError) as error:
-        print(error)
+        admin_log(f"Error in file {__file__}: {error}", critical=True)
     finally:
         if conn is not None:
             conn.close()

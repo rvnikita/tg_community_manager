@@ -40,7 +40,7 @@ async def warn_inactive():
         await bot.send_message(chat_id=config['BOT']['CHAT_ID'], text=warn_text)
 
     except (Exception, psycopg2.DatabaseError) as error:
-        print(error)
+        admin_log(f"Error in file {__file__}: {error}", critical=True)
     finally:
         if conn is not None:
                 conn.close()
@@ -68,10 +68,10 @@ async def delete_inactive():
                 await bot.kick_chat_member(config['BOT']['CHAT_ID'], row['id'])
                 admin_log(f"User @{row['username']} ({row['id']}) was kicked for inactivity")
             except (Exception, psycopg2.DatabaseError) as error:
-                print(error)
+                admin_log(f"Error in file {__file__}: {error}", critical=True)
 
     except (Exception, psycopg2.DatabaseError) as error:
-        print(error)
+        admin_log(f"Error in file {__file__}: {error}", critical=True)
     finally:
         if conn is not None:
             conn.close()
