@@ -37,7 +37,7 @@ def update_embeddings():
 
         #generate embeddings for all messages
         for row in rows:
-            embedding = openai_helper.generate_embedding(row['title'] + row['body'])
+            embedding = openai_helper.generate_embedding(row['title'])
             #write embedding to database
             sql = f"UPDATE qna SET embedding = '{embedding.data[0].embedding}' WHERE id = {row['id']}"
             cur.execute(sql)
