@@ -44,7 +44,8 @@ async def wiretapping(update, context):
                 db_update_user(update.message.from_user.id, update.message.from_user.username, datetime.now())
             #admin_log(f"{update.message.from_user.username} ({update.message.from_user.id}): {update.message.text}")
 
-        if update.message.chat.id == -1001588101140: #O1 chat  #debug_chat = -1001688952630
+        if update.message.chat.id == -1001588101140: #O1
+        # if update.message.chat.id == -1001688952630:  # debug
             #TODO: we need to support multiple chats, settings in db etc
 
             #Let's here check if we know an answer for a question and send it to user
@@ -73,12 +74,12 @@ async def wiretapping(update, context):
                 if len(rows) > 0:
                     messages = [
                         {"role": "system",
-                         "content": f"Answer in Russian based on user question and context vectors."},
+                         "content": f"Answer in one Russian message based on user question and embedding vectors. Do not mention embedding. Be applicable and short."},
                         {"role": "user", "content": f"\"{update.message.text}\""}
                     ]
 
                     for i in range(len(rows)):
-                        messages.append({"role": "system", "content": f"Context Title {i}: {rows[i]['title']}\n Context Body {i}: {rows[i]['body']}"})
+                        messages.append({"role": "system", "content": f"Embedding Title {i}: {rows[i]['title']}\n Embedding Body {i}: {rows[i]['body']}"})
 
                     response = openai.ChatCompletion.create(
                         model=config['OPENAI']['COMPLETION_MODEL'],
@@ -89,8 +90,11 @@ async def wiretapping(update, context):
                         frequency_penalty=0,
                         presence_penalty=0
                     )
-                    #print rows[0]['similarity'] value with 2 signs after dot
-                    await bot.send_message(update.message.chat.id, response.choices[0].message.content + f" ({rows[0]['similarity']:.2f})", reply_to_message_id=update.message.message_id)
+                    # await bot.send_message(update.message.chat.id, response.choices[0].message.content + f" ({rows[0]['similarity']:.2f})", reply_to_message_id=update.message.message_id)
+
+                    #resend update.message to admin
+                    await bot.forward_message(config['BOT']['ADMIN_ID'], update.message.chat.id, update.message.message_id)
+                    await bot.send_message(config['BOT']['ADMIN_ID'], response.choices[0].message.content + f" ({rows[0]['similarity']:.2f})", disable_web_page_preview=True)
 
 
 
