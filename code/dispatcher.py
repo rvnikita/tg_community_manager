@@ -99,7 +99,7 @@ async def wiretapping(update, context):
                         frequency_penalty=0,
                         presence_penalty=0
                     )
-                    # await bot.send_message(update.message.chat.id, response.choices[0].message.content + f" ({rows[0]['similarity']:.2f})", reply_to_message_id=update.message.message_id)
+                    await bot.send_message(update.message.chat.id, response.choices[0].message.content + f" ({rows[0]['similarity']:.2f})", reply_to_message_id=update.message.message_id)
 
                     #resend update.message to admin
                     await bot.forward_message(config['BOT']['ADMIN_ID'], update.message.chat.id, update.message.message_id)
