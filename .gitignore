@@ -7,4 +7,4 @@
 .env
 
 # Ignore files temp debug files
-!/code/temp.py
+/code/temp.py

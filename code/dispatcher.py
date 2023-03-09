@@ -1,5 +1,7 @@
 from admin_log import admin_log
 import openai_helper
+import config_helper
+import db_helper
 
 import os
 import configparser
@@ -33,17 +35,23 @@ async def tg_new_member(update, context):
 
         admin_log(f"Joining message deleted from chat {update.message.chat.title} ({update.message.chat.id}) for user {update.message.from_user.username} ({update.message.from_user.id})")
 
-async def tg_wiretapping(update, context):
+async def tg_update_user_status(update, context):
     #TODO: we need to rewrite all this to support multiple chats. May be we should add chat_id to users table
     if update.message is not None:
-        # check if chat id is the same as in config
-        if update.message.chat.id == int(config['BOT']['CHAT_ID']):
+        config = config_helper.get_config(update.message.chat.id)
+        if config == None:
+            admin_log(f"Skip: no config for chat {update.message.chat.id} ({update.message.chat.title})")
+            return
+
+        if config['update_user_status'] == True:
             if len(update.message.new_chat_members) > 0: #user added
-                db_update_user(update.message.new_chat_members[0].id, update.message.new_chat_members[0].username, datetime.now())
+                db_update_user(update.message.new_chat_members[0].id, update.message.chat.id,  update.message.new_chat_members[0].username, datetime.now())
             else:
-                db_update_user(update.message.from_user.id, update.message.from_user.username, datetime.now())
+                db_update_user(update.message.from_user.id, update.message.chat.id, update.message.from_user.username, datetime.now())
             #admin_log(f"{update.message.from_user.username} ({update.message.from_user.id}): {update.message.text}")
 
+
+        #TODO: we need to separate this part of the code to separate funciton tg_openai_autorespond
         if update.message.chat.id == -1001588101140: #O1
         # if update.message.chat.id == -1001688952630:  # debug
             #TODO: we need to support multiple chats, settings in db etc
@@ -107,29 +115,25 @@ async def tg_wiretapping(update, context):
 
 
 
-def db_update_user(user_id, username, last_message_datetime):
+def db_update_user(user_id, chat_id, username, last_message_datetime):
     #TODO: we need to relocate this function to another location
     conn = None
     try:
-        conn = psycopg2.connect(user=config['DB']['DB_USER'],
-                                password=config['DB']['DB_PASSWORD'],
-                                host=config['DB']['DB_HOST'],
-                                port=config['DB']['DB_PORT'],
-                                database=config['DB']['DB_DATABASE'])
+        conn = db_helper.connect()
 
         sql = f"""
-        UPDATE users SET username='{username}', last_message_datetime='{last_message_datetime}' WHERE id={user_id};
-        INSERT INTO users (id, username, last_message_datetime)
-               SELECT {user_id}, '{username}', '{last_message_datetime}'
-               WHERE NOT EXISTS (SELECT 1 FROM users WHERE id={user_id});
+        UPDATE users SET username = '{username}' WHERE id = {user_id};
+        INSERT INTO users (id, username)
+        SELECT {user_id}, '{username}' WHERE NOT EXISTS (SELECT 1 FROM users WHERE id={user_id});
+        
+        UPDATE users_status SET last_message_datetime = '{last_message_datetime}' WHERE user_id = {user_id} AND chat_id = {chat_id};
+        INSERT INTO users_status (user_id, chat_id,  last_message_datetime)
+        SELECT {user_id}, {chat_id}, '{last_message_datetime}' WHERE NOT EXISTS (SELECT 1 FROM users_status WHERE user_id={user_id} AND chat_id={chat_id});
         """
-        # create a new cursor
+
         cur = conn.cursor()
-        # execute the INSERT statement
         cur.execute(sql)
-        # commit the changes to the database
         conn.commit()
-        # close communication with the database
         cur.close()
     except (Exception, psycopg2.DatabaseError) as error:
         admin_log(f"Error in file {__file__}: {error}", critical=True)
@@ -146,8 +150,8 @@ def main() -> None:
         application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, tg_new_member))
 
         #wiretapping
-        application.add_handler(MessageHandler(filters.TEXT, tg_wiretapping))
-        application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, tg_wiretapping))
+        application.add_handler(MessageHandler(filters.TEXT & filters.ChatType.SUPERGROUP, tg_update_user_status)) #filters.ChatType.SUPERGROUP to get only chat messages
+        application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, tg_update_user_status))
 
         # Start the Bot
         application.run_polling()

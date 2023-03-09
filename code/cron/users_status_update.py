@@ -1,6 +1,8 @@
 import sys
 sys.path.insert(0, '../') # add parent directory to the path
 from admin_log import admin_log
+import db_helper
+
 import os
 import configparser
 import telegram
@@ -20,13 +22,10 @@ admin_log(f"Starting {__file__} in {config['BOT']['MODE']} mode at {os.uname()}"
 bot = telegram.Bot(token=config['BOT']['KEY'])
 
 async def status_update():
+    #FIXME: we need to rewrite this with new structure of users and user_status tables
     conn = None
     try:
-        conn = psycopg2.connect(user=config['DB']['DB_USER'],
-                                password=config['DB']['DB_PASSWORD'],
-                                host=config['DB']['DB_HOST'],
-                                port=config['DB']['DB_PORT'],
-                                database=config['DB']['DB_DATABASE'])
+        conn = db_helper.connect()
 
         sql = "SELECT * FROM users"
         cur = conn.cursor(cursor_factory = psycopg2.extras.RealDictCursor)

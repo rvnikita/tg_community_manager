@@ -1,4 +1,7 @@
 from admin_log import admin_log
+
+import psycopg2
+import psycopg2.extras
 import configparser
 import os
 
@@ -13,7 +16,7 @@ def connect():
                                 password=config['DB']['DB_PASSWORD'],
                                 host=config['DB']['DB_HOST'],
                                 port=config['DB']['DB_PORT'],
-                                database=config['DB']['DB_DATABASE'])
+                                database=config['DB']['DB_DATABASE'], cursor_factory=psycopg2.extras.RealDictCursor)
         return conn
     except (Exception, psycopg2.DatabaseError) as error:
         #write admin log mentioning file name and error
