@@ -33,7 +33,7 @@ async def tg_new_member(update, context):
 
         admin_log(f"Joining message deleted from chat {update.message.chat.title} ({update.message.chat.id}) for user {update.message.from_user.username} ({update.message.from_user.id})")
 
-async def wiretapping(update, context):
+async def tg_wiretapping(update, context):
     #TODO: we need to rewrite all this to support multiple chats. May be we should add chat_id to users table
     if update.message is not None:
         # check if chat id is the same as in config
@@ -146,8 +146,8 @@ def main() -> None:
         application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, tg_new_member))
 
         #wiretapping
-        application.add_handler(MessageHandler(filters.TEXT, wiretapping))
-        application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, wiretapping))
+        application.add_handler(MessageHandler(filters.TEXT, tg_wiretapping))
+        application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, tg_wiretapping))
 
         # Start the Bot
         application.run_polling()
