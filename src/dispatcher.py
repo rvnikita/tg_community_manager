@@ -21,6 +21,28 @@ bot = Bot(config['BOT']['KEY'])
 
 ########################
 
+async def tg_thankyou(update, context):
+    #category 0 - "thank you", 1 - "dislike"
+
+    #here we will check if message is a reply, it contains thank you (with Open AI) information and we can change karma of a user
+    if update.message is not None and update.message.reply_to_message is not None:
+        conn = db_helper.connect()
+
+        #get all words from db
+        sql = f"SELECT * FROM words WHERE chat_id = {update.message.chat.id}"
+        cur = conn.cursor()
+        cur.execute(sql)
+        rows = cur.fetchall()
+
+        for row in rows:
+            print(row)
+
+
+
+
+
+
+
 
 async def tg_new_member(update, context):
     
@@ -152,6 +174,9 @@ def main() -> None:
         #wiretapping
         application.add_handler(MessageHandler(filters.TEXT & filters.ChatType.SUPERGROUP, tg_update_user_status), group=2) #filters.ChatType.SUPERGROUP to get only chat messages
         application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, tg_update_user_status), group=2)
+
+        # checking if user says thank you.
+        application.add_handler(MessageHandler(filters.TEXT, tg_thankyou), group=2)
 
         # Start the Bot
         application.run_polling()
