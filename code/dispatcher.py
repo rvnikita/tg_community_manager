@@ -33,7 +33,7 @@ async def tg_new_member(update, context):
     if delete_NEW_CHAT_MEMBERS_message == True:
         await bot.delete_message(update.message.chat.id,update.message.id)
 
-        admin_log(f"Joining message deleted from chat {update.message.chat.title} ({update.message.chat.id}) for user {update.message.from_user.username} ({update.message.from_user.id})")
+        admin_log(f"Joining message deleted from chat {update.message.chat.title} ({update.message.chat.id}) for user @{update.message.from_user.username} ({update.message.from_user.id})")
 
 async def tg_update_user_status(update, context):
     #TODO: we need to rewrite all this to support multiple chats. May be we should add chat_id to users table
