@@ -9,6 +9,7 @@ import json
 def get_config(chat_id = None):
     try:
         #TODO: may be we should store config value in global variable and not call db every time?
+        #TODO: add default values + check if config does not exit save default values to db
 
         conn = db_helper.connect()
         cur = conn.cursor()
