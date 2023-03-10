@@ -21,6 +21,18 @@ def get_config(chat_id = None):
         if config is not None:
             return config['config_value']
         else:
+            #here we should create default config and paste in into db
+            #default value is stored in config table under chat_id = 0 row
+            sql = f"SELECT * FROM config WHERE chat_id = 0"
+            cur.execute(sql)
+            default_config = cur.fetchone()
+
+            if default_config is not None:
+                sql = f"INSERT INTO config (chat_id, config_value) VALUES ({chat_id}, '{default_config['config_value']}')"
+                cur.execute(sql)
+                conn.commit()
+                return default_config['config_value']
+
             return None
 
 
