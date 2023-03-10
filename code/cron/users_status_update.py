@@ -12,7 +12,7 @@ import psycopg2
 import psycopg2.extras
 
 config = configparser.ConfigParser()
-config_path = os.path.dirname(os.path.dirname(os.path.dirname(__file__))) + '/config/' #we need this trick to get path to config folder
+config_path = os.path.dirname(os.path.dirname(__file__)) + '/../config/' #we need this trick to get path to config folder
 config.read(config_path + 'settings.ini')
 config.read(config_path + 'bot.ini')
 config.read(config_path + 'db.ini')
@@ -35,20 +35,26 @@ async def status_update():
 
         for user_row in rows:
             print(user_row['id'])
-            try:
-                chat_member = await bot.get_chat_member(config['BOT']['CHAT_ID'], user_row['id'])
-                status = chat_member.status
-                is_bot = chat_member.user.is_bot
-            except (Exception, psycopg2.DatabaseError) as error:
-                status = str(error)
-                is_bot = 'NULL'
+            sql = f"SELECT * FROM users_status WHERE user_id = {user_row['id']}"
+            cur.execute(sql)
+            user_status_rows = cur.fetchall()
+            for user_status_row in user_status_rows:
+                try:
+                    print(f"chat_id={user_status_row['chat_id']}, user_id={user_row['id']}")
+                    chat_member = await bot.get_chat_member(user_status_row['chat_id'], user_row['id'])
+                    status = chat_member.status
+                    is_bot = chat_member.user.is_bot
+                except (Exception, psycopg2.DatabaseError) as error:
+                    admin_log(f"Error in file {__file__}: {error}", critical=True)
+                    status = str(error)
+                    is_bot = 'NULL'
 
-            if status != user_row['status']: #status has changed
-                user_update_sql = f"UPDATE users set status = '{status}', is_bot = {is_bot} WHERE id = {user_row['id']}"
-                print(user_update_sql)
-                cur.execute(user_update_sql)
-                conn.commit()
-                admin_log(f"User @{user_row['username']} ({user_row['id']}) status changed to {status}", critical=True)
+                if status != user_status_row['status']: #status has changed
+                    user_update_sql = f"UPDATE users_status set status = '{status}' WHERE user_id = {user_row['id']} AND chat_id = {user_status_row['chat_id']}"
+                    print(user_update_sql)
+                    cur.execute(user_update_sql)
+                    conn.commit()
+                    admin_log(f"User @{user_row['username']} ({user_row['id']}) in chat_id={user_status_row['chat_id']} status changed to {status}", critical=True)
 
         conn.commit()
         cur.close()
