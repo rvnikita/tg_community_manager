@@ -44,8 +44,8 @@ async def status_update():
                     chat_member = await bot.get_chat_member(user_status_row['chat_id'], user_row['id'])
                     status = chat_member.status
                     is_bot = chat_member.user.is_bot
-                except (Exception, psycopg2.DatabaseError) as error:
-                    admin_log(f"Error in file {__file__}: {error}", critical=True)
+                except Exception as error:
+                    # admin_log(f"Error in file {__file__}: {error}", critical=True)
                     status = str(error)
                     is_bot = 'NULL'
 

@@ -28,6 +28,10 @@ def get_config(chat_id = None):
             default_config = cur.fetchone()
 
             if default_config is not None:
+                #get name of the chat by id with telegram api
+
+
+
                 sql = f"INSERT INTO config (chat_id, config_value) VALUES ({chat_id}, '{json.dumps(default_config['config_value'])}')"
                 cur.execute(sql)
                 conn.commit()
