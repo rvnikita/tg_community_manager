@@ -119,7 +119,7 @@ def db_update_user(user_id, chat_id, username, last_message_datetime):
     #TODO: we need to relocate this function to another location
     conn = None
     try:
-        if len(chat_id) == 0:
+        if chat_id == None:
             admin_log(f"Debug: no chat_id for user {user_id} ({username}) last_message_datetime")
 
         conn = db_helper.connect()
