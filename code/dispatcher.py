@@ -38,12 +38,12 @@ async def tg_new_member(update, context):
 async def tg_update_user_status(update, context):
     #TODO: we need to rewrite all this to support multiple chats. May be we should add chat_id to users table
     if update.message is not None:
-        config = config_helper.get_config(update.message.chat.id)
-        if config == None:
+        config_update_user_status = config_helper.get_config(update.message.chat.id, "update_user_status")
+        if config_update_user_status == None:
             admin_log(f"Skip: no config for chat {update.message.chat.id} ({update.message.chat.title})")
             return
 
-        if config['update_user_status'] == True:
+        if config_update_user_status == True:
             if len(update.message.new_chat_members) > 0: #user added
                 db_update_user(update.message.new_chat_members[0].id, update.message.chat.id,  update.message.new_chat_members[0].username, datetime.now())
             else:

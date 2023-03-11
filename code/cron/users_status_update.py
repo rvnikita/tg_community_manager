@@ -90,8 +90,8 @@ async def status_update():
                         title = "Not found"
 
 
-                    config = config_helper.get_config(user_status_row['chat_id'])
-                    admin_log(f"User @{user_row['username']} ({user_row['id']}) in {title} ({user_status_row['chat_id']}) status changed to {status}", critical=config['update_user_status_critical'])
+                    config_update_user_status_critical = config_helper.get_config(user_status_row['chat_id'], "update_user_status_critical")
+                    admin_log(f"User @{user_row['username']} ({user_row['id']}) in {title} ({user_status_row['chat_id']}) status changed to {status}", critical=config_update_user_status_critical)
 
         conn.commit()
         cur.close()
