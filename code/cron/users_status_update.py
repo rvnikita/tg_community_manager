@@ -2,6 +2,7 @@ import sys
 sys.path.insert(0, '../') # add parent directory to the path
 from admin_log import admin_log
 import db_helper
+import config_helper
 
 import os
 import configparser
@@ -54,7 +55,16 @@ async def status_update():
                     print(user_update_sql)
                     cur.execute(user_update_sql)
                     conn.commit()
-                    admin_log(f"User @{user_row['username']} ({user_row['id']}) in chat_id={user_status_row['chat_id']} status changed to {status}", critical=True)
+
+                    try:
+                        chat = await bot.get_chat(user_status_row['chat_id'])
+                        title = chat.title
+                    except Exception as error:
+                        title = "Not found"
+
+
+                    config = config_helper.get_config(user_status_row['chat_id'])
+                    admin_log(f"User @{user_row['username']} ({user_row['id']}) in {title} ({user_status_row['chat_id']}) status changed to {status}", critical=config['update_user_status_critical'])
 
         conn.commit()
         cur.close()
