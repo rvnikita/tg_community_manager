@@ -6,7 +6,7 @@ import configparser
 import os
 import json
 
-def get_config(chat_id = None):
+async def get_config(chat_id = None):
     try:
         #TODO: may be we should store config value in global variable and not call db every time?
         #TODO: add default values + check if config does not exit save default values to db
@@ -28,11 +28,7 @@ def get_config(chat_id = None):
             default_config = cur.fetchone()
 
             if default_config is not None:
-                #get name of the chat by id with telegram api
-
-
-
-                sql = f"INSERT INTO config (chat_id, config_value) VALUES ({chat_id}, '{json.dumps(default_config['config_value'])}')"
+                sql = f"INSERT INTO config (chat_id, config_value, chat_name) VALUES ({chat_id}, '{json.dumps(default_config['config_value'])}', NULL)"
                 cur.execute(sql)
                 conn.commit()
                 return default_config['config_value']
