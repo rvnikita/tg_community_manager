@@ -46,7 +46,18 @@ def get_config(chat_id = None, config_param = None):
         if config_row is not None: #we have info in DB
             #check if config_param is not None, then we need to return only one value, elsewise return all config
             if config_param is not None:
-                return config_row['config_value'][config_param] #return only specific value
+
+                #check if config_param in config_row['config_value'] if not we need to update config adding value from default config
+                if config_param in config_row['config_value']:
+                    return config_row['config_value'][config_param] #return only specific value
+                else: #we don't have config_param in config_row['config_value'] so we need to update config with default value
+                    default_config_param_value = get_default_config(config_param)
+                    if default_config_param_value is not None:
+                        config_row['config_value'][config_param] = default_config_param_value
+                        sql = f"UPDATE config SET config_value = '{json.dumps(config_row['config_value'])}' WHERE chat_id = {chat_id}"
+                        cur.execute(sql)
+                        conn.commit()
+                        return default_config_param_value
             else:
                 return config_row['config_value'] #return all config from JSON
         else: #we don't have info in DB so we return default config and create new row in DB
