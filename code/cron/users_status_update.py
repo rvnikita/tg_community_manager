@@ -22,6 +22,33 @@ admin_log(f"Starting {__file__} in {config['BOT']['MODE']} mode at {os.uname()}"
 
 bot = telegram.Bot(token=config['BOT']['KEY'])
 
+async def chat_name_update():
+    conn = None
+    try:
+        conn = db_helper.connect()
+        sql = "SELECT * FROM config where chat_name = ''"
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute(sql)
+
+        rows = cur.fetchall()
+
+        for row in rows:
+            try:
+                chat = await bot.get_chat(row['chat_id'])
+                title = chat.title
+            except Exception as error:
+                title = error
+
+            try:
+                update_sql = f"UPDATE config set chat_name = '{title}' WHERE chat_id = {row['chat_id']}"
+                cur.execute(update_sql)
+                conn.commit()
+            except (Exception, psycopg2.DatabaseError) as error:
+                admin_log(f"Error in file {__file__}: {error}", critical=True)
+    except (Exception, psycopg2.DatabaseError) as error:
+        admin_log(f"Error in file {__file__}: {error}", critical=True)
+
+
 async def status_update():
     #FIXME: we need to rewrite this with new structure of users and user_status tables
     conn = None
@@ -76,6 +103,7 @@ async def status_update():
 
 async def main() -> None:
     try:
+        await chat_name_update()
         await status_update()
     except Exception as e:
         admin_log(f"Error in file {__file__}: {e}", critical=True)
