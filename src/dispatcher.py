@@ -176,7 +176,7 @@ def main() -> None:
         application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, tg_update_user_status), group=2)
 
         # checking if user says thank you.
-        application.add_handler(MessageHandler(filters.TEXT, tg_thankyou), group=2)
+        application.add_handler(MessageHandler(filters.TEXT, tg_thankyou), group=3)
 
         # Start the Bot
         application.run_polling()
