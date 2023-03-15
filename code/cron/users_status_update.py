@@ -26,7 +26,7 @@ async def chat_name_update():
     conn = None
     try:
         conn = db_helper.connect()
-        sql = "SELECT * FROM config where chat_name = ''"
+        sql = "SELECT * FROM config where chat_name = '' or chat_name is NULL"
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         cur.execute(sql)
 
