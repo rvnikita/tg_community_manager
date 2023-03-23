@@ -1,15 +1,11 @@
 import openai
-import os
-import configparser
 from admin_log import admin_log
+import config_helper
 
 import psycopg2
 import psycopg2.extras
 
-config = configparser.ConfigParser()
-config_path = os.path.dirname(__file__) + '/../config/' #we need this trick to get path to config folder
-config.read(config_path + 'openai.ini')
-config.read(config_path + 'db.ini')
+config = config_helper.get_config()
 
 openai.api_key = config['OPENAI']['KEY']
 

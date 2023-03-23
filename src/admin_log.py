@@ -1,13 +1,8 @@
-import os
-import configparser
+import config_helper
+
 import requests
 
-
-config = configparser.ConfigParser()
-config_path = os.path.dirname(__file__) + '/../config/' #we need this trick to get path to config folder
-print(config_path)
-config.read(config_path + 'settings.ini')
-config.read(config_path + 'bot.ini')
+config = config_helper.get_config()
 
 def admin_log(text, critical = False):
     if critical == True:

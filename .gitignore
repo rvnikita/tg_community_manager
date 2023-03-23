@@ -4,7 +4,7 @@
 
 
 # Ignore files related to API keys
-.env
+/config/.env
 
 # Ignore files temp debug files
-/code/temp.py
+/src/temp.py

@@ -1,7 +1,8 @@
 from admin_log import admin_log
 import openai_helper
-import config_helper
+import chat_helper
 import db_helper
+import config_helper
 
 import os
 import configparser
@@ -12,12 +13,7 @@ import openai
 from datetime import datetime
 import psycopg2
 
-config = configparser.ConfigParser()
-config_path = os.path.dirname(os.path.dirname(__file__)) + '/config/' #we need this trick to get path to config folder
-config.read(config_path + 'settings.ini')
-config.read(config_path + 'bot.ini')
-config.read(config_path + 'openai.ini')
-config.read(config_path + 'db.ini')
+config = config_helper.get_config()
 
 admin_log(f"Starting {__file__} in {config['BOT']['MODE']} mode at {os.uname()}")
 
@@ -38,7 +34,7 @@ async def tg_new_member(update, context):
 async def tg_update_user_status(update, context):
     #TODO: we need to rewrite all this to support multiple chats. May be we should add chat_id to users table
     if update.message is not None:
-        config_update_user_status = config_helper.get_config(update.message.chat.id, "update_user_status")
+        config_update_user_status = chat_helper.get_config(update.message.chat.id, "update_user_status")
         if config_update_user_status == None:
             admin_log(f"Skip: no config for chat {update.message.chat.id} ({update.message.chat.title})")
             return

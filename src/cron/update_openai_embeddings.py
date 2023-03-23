@@ -2,19 +2,15 @@ import sys
 sys.path.insert(0, '../') # add parent directory to the path
 from admin_log import admin_log
 import openai_helper
+import config_helper
 
 import openai
-import os
-import configparser
 import psycopg2.extras
 
 from datetime import datetime
 import psycopg2
 
-config = configparser.ConfigParser()
-config_path = os.path.dirname(os.path.dirname(__file__)) + '/../config/' #we need this trick to get path to config folder
-config.read(config_path + 'openai.ini')
-config.read(config_path + 'db.ini')
+config = config_helper.get_config()
 
 openai.api_key = config['OPENAI']['KEY']
 

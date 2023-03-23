@@ -2,21 +2,17 @@ import sys
 sys.path.insert(0, '../') # add parent directory to the path
 from admin_log import admin_log
 import db_helper
+import chat_helper
 import config_helper
 
 import os
-import configparser
 import telegram
 
 import asyncio
 import psycopg2
 import psycopg2.extras
 
-config = configparser.ConfigParser()
-config_path = os.path.dirname(os.path.dirname(__file__)) + '/../config/' #we need this trick to get path to config folder
-config.read(config_path + 'settings.ini')
-config.read(config_path + 'bot.ini')
-config.read(config_path + 'db.ini')
+config = config_helper.get_config()
 
 admin_log(f"Starting {__file__} in {config['BOT']['MODE']} mode at {os.uname()}")
 
@@ -90,7 +86,7 @@ async def status_update():
                         title = "Not found"
 
 
-                    config_update_user_status_critical = config_helper.get_config(user_status_row['chat_id'], "update_user_status_critical")
+                    config_update_user_status_critical = chat_helper.get_config(user_status_row['chat_id'], "update_user_status_critical")
                     #TODO:MED: add "ban and delete" button in log
                     admin_log(f"User @{user_row['username']} ({user_row['id']}) in {title} ({user_status_row['chat_id']}) status changed to {status}", critical=config_update_user_status_critical)
 

@@ -1,15 +1,12 @@
 from admin_log import admin_log
+import config_helper
 
 import psycopg2
 import psycopg2.extras
-import configparser
 import os
 import inspect #we need this to get current file name path
 
-config = configparser.ConfigParser()
-config_path = (os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))) + '/../config/' # script filename (usually with path)
-# config_path = os.path.dirname(os.path.dirname(__file__)) + '/../../config/' #we need this trick to get path to config folder
-config.read(config_path + 'db.ini')
+config = config_helper.get_config()
 
 def connect():
     conn = None

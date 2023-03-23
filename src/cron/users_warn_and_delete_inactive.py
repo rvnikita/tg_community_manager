@@ -1,19 +1,17 @@
 import sys
 sys.path.insert(0, '../') # add parent directory to the path
 from admin_log import admin_log
+import config_helper
+
 import os
-import configparser
 import telegram
 
 import asyncio
 import psycopg2
 import psycopg2.extras
 
-config = configparser.ConfigParser()
-config_path = os.path.dirname(os.path.dirname(os.path.dirname(__file__))) + '/config/' #we need this trick to get path to config folder
-config.read(config_path + 'settings.ini')
-config.read(config_path + 'bot.ini')
-config.read(config_path + 'db.ini')
+config = config_helper.get_config()
+
 
 admin_log(f"Starting {__file__} in {config['BOT']['MODE']} mode at {os.uname()}")
 
