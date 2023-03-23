@@ -1,1 +1,1 @@
-dispatcher: python3 code/dispatcher.py
+dispatcher: python3 src/dispatcher.py
