@@ -6,7 +6,7 @@ import configparser
 import os
 import json
 
-def get_default_config(config_param = None):
+def get_default_chat(config_param = None):
     try:
         conn = db_helper.connect()
         cur = conn.cursor()
@@ -31,7 +31,7 @@ def get_default_config(config_param = None):
         admin_log(f"Error in {__file__}: {e}", critical=True)
         return None
 
-def get_config(chat_id = None, config_param = None):
+def get_chat(chat_id = None, config_param = None):
     try:
         #TODO: may be we should store config value in global variable and not call db every time?
         #TODO: add default values + check if config does not exit save default values to db
@@ -51,7 +51,7 @@ def get_config(chat_id = None, config_param = None):
                 if config_param in config_row['config_value']:
                     return config_row['config_value'][config_param] #return only specific value
                 else: #we don't have config_param in config_row['config_value'] so we need to update config with default value
-                    default_config_param_value = get_default_config(config_param)
+                    default_config_param_value = get_default_chat(config_param)
                     if default_config_param_value is not None:
                         config_row['config_value'][config_param] = default_config_param_value
                         sql = f"UPDATE chat SET config_value = '{json.dumps(config_row['config_value'])}' WHERE chat_id = {chat_id}"
@@ -65,14 +65,14 @@ def get_config(chat_id = None, config_param = None):
             #default value is stored in config table under chat_id = 0 row
 
 
-            default_full_config = get_default_config()
+            default_full_config = get_default_chat()
             if default_full_config is not None: #we have default config
                 sql = f"INSERT INTO config (chat_id, config_value, chat_name) VALUES ({chat_id}, '{json.dumps(default_full_config)}', NULL)"
                 cur.execute(sql)
                 conn.commit()
 
             if config_param is not None:
-                default_config = get_default_config(config_param)
+                default_config = get_default_chat(config_param)
                 if default_config is not None:
                     return default_config
                 else: #we don't have config_param in default config

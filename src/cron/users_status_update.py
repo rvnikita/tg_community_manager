@@ -86,7 +86,7 @@ async def status_update():
                         title = "Not found"
 
 
-                    config_update_user_status_critical = chat_helper.get_config(user_status_row['chat_id'], "update_user_status_critical")
+                    config_update_user_status_critical = chat_helper.get_chat(user_status_row['chat_id'], "update_user_status_critical")
                     #TODO:MED: add "ban and delete" button in log
                     admin_log(f"User @{user_row['username']} ({user_row['id']}) in {title} ({user_status_row['chat_id']}) status changed to {status}", critical=config_update_user_status_critical)
 
