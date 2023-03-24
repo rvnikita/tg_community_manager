@@ -24,25 +24,34 @@ bot = Bot(config['BOT']['KEY'])
 async def tg_thankyou(update, context):
     #category 0 - "thank you", 1 - "dislike"
 
-    #here we will check if message is a reply, it contains thank you (with Open AI) information and we can change karma of a user
-    if update.message is not None and update.message.reply_to_message is not None:
-        conn = db_helper.connect()
+    if update.message is not None \
+            and update.message.reply_to_message is not None \
+            and update.message.reply_to_message.from_user.id != update.message.from_user.id:
+        thankyou_words = db_helper.session.query(db_helper.Words).filter(db_helper.Words.chat_id == update.message.chat.id, db_helper.Words.category == 0).all()
 
-        #get all words from db
-        sql = f"SELECT * FROM words WHERE chat_id = {update.message.chat.id}"
-        cur = conn.cursor()
-        cur.execute(sql)
-        rows = cur.fetchall()
+        for word in thankyou_words:
+             #check without case if word in update message
+            if word.word.lower() in update.message.text.lower():
+                user = db_helper.session.query(db_helper.User).filter(db_helper.User.id == update.message.reply_to_message.from_user.id).first()
 
-        for row in rows:
-            print(row)
+                user_status = db_helper.session.query(db_helper.User_Status).filter(db_helper.User_Status.chat_id == update.message.chat.id, db_helper.User_Status.user_id == update.message.reply_to_message.from_user.id).first()
+                user_status.rating += 1
 
-
-
-
+                db_helper.session.commit()
 
 
+                judge = db_helper.session.query(db_helper.User).filter(db_helper.User.id == update.message.from_user.id).first()
+                judge_status = db_helper.session.query(db_helper.User_Status).filter(db_helper.User_Status.chat_id == update.message.chat.id, db_helper.User_Status.user_id == update.message.from_user.id).first()
 
+                text_to_send = f"{judge.name} ({int(judge_status.rating)}) increased reputation of {user.name} ({user_status.rating})"
+                await bot.send_message(chat_id=update.message.chat.id, text=text_to_send, reply_to_message_id=update.message.message_id)
+                admin_log(text_to_send + f" in chat {update.message.chat.id} ({update.message.chat.title})", critical=False)
+
+                db_helper.session.close()
+
+                return
+    else:
+        pass
 
 async def tg_new_member(update, context):
     

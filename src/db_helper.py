@@ -86,6 +86,7 @@ class User_Status(Base):
     chat_id = Column(BigInteger)
     last_message_datetime = Column(DateTime(True))
     status = Column(String)
+    rating = Column(Integer, default=0)
 
 
 class Words(Base):
@@ -97,7 +98,7 @@ class Words(Base):
     chat_id = Column(BigInteger, nullable=False)
     word = Column(String, nullable=False)
     created_at = Column(DateTime(True), server_default=text('now()'))
-    category = Column(BigInteger)
+    category = Column(BigInteger, default=0)
     embedding = Column(NullType)
 
 #connect to postgresql
