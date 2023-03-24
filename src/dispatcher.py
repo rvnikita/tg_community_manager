@@ -33,15 +33,33 @@ async def tg_thankyou(update, context):
              #check without case if word in update message
             if word.word.lower() in update.message.text.lower():
                 user = db_helper.session.query(db_helper.User).filter(db_helper.User.id == update.message.reply_to_message.from_user.id).first()
+                if user is None:
+                    user = db_helper.User(id=update.message.reply_to_message.from_user.id, name=update.message.reply_to_message.from_user.first_name)
+                    db_helper.session.add(user)
+                    db_helper.session.commit()
 
                 user_status = db_helper.session.query(db_helper.User_Status).filter(db_helper.User_Status.chat_id == update.message.chat.id, db_helper.User_Status.user_id == update.message.reply_to_message.from_user.id).first()
+                if user_status is None:
+                    user_status = db_helper.User_Status(chat_id=update.message.chat.id, user_id=update.message.reply_to_message.from_user.id, rating=0)
+                    db_helper.session.add(user_status)
+                    db_helper.session.commit()
+
                 user_status.rating += 1
 
                 db_helper.session.commit()
 
 
                 judge = db_helper.session.query(db_helper.User).filter(db_helper.User.id == update.message.from_user.id).first()
+                if judge is None:
+                    judge = db_helper.User(id=update.message.from_user.id, name=update.message.from_user.first_name)
+                    db_helper.session.add(judge)
+                    db_helper.session.commit()
+
                 judge_status = db_helper.session.query(db_helper.User_Status).filter(db_helper.User_Status.chat_id == update.message.chat.id, db_helper.User_Status.user_id == update.message.from_user.id).first()
+                if judge_status is None:
+                    judge_status = db_helper.User_Status(chat_id=update.message.chat.id, user_id=update.message.from_user.id, rating=0)
+                    db_helper.session.add(judge_status)
+                    db_helper.session.commit()
 
                 text_to_send = f"{judge.name} ({int(judge_status.rating)}) increased reputation of {user.name} ({user_status.rating})"
                 await bot.send_message(chat_id=update.message.chat.id, text=text_to_send, reply_to_message_id=update.message.message_id)
