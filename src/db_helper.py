@@ -31,15 +31,15 @@ def connect():
 Base = declarative_base()
 
 
-class Config(Base):
-    __tablename__ = 'config'
+class Chat(Base):
+    __tablename__ = 'chat'
     __table_args__ = (
-        PrimaryKeyConstraint('id', name='config_pkey'),
+        PrimaryKeyConstraint('id', name='chat_pkey'),
     )
 
     id = Column(BigInteger, Identity(start=1, increment=1, minvalue=1, maxvalue=9223372036854775807, cycle=False, cache=1))
     chat_id = Column(BigInteger, nullable=False)
-    config_value = Column(JSON, nullable=False)
+    config = Column(JSON, nullable=False)
     created_at = Column(DateTime(True), server_default=text('now()'))
     chat_name = Column(String, server_default=text("''::character varying"))
 
@@ -57,10 +57,10 @@ class Qna(Base):
     embedding = Column(NullType)
 
 
-class Users(Base):
-    __tablename__ = 'users'
+class User(Base):
+    __tablename__ = 'user'
     __table_args__ = (
-        PrimaryKeyConstraint('id', name='users_pkey'),
+        PrimaryKeyConstraint('id', name='user_pkey'),
     )
 
     id = Column(BigInteger)
@@ -72,10 +72,10 @@ class Users(Base):
     is_anonymous = Column(Boolean)
 
 
-class UsersStatus(Base):
-    __tablename__ = 'users_status'
+class UserStatus(Base):
+    __tablename__ = 'user_status'
     __table_args__ = (
-        PrimaryKeyConstraint('id', name='users_status_pkey'),
+        PrimaryKeyConstraint('id', name='user_status_pkey'),
         UniqueConstraint('user_id', 'chat_id', name='unique_cols')
     )
 

@@ -32,7 +32,7 @@ async def tg_new_member(update, context):
         admin_log(f"Joining message deleted from chat {update.message.chat.title} ({update.message.chat.id}) for user @{update.message.from_user.username} ({update.message.from_user.id})")
 
 async def tg_update_user_status(update, context):
-    #TODO: we need to rewrite all this to support multiple chats. May be we should add chat_id to users table
+    #TODO: we need to rewrite all this to support multiple chats. May be we should add chat_id to user table
     if update.message is not None:
         config_update_user_status = chat_helper.get_config(update.message.chat.id, "update_user_status")
         if config_update_user_status == None:
@@ -113,32 +113,61 @@ async def tg_update_user_status(update, context):
 
 def db_update_user(user_id, chat_id, username, last_message_datetime):
     #TODO: we need to relocate this function to another location
-    conn = None
     try:
-        if chat_id == None:
+        if chat_id is None:
             admin_log(f"Debug: no chat_id for user {user_id} ({username}) last_message_datetime")
 
-        conn = db_helper.connect()
+        # Update or insert user
+        user = db_helper.session.query(db_helper.User).filter_by(id=user_id).first()
+        if user:
+            user.username = username
+        else:
+            user = db_helper.User(id=user_id, username=username)
+            db_helper.session.add(user)
 
-        sql = f"""
-        UPDATE users SET username = '{username}' WHERE id = {user_id};
-        INSERT INTO users (id, username)
-        SELECT {user_id}, '{username}' WHERE NOT EXISTS (SELECT 1 FROM users WHERE id={user_id});
-        
-        UPDATE users_status SET last_message_datetime = '{last_message_datetime}' WHERE user_id = {user_id} AND chat_id = {chat_id};
-        INSERT INTO users_status (user_id, chat_id,  last_message_datetime)
-        SELECT {user_id}, {chat_id}, '{last_message_datetime}' WHERE NOT EXISTS (SELECT 1 FROM users_status WHERE user_id={user_id} AND chat_id={chat_id});
-        """
+        # Update or insert user status
+        user_status = db_helper.session.query(db_helper.UserStatus).filter_by(user_id=user_id, chat_id=chat_id).first()
+        if user_status:
+            user_status.last_message_datetime = last_message_datetime
+        else:
+            user_status = db_helper.UserStatus(user_id=user_id, chat_id=chat_id, last_message_datetime=last_message_datetime)
+            db_helper.session.add(user_status)
 
-        cur = conn.cursor()
-        cur.execute(sql)
-        conn.commit()
-        cur.close()
-    except (Exception, psycopg2.DatabaseError) as error:
+        db_helper.session.commit()
+
+    except Exception as error:
         admin_log(f"Error in file {__file__}: {error}", critical=True)
+        db_helper.session.rollback()
     finally:
-        if conn is not None:
-            conn.close()
+        db_helper.session.close()
+
+
+    # conn = None
+    # try:
+    #     if chat_id == None:
+    #         admin_log(f"Debug: no chat_id for user {user_id} ({username}) last_message_datetime")
+    #
+    #     conn = db_helper.connect()
+    #
+    #     sql = f"""
+    #     UPDATE user SET username = '{username}' WHERE id = {user_id};
+    #     INSERT INTO user (id, username)
+    #     SELECT {user_id}, '{username}' WHERE NOT EXISTS (SELECT 1 FROM user WHERE id={user_id});
+    #
+    #     UPDATE user_status SET last_message_datetime = '{last_message_datetime}' WHERE user_id = {user_id} AND chat_id = {chat_id};
+    #     INSERT INTO user_status (user_id, chat_id,  last_message_datetime)
+    #     SELECT {user_id}, {chat_id}, '{last_message_datetime}' WHERE NOT EXISTS (SELECT 1 FROM user_status WHERE user_id={user_id} AND chat_id={chat_id});
+    #     """
+    #
+    #     cur = conn.cursor()
+    #     cur.execute(sql)
+    #     conn.commit()
+    #     cur.close()
+    # except (Exception, psycopg2.DatabaseError) as error:
+    #     admin_log(f"Error in file {__file__}: {error}", critical=True)
+    # finally:
+    #     if conn is not None:
+    #         conn.close()
 
 
 def main() -> None:

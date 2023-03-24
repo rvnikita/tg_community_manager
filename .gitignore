@@ -8,3 +8,7 @@
 
 # Ignore files temp debug files
 /src/temp.py
+
+# Ignore files related to the Alembic database migrations
+/alembic/
+alembic.ini

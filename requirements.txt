@@ -5,3 +5,4 @@ configparser
 openai
 numpy
 sqlalchemy
+alembic

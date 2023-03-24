@@ -11,19 +11,19 @@ def get_default_config(config_param = None):
         conn = db_helper.connect()
         cur = conn.cursor()
 
-        sql = f"SELECT * FROM config WHERE chat_id = 0"
+        sql = f"SELECT * FROM chat WHERE chat_id = 0"
         cur.execute(sql)
-        config_row = cur.fetchone()
+        chat_row = cur.fetchone()
 
-        if config_row is not None: #we have info in DB
+        if chat_row is not None: #we have info in DB
             #check if config_param is not None, then we need to return only one value, elsewise return all config
             if config_param is not None:
-                if config_param in config_row['config_value']:
-                    return config_row['config_value'][config_param] #return only specific value
+                if config_param in chat_row['config_value']:
+                    return chat_row['config_value'][config_param] #return only specific value
                 else:
                     return None
             else:
-                return config_row['config_value'] #return all config from JSON
+                return chat_row['config_value'] #return all config from JSON
         else:
             return None
 
@@ -39,7 +39,7 @@ def get_config(chat_id = None, config_param = None):
         conn = db_helper.connect()
         cur = conn.cursor()
 
-        sql = f"SELECT * FROM config WHERE chat_id = {chat_id}"
+        sql = f"SELECT * FROM chat WHERE chat_id = {chat_id}"
         cur.execute(sql)
         config_row = cur.fetchone()
 
@@ -54,7 +54,7 @@ def get_config(chat_id = None, config_param = None):
                     default_config_param_value = get_default_config(config_param)
                     if default_config_param_value is not None:
                         config_row['config_value'][config_param] = default_config_param_value
-                        sql = f"UPDATE config SET config_value = '{json.dumps(config_row['config_value'])}' WHERE chat_id = {chat_id}"
+                        sql = f"UPDATE chat SET config_value = '{json.dumps(config_row['config_value'])}' WHERE chat_id = {chat_id}"
                         cur.execute(sql)
                         conn.commit()
                         return default_config_param_value
