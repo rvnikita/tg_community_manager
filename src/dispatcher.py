@@ -142,34 +142,6 @@ def db_update_user(user_id, chat_id, username, last_message_datetime):
         db_helper.session.close()
 
 
-    # conn = None
-    # try:
-    #     if chat_id == None:
-    #         admin_log(f"Debug: no chat_id for user {user_id} ({username}) last_message_datetime")
-    #
-    #     conn = db_helper.connect()
-    #
-    #     sql = f"""
-    #     UPDATE user SET username = '{username}' WHERE id = {user_id};
-    #     INSERT INTO user (id, username)
-    #     SELECT {user_id}, '{username}' WHERE NOT EXISTS (SELECT 1 FROM user WHERE id={user_id});
-    #
-    #     UPDATE user_status SET last_message_datetime = '{last_message_datetime}' WHERE user_id = {user_id} AND chat_id = {chat_id};
-    #     INSERT INTO user_status (user_id, chat_id,  last_message_datetime)
-    #     SELECT {user_id}, {chat_id}, '{last_message_datetime}' WHERE NOT EXISTS (SELECT 1 FROM user_status WHERE user_id={user_id} AND chat_id={chat_id});
-    #     """
-    #
-    #     cur = conn.cursor()
-    #     cur.execute(sql)
-    #     conn.commit()
-    #     cur.close()
-    # except (Exception, psycopg2.DatabaseError) as error:
-    #     admin_log(f"Error in file {__file__}: {error}", critical=True)
-    # finally:
-    #     if conn is not None:
-    #         conn.close()
-
-
 def main() -> None:
     try:
         application = Application.builder().token(config['BOT']['KEY']).build()
