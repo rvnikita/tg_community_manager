@@ -1,7 +1,7 @@
 import sys
 sys.path.insert(0, '../') # add parent directory to the path
-from admin_log import admin_log
-import config_helper
+from src.admin_log import admin_log
+import src.config_helper as config_helper
 
 import os
 import telegram

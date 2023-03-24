@@ -1,5 +1,5 @@
-from admin_log import admin_log
-import db_helper
+from src.admin_log import admin_log
+import src.db_helper
 
 import psycopg2
 import configparser

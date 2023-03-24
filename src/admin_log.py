@@ -1,4 +1,4 @@
-import config_helper
+import src.config_helper as config_helper
 
 import requests
 

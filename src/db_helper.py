@@ -1,5 +1,9 @@
-from admin_log import admin_log
-import config_helper
+from src.admin_log import admin_log
+import src.config_helper as config_helper
+
+from sqlalchemy import create_engine, BigInteger, Boolean, Column, DateTime, Identity, Integer, JSON, PrimaryKeyConstraint, String, Text, UniqueConstraint, text
+from sqlalchemy.orm import declarative_base, Session
+from sqlalchemy.sql.sqltypes import NullType
 
 import psycopg2
 import psycopg2.extras
@@ -22,3 +26,81 @@ def connect():
         admin_log(f"Error in {__file__}: while connecting to PostgreSQL: {error}", critical=True)
 
         return None
+
+
+Base = declarative_base()
+
+
+class Config(Base):
+    __tablename__ = 'config'
+    __table_args__ = (
+        PrimaryKeyConstraint('id', name='config_pkey'),
+    )
+
+    id = Column(BigInteger, Identity(start=1, increment=1, minvalue=1, maxvalue=9223372036854775807, cycle=False, cache=1))
+    chat_id = Column(BigInteger, nullable=False)
+    config_value = Column(JSON, nullable=False)
+    created_at = Column(DateTime(True), server_default=text('now()'))
+    chat_name = Column(String, server_default=text("''::character varying"))
+
+
+class Qna(Base):
+    __tablename__ = 'qna'
+    __table_args__ = (
+        PrimaryKeyConstraint('id', name='qna_pkey'),
+    )
+
+    id = Column(Integer)
+    title = Column(Text, nullable=False)
+    body = Column(Text, nullable=False)
+    created_at = Column(DateTime, server_default=text('now()'))
+    embedding = Column(NullType)
+
+
+class Users(Base):
+    __tablename__ = 'users'
+    __table_args__ = (
+        PrimaryKeyConstraint('id', name='users_pkey'),
+    )
+
+    id = Column(BigInteger)
+    username = Column(String)
+    last_message_datetime = Column(DateTime(True))
+    name = Column(String)
+    status = Column(String)
+    is_bot = Column(Boolean)
+    is_anonymous = Column(Boolean)
+
+
+class UsersStatus(Base):
+    __tablename__ = 'users_status'
+    __table_args__ = (
+        PrimaryKeyConstraint('id', name='users_status_pkey'),
+        UniqueConstraint('user_id', 'chat_id', name='unique_cols')
+    )
+
+    id = Column(BigInteger, Identity(start=1, increment=1, minvalue=1, maxvalue=9223372036854775807, cycle=False, cache=1))
+    user_id = Column(BigInteger, nullable=False)
+    created_at = Column(DateTime(True), server_default=text('now()'))
+    chat_id = Column(BigInteger)
+    last_message_datetime = Column(DateTime(True))
+    status = Column(String)
+
+
+class Words(Base):
+    __tablename__ = 'words'
+    __table_args__ = (
+        PrimaryKeyConstraint('id', name='words_pkey'),
+    )
+
+    id = Column(BigInteger, Identity(start=1, increment=1, minvalue=1, maxvalue=9223372036854775807, cycle=False, cache=1))
+    chat_id = Column(BigInteger, nullable=False)
+    word = Column(String, nullable=False)
+    created_at = Column(DateTime(True), server_default=text('now()'))
+    category = Column(BigInteger)
+    embedding = Column(NullType)
+
+#connect to postgresql
+engine = create_engine(f"postgresql://{config['DB']['DB_USER']}:{config['DB']['DB_PASSWORD']}@{config['DB']['DB_HOST']}:{config['DB']['DB_PORT']}/{config['DB']['DB_DATABASE']}")
+
+session = Session(engine)

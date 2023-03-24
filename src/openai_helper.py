@@ -1,6 +1,6 @@
 import openai
-from admin_log import admin_log
-import config_helper
+from src.admin_log import admin_log
+import src.config_helper as config_helper
 
 import psycopg2
 import psycopg2.extras

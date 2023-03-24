@@ -1,8 +1,8 @@
-from admin_log import admin_log
-import openai_helper
-import chat_helper
-import db_helper
-import config_helper
+from src.admin_log import admin_log
+import src.openai_helper as openai_helper
+import src.chat_helper as chat_helper
+import src.db_helper as db_helper
+import src.config_helper as config_helper
 
 import os
 import configparser
@@ -58,7 +58,7 @@ async def tg_update_user_status(update, context):
             messages = [
                 {"role": "system",
                  "content": f"Answer only yes or no"},
-                {"role": "user", "content": f"Is this a question: \"{update.message.text}\""}
+                    {"role": "user", "content": f"Is this a question: \"{update.message.text}\""}
             ]
 
             response = openai.ChatCompletion.create(
