@@ -18,7 +18,8 @@ admin_log(f"Starting {__file__} in {config['BOT']['MODE']} mode at {os.uname()}"
 bot = telegram.Bot(token=config['BOT']['KEY'])
 
 async def warn_inactive():
-    #FIXME: this is not working, rewrite with user_status and ORM
+    # FIXME: this is not working, rewrite with user_status and ORM
+    pass
     # conn = None
     # try:
     #     conn = psycopg2.connect(user=config['DB']['DB_USER'],
@@ -48,6 +49,7 @@ async def warn_inactive():
 
 async def delete_inactive():
     # FIXME: this is not working, rewrite with user_status and ORM
+    pass
     # pass
     #
     # conn = None
