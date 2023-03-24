@@ -27,9 +27,9 @@ async def tg_thankyou(update, context):
     if update.message is not None \
             and update.message.reply_to_message is not None \
             and update.message.reply_to_message.from_user.id != update.message.from_user.id:
-        thankyou_words = db_helper.session.query(db_helper.Words).filter(db_helper.Words.chat_id == update.message.chat.id, db_helper.Words.category == 0).all()
+        like_and_dislike_words = db_helper.session.query(db_helper.Words).filter(db_helper.Words.chat_id == update.message.chat.id).all()
 
-        for word in thankyou_words:
+        for word in like_and_dislike_words:
              #check without case if word in update message
             if word.word.lower() in update.message.text.lower():
                 user = db_helper.session.query(db_helper.User).filter(db_helper.User.id == update.message.reply_to_message.from_user.id).first()
@@ -44,7 +44,12 @@ async def tg_thankyou(update, context):
                     db_helper.session.add(user_status)
                     db_helper.session.commit()
 
-                user_status.rating += 1
+                if word.category == 0:
+                    user_status.rating += 1
+                    rating_action = "increased"
+                elif word.category == 1:
+                    user_status.rating -= 1
+                    rating_action = "decreased"
 
                 db_helper.session.commit()
 
@@ -61,7 +66,7 @@ async def tg_thankyou(update, context):
                     db_helper.session.add(judge_status)
                     db_helper.session.commit()
 
-                text_to_send = f"{judge.name} ({int(judge_status.rating)}) increased reputation of {user.name} ({user_status.rating})"
+                text_to_send = f"{judge.name} ({int(judge_status.rating)}) {rating_action} reputation of {user.name} ({user_status.rating})"
                 await bot.send_message(chat_id=update.message.chat.id, text=text_to_send, reply_to_message_id=update.message.message_id)
                 admin_log(text_to_send + f" in chat {update.message.chat.id} ({update.message.chat.title})", critical=False)
 
