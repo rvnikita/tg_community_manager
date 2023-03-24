@@ -2,7 +2,7 @@ from src.admin_log import admin_log
 import src.config_helper as config_helper
 
 from sqlalchemy import create_engine, BigInteger, Boolean, Column, DateTime, Identity, Integer, JSON, PrimaryKeyConstraint, String, Text, UniqueConstraint, text
-from sqlalchemy.orm import declarative_base, Session
+from sqlalchemy.orm import Session, DeclarativeBase, declared_attr
 from sqlalchemy.sql.sqltypes import NullType
 
 import psycopg2
@@ -28,11 +28,15 @@ def connect():
         return None
 
 
-Base = declarative_base()
+class Base(DeclarativeBase):
+    __prefix__ = 'tg_'
+
+    @declared_attr
+    def __tablename__(cls):
+        return cls.__prefix__ + cls.__name__.lower()
 
 
 class Chat(Base):
-    __tablename__ = 'chat'
     __table_args__ = (
         PrimaryKeyConstraint('id', name='chat_pkey'),
     )
@@ -45,7 +49,6 @@ class Chat(Base):
 
 
 class Qna(Base):
-    __tablename__ = 'qna'
     __table_args__ = (
         PrimaryKeyConstraint('id', name='qna_pkey'),
     )
@@ -58,7 +61,6 @@ class Qna(Base):
 
 
 class User(Base):
-    __tablename__ = 'user'
     __table_args__ = (
         PrimaryKeyConstraint('id', name='user_pkey'),
     )
@@ -72,8 +74,7 @@ class User(Base):
     is_anonymous = Column(Boolean)
 
 
-class UserStatus(Base):
-    __tablename__ = 'user_status'
+class User_Status(Base):
     __table_args__ = (
         PrimaryKeyConstraint('id', name='user_status_pkey'),
         UniqueConstraint('user_id', 'chat_id', name='unique_cols')
@@ -88,7 +89,6 @@ class UserStatus(Base):
 
 
 class Words(Base):
-    __tablename__ = 'words'
     __table_args__ = (
         PrimaryKeyConstraint('id', name='words_pkey'),
     )

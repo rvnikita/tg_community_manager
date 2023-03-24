@@ -126,11 +126,11 @@ def db_update_user(user_id, chat_id, username, last_message_datetime):
             db_helper.session.add(user)
 
         # Update or insert user status
-        user_status = db_helper.session.query(db_helper.UserStatus).filter_by(user_id=user_id, chat_id=chat_id).first()
+        user_status = db_helper.session.query(db_helper.User_Status).filter_by(user_id=user_id, chat_id=chat_id).first()
         if user_status:
             user_status.last_message_datetime = last_message_datetime
         else:
-            user_status = db_helper.UserStatus(user_id=user_id, chat_id=chat_id, last_message_datetime=last_message_datetime)
+            user_status = db_helper.User_Status(user_id=user_id, chat_id=chat_id, last_message_datetime=last_message_datetime)
             db_helper.session.add(user_status)
 
         db_helper.session.commit()

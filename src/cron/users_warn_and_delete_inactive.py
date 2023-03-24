@@ -26,7 +26,7 @@ async def warn_inactive():
                                 port=config['DB']['DB_PORT'],
                                 database=config['DB']['DB_DATABASE'])
 
-        sql = "SELECT * FROM user WHERE last_message_datetime < NOW() - INTERVAL '60 days' AND last_message_datetime >= NOW() - INTERVAL '90 days' AND status IN ('member', 'administrator') AND username <> 'None';"
+        sql = "SELECT * FROM tg_user WHERE last_message_datetime < NOW() - INTERVAL '60 days' AND last_message_datetime >= NOW() - INTERVAL '90 days' AND status IN ('member', 'administrator') AND username <> 'None';"
         cur = conn.cursor(cursor_factory = psycopg2.extras.RealDictCursor)
         cur.execute(sql)
 
@@ -57,7 +57,7 @@ async def delete_inactive():
                                 database=config['DB']['DB_DATABASE'])
 
         #we don't touch admins
-        sql = "SELECT * FROM user WHERE last_message_datetime < NOW() - INTERVAL '90 days' AND status IN ('member') AND username <> 'None';"
+        sql = "SELECT * FROM tg_user WHERE last_message_datetime < NOW() - INTERVAL '90 days' AND status IN ('member') AND username <> 'None';"
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         cur.execute(sql)
 

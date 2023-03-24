@@ -25,7 +25,7 @@ def update_embeddings():
                                 database=config['DB']['DB_DATABASE'])
 
         #sql select all rows from qna table without embedding
-        sql = "SELECT * FROM qna WHERE embedding IS NULL"
+        sql = "SELECT * FROM tg_qna WHERE embedding IS NULL"
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         cur.execute(sql)
 
@@ -35,7 +35,7 @@ def update_embeddings():
         for row in rows:
             embedding = openai_helper.generate_embedding(row['title'])
             #write embedding to database
-            sql = f"UPDATE qna SET embedding = '{embedding.data[0].embedding}' WHERE id = {row['id']}"
+            sql = f"UPDATE tg_qna SET embedding = '{embedding.data[0].embedding}' WHERE id = {row['id']}"
             cur.execute(sql)
             conn.commit()
             admin_log(f"Embedding for message {row['id']} generated", critical=True)

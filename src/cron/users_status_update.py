@@ -22,7 +22,7 @@ async def chat_name_update():
     conn = None
     try:
         conn = db_helper.connect()
-        sql = "SELECT * FROM chat where chat_name = '' or chat_name is NULL"
+        sql = "SELECT * FROM tg_chat where chat_name = '' or chat_name is NULL"
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         cur.execute(sql)
 
@@ -36,7 +36,7 @@ async def chat_name_update():
                 title = error
 
             try:
-                update_sql = f"UPDATE chat set chat_name = '{title}' WHERE chat_id = {row['chat_id']}"
+                update_sql = f"UPDATE tg_chat set chat_name = '{title}' WHERE chat_id = {row['chat_id']}"
                 cur.execute(update_sql)
                 conn.commit()
             except (Exception, psycopg2.DatabaseError) as error:
@@ -51,7 +51,7 @@ async def status_update():
     try:
         conn = db_helper.connect()
 
-        sql = "SELECT * FROM user"
+        sql = "SELECT * FROM tg_user"
         cur = conn.cursor(cursor_factory = psycopg2.extras.RealDictCursor)
         cur.execute(sql)
 
@@ -59,7 +59,7 @@ async def status_update():
 
         for user_row in rows:
             print(user_row['id'])
-            sql = f"SELECT * FROM user_status WHERE user_id = {user_row['id']}"
+            sql = f"SELECT * FROM tg_user_status WHERE user_id = {user_row['id']}"
             cur.execute(sql)
             user_status_rows = cur.fetchall()
             for user_status_row in user_status_rows:
@@ -74,7 +74,7 @@ async def status_update():
                     is_bot = 'NULL'
 
                 if status != user_status_row['status']: #status has changed
-                    user_update_sql = f"UPDATE user_status set status = '{status}' WHERE user_id = {user_row['id']} AND chat_id = {user_status_row['chat_id']}"
+                    user_update_sql = f"UPDATE tg_user_status set status = '{status}' WHERE user_id = {user_row['id']} AND chat_id = {user_status_row['chat_id']}"
                     print(user_update_sql)
                     cur.execute(user_update_sql)
                     conn.commit()

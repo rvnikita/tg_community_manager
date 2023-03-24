@@ -29,7 +29,7 @@ def get_nearest_vectors(query, threshold = config['OPENAI']['SIMILARITY_THRESHOL
                                 database=config['DB']['DB_DATABASE'])
 
         #select row and distance from qna where cosine similarity is greater than 0.9 and return top 5
-        sql = f"SELECT *, (1 - (embedding <-> '{embedding.data[0].embedding}')::float) AS similarity FROM qna WHERE (1 - (embedding <-> '{embedding.data[0].embedding}')::float) > {threshold} ORDER BY similarity DESC LIMIT 5"
+        sql = f"SELECT *, (1 - (embedding <-> '{embedding.data[0].embedding}')::float) AS similarity FROM tg_qna WHERE (1 - (embedding <-> '{embedding.data[0].embedding}')::float) > {threshold} ORDER BY similarity DESC LIMIT 5"
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         cur.execute(sql)
 
