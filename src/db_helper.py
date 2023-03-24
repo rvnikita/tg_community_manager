@@ -67,9 +67,7 @@ class User(Base):
 
     id = Column(BigInteger)
     username = Column(String)
-    last_message_datetime = Column(DateTime(True))
     name = Column(String)
-    status = Column(String)
     is_bot = Column(Boolean)
     is_anonymous = Column(Boolean)
 
