@@ -67,6 +67,7 @@ class User(Base):
 
     id = Column(BigInteger)
     username = Column(String)
+    #TODO:MID: split name into first_name and last_name
     name = Column(String)
     is_bot = Column(Boolean)
     is_anonymous = Column(Boolean)
