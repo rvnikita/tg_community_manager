@@ -47,6 +47,7 @@ async def chat_name_update():
 
 async def status_update():
     #FIXME: we need to rewrite this with new structure of user and user_status tables
+    #TODO:HIGH: rewrite with ORM and update fullname for user
     conn = None
     try:
         conn = db_helper.connect()
