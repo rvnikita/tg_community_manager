@@ -48,10 +48,10 @@ async def tg_thankyou(update, context):
                         db_helper.session.add(user_status)
                         db_helper.session.commit()
 
-                    if word.category == "like_words":
+                    if category == "like_words":
                         user_status.rating += 1
                         rating_action = "increased"
-                    elif word.category == "dislike_words":
+                    elif category == "dislike_words":
                         user_status.rating -= 1
                         rating_action = "decreased"
 
