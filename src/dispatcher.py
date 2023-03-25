@@ -38,7 +38,7 @@ async def tg_thankyou(update, context):
                 if word.lower() in update.message.text.lower():
                     user = db_helper.session.query(db_helper.User).filter(db_helper.User.id == update.message.reply_to_message.from_user.id).first()
                     if user is None:
-                        user = db_helper.User(id=update.message.reply_to_message.from_user.id, name=update.message.reply_to_message.from_user.first_name)
+                        user = db_helper.User(id=update.message.reply_to_message.from_user.id, first_name=update.message.reply_to_message.from_user.first_name, last_name=update.message.reply_to_message.from_user.last_name, username=update.message.reply_to_message.from_user.username)
                         db_helper.session.add(user)
                         db_helper.session.commit()
 
@@ -71,7 +71,11 @@ async def tg_thankyou(update, context):
                         db_helper.session.commit()
 
                     #TODO:HIGH: we need to check if we have name or username and use something that is not None
-                    text_to_send = f"{judge.name} ({int(judge_status.rating)}) {rating_action} reputation of {user.name} ({user_status.rating})"
+
+                    user_mention = f"{user.first_name or ''} {user.last_name or ''}".strip() or f"@{user.username}"
+                    judge_mention = f"{judge.first_name or ''} {judge.last_name or ''}".strip() or f"@{judge.username}"
+
+                    text_to_send = f"{judge_mention} ({int(judge_status.rating)}) {rating_action} reputation of {user_mention} ({user_status.rating})"
                     await bot.send_message(chat_id=update.message.chat.id, text=text_to_send, reply_to_message_id=update.message.message_id)
                     admin_log(text_to_send + f" in chat {update.message.chat.id} ({update.message.chat.title})", critical=False)
 
@@ -101,7 +105,7 @@ async def tg_update_user_status(update, context):
         if config_update_user_status == True:
             if len(update.message.new_chat_members) > 0: #user added
                 #TODO:HIGH: We need to rewrite this so we can also add full name
-                db_update_user(update.message.new_chat_members[0].id, update.message.chat.id,  update.message.new_chat_members[0].username, datetime.now())
+                db_update_user(update.message.new_chat_members[0].id, update.message.chat.id,  update.message.new_chat_members[0].username, datetime.now(), update.message.new_chat_members[0].first_name, update.message.new_chat_members[0].last_name)
             else:
                 # TODO:HIGH: We need to rewrite this so we can also add full name
                 db_update_user(update.message.from_user.id, update.message.chat.id, update.message.from_user.username, datetime.now())
@@ -172,7 +176,7 @@ async def tg_update_user_status(update, context):
 
 
 
-def db_update_user(user_id, chat_id, username, last_message_datetime):
+def db_update_user(user_id, chat_id, username, last_message_datetime, first_name=None, last_name=None):
     #TODO: we need to relocate this function to another location
     try:
         if chat_id is None:
@@ -182,8 +186,10 @@ def db_update_user(user_id, chat_id, username, last_message_datetime):
         user = db_helper.session.query(db_helper.User).filter_by(id=user_id).first()
         if user:
             user.username = username
+            user.first_name = first_name
+            user.last_name = last_name
         else:
-            user = db_helper.User(id=user_id, username=username)
+            user = db_helper.User(id=user_id, username=username, first_name=first_name, last_name=last_name)
             db_helper.session.add(user)
 
         # Update or insert user status

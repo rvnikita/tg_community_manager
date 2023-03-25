@@ -66,9 +66,10 @@ class User(Base):
     )
 
     id = Column(BigInteger)
-    username = Column(String)
     #TODO:MID: split name into first_name and last_name
-    name = Column(String)
+    first_name = Column(String)
+    last_name = Column(String)
+    username = Column(String)
     is_bot = Column(Boolean)
     is_anonymous = Column(Boolean)
 
@@ -86,19 +87,6 @@ class User_Status(Base):
     last_message_datetime = Column(DateTime(True))
     status = Column(String)
     rating = Column(Integer, default=0)
-
-
-class Words(Base):
-    __table_args__ = (
-        PrimaryKeyConstraint('id', name='words_pkey'),
-    )
-
-    id = Column(BigInteger, Identity(start=1, increment=1, minvalue=1, maxvalue=9223372036854775807, cycle=False, cache=1))
-    chat_id = Column(BigInteger, nullable=False)
-    word = Column(String, nullable=False)
-    created_at = Column(DateTime(True), server_default=text('now()'))
-    category = Column(BigInteger, default=0)
-    embedding = Column(NullType)
 
 #connect to postgresql
 engine = create_engine(f"postgresql://{config['DB']['DB_USER']}:{config['DB']['DB_PASSWORD']}@{config['DB']['DB_HOST']}:{config['DB']['DB_PORT']}/{config['DB']['DB_DATABASE']}")
