@@ -70,6 +70,7 @@ async def tg_thankyou(update, context):
                         db_helper.session.add(judge_status)
                         db_helper.session.commit()
 
+                    #TODO:HIGH: we need to check if we have name or username and use something that is not None
                     text_to_send = f"{judge.name} ({int(judge_status.rating)}) {rating_action} reputation of {user.name} ({user_status.rating})"
                     await bot.send_message(chat_id=update.message.chat.id, text=text_to_send, reply_to_message_id=update.message.message_id)
                     admin_log(text_to_send + f" in chat {update.message.chat.id} ({update.message.chat.title})", critical=False)
