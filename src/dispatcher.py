@@ -35,7 +35,7 @@ async def tg_thankyou(update, context):
         for category, word_list in {'like_words': like_words, 'dislike_words': dislike_words}.items():
             for word in word_list:
                  #check without case if word in update message
-                if word.word.lower() in update.message.text.lower():
+                if word.lower() in update.message.text.lower():
                     user = db_helper.session.query(db_helper.User).filter(db_helper.User.id == update.message.reply_to_message.from_user.id).first()
                     if user is None:
                         user = db_helper.User(id=update.message.reply_to_message.from_user.id, name=update.message.reply_to_message.from_user.first_name)
