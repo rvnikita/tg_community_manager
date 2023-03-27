@@ -108,7 +108,7 @@ async def tg_update_user_status(update, context):
                 db_update_user(update.message.new_chat_members[0].id, update.message.chat.id,  update.message.new_chat_members[0].username, datetime.now(), update.message.new_chat_members[0].first_name, update.message.new_chat_members[0].last_name)
             else:
                 # TODO:HIGH: We need to rewrite this so we can also add full name
-                db_update_user(update.message.from_user.id, update.message.chat.id, update.message.from_user.username, datetime.now())
+                db_update_user(update.message.from_user.id, update.message.chat.id, update.message.from_user.username, datetime.now(), update.message.from_user.first_name, update.message.from_user.last_name)
             #admin_log(f"{update.message.from_user.username} ({update.message.from_user.id}): {update.message.text}")
 
 
