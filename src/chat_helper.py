@@ -26,7 +26,7 @@ def get_default_chat(config_param=None):
 
 def get_chat(chat_id=None, config_param=None):
     try:
-        chat = db_helper.session.query(db_helper.Chat).filter(db_helper.Chat.id == id).one_or_none()
+        chat = db_helper.session.query(db_helper.Chat).filter(db_helper.Chat.id == chat_id).one_or_none()
 
         if chat is not None:
             if config_param is not None:
