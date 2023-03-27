@@ -72,8 +72,24 @@ async def tg_thankyou(update, context):
 
                     #TODO:HIGH: we need to check if we have name or username and use something that is not None
 
-                    user_mention = f"{user.first_name or ''} {user.last_name or ''}".strip() or f"@{user.username}"
-                    judge_mention = f"{judge.first_name or ''} {judge.last_name or ''}".strip() or f"@{judge.username}"
+                    # This lines was written by GPT-4 to generate desirable output for different user input combinations:
+                    # Output table for different user input combinations:
+                    #   First name | Last name | Username   | ID   | `user_mention`
+                    # --------------|-----------|------------|------|------------------------------
+                    #   "Nikita"    | "Rvachev" | "rvnikita" | 123  | "Nikita Rvachev - @rvnikita"
+                    #   "Nikita"    | "Rvachev" | None       | 123  | "Nikita Rvachev"
+                    #   None        | None      | "rvnikita" | 123  | "@rvnikita"
+                    #   "Nikita"    | None      | "rvnikita" | 123  | "Nikita - @rvnikita"
+                    #   None        | "Rvachev" | "rvnikita" | 123  | "Rvachev - @rvnikita"
+                    #   "Nikita"    | None      | None       | 123  | "Nikita"
+                    #   None        | "Rvachev" | None       | 123  | "Rvachev"
+                    #   None        | None      | None       | 123  | "123"
+                    user_mention = ', '.join(filter(bool, [f"{user.first_name} {user.last_name} - @{user.username}" if user.first_name and user.last_name and user.username else f"{user.first_name} {user.last_name}" if user.first_name and user.last_name else f"@{user.username}" if user.username else str(user.id)]))
+                    judge_mention = ', '.join(filter(bool, [f"{judge.first_name} {judge.last_name} - @{judge.username}" if judge.first_name and judge.last_name and judge.username else f"{judge.first_name} {judge.last_name}" if judge.first_name and judge.last_name else f"@{judge.username}" if judge.username else str(judge.id)]))
+
+
+                    # user_mention = f"{user.first_name or ''} {user.last_name or ''}".strip() or f"@{user.username}"
+                    # judge_mention = f"{judge.first_name or ''} {judge.last_name or ''}".strip() or f"@{judge.username}"
 
                     text_to_send = f"{judge_mention} ({int(judge_status.rating)}) {rating_action} reputation of {user_mention} ({user_status.rating})"
                     await bot.send_message(chat_id=update.message.chat.id, text=text_to_send, reply_to_message_id=update.message.message_id)
