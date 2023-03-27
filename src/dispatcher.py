@@ -27,7 +27,7 @@ async def tg_thankyou(update, context):
     if update.message is not None \
             and update.message.reply_to_message is not None \
             and update.message.reply_to_message.from_user.id != update.message.from_user.id:
-        chat = db_helper.session.query(db_helper.Chat).filter(db_helper.Chat.chat_id == update.message.chat.id).first()
+        chat = db_helper.session.query(db_helper.Chat).filter(db_helper.Chat.id == update.message.chat.id).first()
         #TODO:HIGH: check if we don't have like_words and dislike_words in config then we need to use default values
         like_words = chat.config['like_words']
         dislike_words = chat.config['dislike_words']

@@ -8,7 +8,7 @@ import json
 
 def get_default_chat(config_param=None):
     try:
-        chat = db_helper.session.query(db_helper.Chat).filter(db_helper.Chat.chat_id == 0).one_or_none()
+        chat = db_helper.session.query(db_helper.Chat).filter(db_helper.Chat.id == 0).one_or_none()
 
         if chat is not None:
             if config_param is not None:
@@ -26,7 +26,7 @@ def get_default_chat(config_param=None):
 
 def get_chat(chat_id=None, config_param=None):
     try:
-        chat = db_helper.session.query(db_helper.Chat).filter(db_helper.Chat.chat_id == chat_id).one_or_none()
+        chat = db_helper.session.query(db_helper.Chat).filter(db_helper.Chat.id == id).one_or_none()
 
         if chat is not None:
             if config_param is not None:
@@ -43,7 +43,7 @@ def get_chat(chat_id=None, config_param=None):
         else:
             default_full_config = get_default_chat()
             if default_full_config is not None:
-                new_chat = db_helper.Chat(chat_id=chat_id, config=default_full_config)
+                new_chat = db_helper.Chat(id=chat_id, config=default_full_config)
                 db_helper.session.add(new_chat)
                 db_helper.session.commit()
 

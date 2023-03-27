@@ -41,8 +41,7 @@ class Chat(Base):
         PrimaryKeyConstraint('id', name='chat_pkey'),
     )
 
-    id = Column(BigInteger, Identity(start=1, increment=1, minvalue=1, maxvalue=9223372036854775807, cycle=False, cache=1))
-    chat_id = Column(BigInteger, nullable=False)
+    id = Column(BigInteger, nullable=False)
     config = Column(JSON, nullable=False)
     created_at = Column(DateTime(True), server_default=text('now()'))
     chat_name = Column(String, server_default=text("''::character varying"))

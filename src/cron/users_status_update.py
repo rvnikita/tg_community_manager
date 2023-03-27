@@ -30,13 +30,13 @@ async def chat_name_update():
 
         for row in rows:
             try:
-                chat = await bot.get_chat(row['chat_id'])
+                chat = await bot.get_chat(row['id'])
                 title = chat.title
             except Exception as error:
                 title = error
 
             try:
-                update_sql = f"UPDATE tg_chat set chat_name = '{title}' WHERE chat_id = {row['chat_id']}"
+                update_sql = f"UPDATE tg_chat set chat_name = '{title}' WHERE id = {row['id']}"
                 cur.execute(update_sql)
                 conn.commit()
             except (Exception, psycopg2.DatabaseError) as error:
