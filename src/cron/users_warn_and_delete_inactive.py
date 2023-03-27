@@ -5,6 +5,7 @@ import src.config_helper as config_helper
 
 import os
 import telegram
+from telegram.request import HTTPXRequest
 
 import asyncio
 import psycopg2
@@ -15,7 +16,9 @@ config = config_helper.get_config()
 
 admin_log(f"Starting {__file__} in {config['BOT']['MODE']} mode at {os.uname()}")
 
-bot = telegram.Bot(token=config['BOT']['KEY'])
+bot = telegram.Bot(token=config['BOT']['KEY'],
+                   request=HTTPXRequest(http_version="1.1"),  #we need this to fix bug https://github.com/python-telegram-bot/python-telegram-bot/issues/3556
+                   get_updates_request=HTTPXRequest(http_version="1.1")) #we need this to fix bug https://github.com/python-telegram-bot/python-telegram-bot/issues/3556
 
 async def warn_inactive():
     # FIXME: this is not working, rewrite with user_status and ORM

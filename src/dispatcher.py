@@ -8,6 +8,7 @@ import os
 import configparser
 from telegram import Bot
 from telegram.ext import Application, MessageHandler, filters
+from telegram.request import HTTPXRequest
 import openai
 
 from datetime import datetime
@@ -17,7 +18,9 @@ config = config_helper.get_config()
 
 admin_log(f"Starting {__file__} in {config['BOT']['MODE']} mode at {os.uname()}")
 
-bot = Bot(config['BOT']['KEY'])
+bot = Bot(config['BOT']['KEY'],
+          request=HTTPXRequest(http_version="1.1"), #we need this to fix bug https://github.com/python-telegram-bot/python-telegram-bot/issues/3556
+          get_updates_request=HTTPXRequest(http_version="1.1")) #we need this to fix bug https://github.com/python-telegram-bot/python-telegram-bot/issues/3556)
 
 ########################
 
