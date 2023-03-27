@@ -74,7 +74,7 @@ class User(Base):
     is_bot = Column(Boolean)
     is_anonymous = Column(Boolean)
 
-    user_statuses = relationship('User_Status', backref='user')
+    user_statuses = relationship('User_Status', back_populates='user')
 
 
 class User_Status(Base):
@@ -91,8 +91,8 @@ class User_Status(Base):
     status = Column(String)
     rating = Column(Integer, default=0)
 
-    user = relationship('User', backref='user_statuses')
-    chat = relationship('Chat', backref='user_statuses')
+    user = relationship('User', back_populates='user_statuses')
+    chat = relationship('Chat', back_populates='user_statuses')
 
 #connect to postgresql
 engine = create_engine(f"postgresql://{config['DB']['DB_USER']}:{config['DB']['DB_PASSWORD']}@{config['DB']['DB_HOST']}:{config['DB']['DB_PORT']}/{config['DB']['DB_DATABASE']}")
