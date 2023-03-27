@@ -1,8 +1,8 @@
 from src.admin_log import admin_log
 import src.config_helper as config_helper
 
-from sqlalchemy import create_engine, BigInteger, Boolean, Column, DateTime, Identity, Integer, JSON, PrimaryKeyConstraint, String, Text, UniqueConstraint, text
-from sqlalchemy.orm import Session, DeclarativeBase, declared_attr
+from sqlalchemy import create_engine, BigInteger, Boolean, Column, DateTime, Identity, Integer, JSON, PrimaryKeyConstraint, String, Text, UniqueConstraint, text, ForeignKey
+from sqlalchemy.orm import Session, DeclarativeBase, declared_attr, relationship
 from sqlalchemy.sql.sqltypes import NullType
 
 import psycopg2
@@ -41,10 +41,12 @@ class Chat(Base):
         PrimaryKeyConstraint('id', name='chat_pkey'),
     )
 
-    id = Column(BigInteger, nullable=False)
+    id = Column(BigInteger, primary_key=True)
     config = Column(JSON, nullable=False)
     created_at = Column(DateTime(True), server_default=text('now()'))
     chat_name = Column(String, server_default=text("''::character varying"))
+
+    user_statuses = relationship('User_Status', backref='chat')
 
 
 class Qna(Base):
@@ -52,7 +54,7 @@ class Qna(Base):
         PrimaryKeyConstraint('id', name='qna_pkey'),
     )
 
-    id = Column(Integer)
+    id = Column(BigInteger, primary_key=True)
     title = Column(Text, nullable=False)
     body = Column(Text, nullable=False)
     created_at = Column(DateTime, server_default=text('now()'))
@@ -64,13 +66,15 @@ class User(Base):
         PrimaryKeyConstraint('id', name='user_pkey'),
     )
 
-    id = Column(BigInteger)
+    id = Column(BigInteger, primary_key=True)
     #TODO:MID: split name into first_name and last_name
     first_name = Column(String)
     last_name = Column(String)
     username = Column(String)
     is_bot = Column(Boolean)
     is_anonymous = Column(Boolean)
+
+    user_statuses = relationship('User_Status', backref='user')
 
 
 class User_Status(Base):
@@ -80,12 +84,15 @@ class User_Status(Base):
     )
 
     id = Column(BigInteger, Identity(start=1, increment=1, minvalue=1, maxvalue=9223372036854775807, cycle=False, cache=1))
-    user_id = Column(BigInteger, nullable=False)
     created_at = Column(DateTime(True), server_default=text('now()'))
-    chat_id = Column(BigInteger)
+    user_id = Column(BigInteger, ForeignKey(User.__table__.c.id, ondelete='CASCADE', onupdate='CASCADE'), nullable=False, index=True)
+    chat_id = Column(BigInteger, ForeignKey(Chat.__table__.c.id, ondelete='CASCADE', onupdate='CASCADE'), nullable=False, index=True)
     last_message_datetime = Column(DateTime(True))
     status = Column(String)
     rating = Column(Integer, default=0)
+
+    user = relationship('User', backref='user_statuses')
+    chat = relationship('Chat', backref='user_statuses')
 
 #connect to postgresql
 engine = create_engine(f"postgresql://{config['DB']['DB_USER']}:{config['DB']['DB_PASSWORD']}@{config['DB']['DB_HOST']}:{config['DB']['DB_PORT']}/{config['DB']['DB_DATABASE']}")
