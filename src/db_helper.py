@@ -46,7 +46,7 @@ class Chat(Base):
     created_at = Column(DateTime(True), server_default=text('now()'))
     chat_name = Column(String, server_default=text("''::character varying"))
 
-    user_statuses = relationship('User_Status', backref='chat')
+    user_statuses = relationship('User_Status', back_populates='chat')
 
 
 class Qna(Base):
