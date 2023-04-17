@@ -64,16 +64,16 @@ def get_chat_config(chat_id=None, config_param=None):
         db_helper.session.close()
 
 
-def warn_user(bot, chat_id: int, user_id: int) -> None:
+async def warn_user(bot, chat_id: int, user_id: int) -> None:
     # bot.send_message(chat_id, text=f"User {user_id} has been warned due to multiple reports.")
     pass
 
-def mute_user(bot, chat_id: int, user_id: int) -> None:
+async def mute_user(bot, chat_id: int, user_id: int) -> None:
     permissions = ChatPermissions(can_send_messages=False)
-    bot.restrict_chat_member(chat_id, user_id, permissions, until_date=datetime.now() + timedelta(hours=24))
+    await bot.restrict_chat_member(chat_id, user_id, permissions, until_date=datetime.now() + timedelta(hours=24))
 
-def ban_user(bot, chat_id: int, user_id: int) -> None:
-    bot.kick_chat_member(chat_id, user_id)
+async def ban_user(bot, chat_id: int, user_id: int) -> None:
+    await bot.kick_chat_member(chat_id, user_id)
 
-def delete_message(bot, chat_id: int, message_id: int) -> None:
-    bot.delete_message(chat_id, message_id)
+async def delete_message(bot, chat_id: int, message_id: int) -> None:
+    await bot.delete_message(chat_id, message_id)

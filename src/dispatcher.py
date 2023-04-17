@@ -108,15 +108,15 @@ async def tg_report(update, context):
         await bot.send_message(chat_id=chat_id, text=f"User {reported_user_id} has been reported {report_count} times.")
 
         if report_count >= number_of_reports_to_warn:
-            chat_helper.warn_user(bot, chat_id, reported_user_id)
-            chat_helper.mute_user(bot, chat_id, reported_user_id)
-            chat_helper.delete_message(bot, chat_id, reported_message_id)
+            await chat_helper.warn_user(bot, chat_id, reported_user_id)
+            await chat_helper.mute_user(bot, chat_id, reported_user_id)
+            await chat_helper.delete_message(bot, chat_id, reported_message_id)
             await bot.send_message(chat_id=chat_id, text=f"User {reported_user_id} has been warned and muted due to {report_count} reports.")
             await send_message_to_admin(bot, chat_id, f"User {reported_user_id} has been warned and muted in chat {chat_id} due to {report_count} reports.")
 
         if report_count >= number_of_reports_to_ban:
-            chat_helper.ban_user(bot, chat_id, reported_user_id)
-            chat_helper.delete_message(bot, chat_id, reported_message_id)
+            await chat_helper.ban_user(bot, chat_id, reported_user_id)
+            await chat_helper.delete_message(bot, chat_id, reported_message_id)
 
             await bot.send_message(chat_id=chat_id, text=f"User {reported_user_id} has been banned due to {report_count} reports.")
             await send_message_to_admin(bot, chat_id, f"User {reported_user_id} has been banned in chat {chat_id} due to {report_count} reports.")
