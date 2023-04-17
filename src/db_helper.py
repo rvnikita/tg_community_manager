@@ -9,6 +9,7 @@ import psycopg2
 import psycopg2.extras
 import os
 import inspect #we need this to get current file name path
+from contextlib import contextmanager
 
 config = config_helper.get_config()
 
@@ -106,7 +107,24 @@ class Report(Base):
     chat_id = Column(BigInteger, nullable=False, index=True)
     created_at = Column(DateTime(True), server_default=text('now()'))
 
-#connect to postgresql
-engine = create_engine(f"postgresql://{config['DB']['DB_USER']}:{config['DB']['DB_PASSWORD']}@{config['DB']['DB_HOST']}:{config['DB']['DB_PORT']}/{config['DB']['DB_DATABASE']}")
+session = None
 
-session = Session(engine)
+@contextmanager
+def session_scope():
+    #[DB]
+# DB_DATABASE=%(ENV_DB_NAME)s
+# DB_HOST=%(ENV_DB_HOST)s
+# DB_PASSWORD=%(ENV_DB_PASSWORD)s
+# DB_PORT=%(ENV_DB_PORT)s
+# DB_USER=%(ENV_DB_USER)s
+    db_engine = create_engine(f"postgresql://{config['DB']['DB_USER']}:{config['DB']['DB_PASSWORD']}@{config['DB']['DB_HOST']}:{config['DB']['DB_PORT']}/{config['DB']['DB_DATABASE']}")
+    session = Session(db_engine)
+
+    try:
+        yield session
+        session.commit()
+    except:
+        session.rollback()
+        raise
+    finally:
+        session.close()
