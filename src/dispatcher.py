@@ -30,8 +30,10 @@ async def send_message_to_admin(bot, chat_id, text: str):
     for admin in chat_administrators:
         if admin.user.is_bot == True: #don't send to bots
             continue
-
-        await bot.send_message(chat_id=admin.user.id, text=text)
+        try:
+            await bot.send_message(chat_id=admin.user.id, text=text)
+        except Exception as error:
+            admin_log(f"Error in file {__file__}: {error}", critical=True)
 
 async def tg_report_reset(update, context):
     #TODO:HIGH: this command reset all reports for this user. It could work when it is replied to message or followed by nickname. It could be done only by chat admin.
