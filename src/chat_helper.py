@@ -5,6 +5,8 @@ import psycopg2
 import configparser
 import os
 import json
+from telegram import ChatPermissions
+from datetime import datetime, timedelta
 
 def get_default_chat(config_param=None):
     try:
@@ -24,7 +26,7 @@ def get_default_chat(config_param=None):
         admin_log(f"Error in {__file__}: {e}", critical=True)
         return None
 
-def get_chat(chat_id=None, config_param=None):
+def get_chat_config(chat_id=None, config_param=None):
     try:
         chat = db_helper.session.query(db_helper.Chat).filter(db_helper.Chat.id == chat_id).one_or_none()
 
@@ -62,5 +64,16 @@ def get_chat(chat_id=None, config_param=None):
         db_helper.session.close()
 
 
+def warn_user(bot, chat_id: int, user_id: int) -> None:
+    # bot.send_message(chat_id, text=f"User {user_id} has been warned due to multiple reports.")
+    pass
 
+def mute_user(bot, chat_id: int, user_id: int) -> None:
+    permissions = ChatPermissions(can_send_messages=False)
+    bot.restrict_chat_member(chat_id, user_id, permissions, until_date=datetime.now() + timedelta(hours=24))
 
+def ban_user(bot, chat_id: int, user_id: int) -> None:
+    bot.kick_chat_member(chat_id, user_id)
+
+def delete_message(bot, chat_id: int, message_id: int) -> None:
+    bot.delete_message(chat_id, message_id)

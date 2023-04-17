@@ -7,7 +7,7 @@ import src.config_helper as config_helper
 import os
 import configparser
 from telegram import Bot
-from telegram.ext import Application, MessageHandler, filters
+from telegram.ext import Application, MessageHandler, CommandHandler, filters
 from telegram.request import HTTPXRequest
 import openai
 
@@ -23,6 +23,101 @@ bot = Bot(config['BOT']['KEY'],
           get_updates_request=HTTPXRequest(http_version="1.1")) #we need this to fix bug https://github.com/python-telegram-bot/python-telegram-bot/issues/3556)
 
 ########################
+
+async def send_message_to_admin(bot, chat_id, text: str):
+    chat_administrators = await bot.get_chat_administrators(chat_id)
+
+    for admin in chat_administrators:
+        if admin.user.is_bot == True: #don't send to bots
+            continue
+
+        await bot.send_message(chat_id=admin.user.id, text=text)
+
+async def tg_report_reset(update, context):
+    #TODO:HIGH: this command reset all reports for this user. It could work when it is replied to message or followed by nickname. It could be done only by chat admin.
+    chat_id = update.effective_chat.id
+    message = update.message
+
+    chat_administrators = await bot.get_chat_administrators(chat_id)
+    is_admin = False
+
+    for admin in chat_administrators:
+        if admin.user.id == message.from_user.id:
+            is_admin = True
+            break
+
+    if not is_admin:
+        bot.send_message(chat_id=chat_id, text="You are not an admin of this chat.")
+        return
+
+    if message.reply_to_message:
+        reported_user_id = message.reply_to_message.from_user.id
+    else:
+        #we need to take user nickname and then find user_id
+        #TODO:HIGH: implement this
+        return
+
+    reports = db_helper.session.query(db_helper.Report).filter(db_helper.Report.reported_user_id == reported_user_id).all()
+    for report in reports:
+        db_helper.session.delete(report)
+
+    db_helper.session.commit()
+
+    bot.send_message(chat_id=chat_id, text="Reports for this user were reset.")
+
+
+async def tg_report(update, context):
+    chat_id = update.effective_chat.id
+
+    message = update.message
+
+    if message.reply_to_message:
+        number_of_reports_to_warn = int(chat_helper.get_chat_config(chat_id, 'number_of_reports_to_warn'))
+        number_of_reports_to_ban = int(chat_helper.get_chat_config(chat_id, 'number_of_reports_to_ban'))
+
+        reported_message_id = message.reply_to_message.message_id
+        reported_user_id = message.reply_to_message.from_user.id
+        reporting_user_id = message.from_user.id
+
+        # Check if the reported user is an admin of the chat
+        chat_administrators = await bot.get_chat_administrators(chat_id)
+        for admin in chat_administrators:
+            if admin.user.id == reported_user_id:
+                bot.send_message(chat_id=chat_id, text="You cannot report an admin.")
+                return
+
+        # Add report to the database
+        report = db_helper.Report(
+            reported_user_id=reported_user_id,
+            reporting_user_id=reporting_user_id,
+            reported_message_id=reported_message_id,
+            chat_id=chat_id
+        )
+        db_helper.session.add(report)
+        db_helper.session.commit()
+
+        # Count unique reports for the reported user in the chat
+        report_count = db_helper.session.query(db_helper.Report).filter(
+            db_helper.Report.chat_id == chat_id,
+            db_helper.Report.reported_user_id == reported_user_id
+        ).distinct(db_helper.Report.reporting_user_id).count()
+
+        await send_message_to_admin(bot, chat_id, f"User {reporting_user_id} reported user {reported_user_id} in chat {chat_id}. Total reports: {report_count}")
+        await bot.send_message(chat_id=chat_id, text=f"User {reported_user_id} has been reported {report_count} times.")
+
+        if report_count >= number_of_reports_to_warn:
+            chat_helper.warn_user(bot, chat_id, reported_user_id)
+            chat_helper.mute_user(bot, chat_id, reported_user_id)
+            chat_helper.delete_message(bot, chat_id, reported_message_id)
+            await bot.send_message(chat_id=chat_id, text=f"User {reported_user_id} has been warned and muted due to {report_count} reports.")
+            await send_message_to_admin(bot, chat_id, f"User {reported_user_id} has been warned and muted in chat {chat_id} due to {report_count} reports.")
+
+        if report_count >= number_of_reports_to_ban:
+            chat_helper.ban_user(bot, chat_id, reported_user_id)
+            chat_helper.delete_message(bot, chat_id, reported_message_id)
+
+            await bot.send_message(chat_id=chat_id, text=f"User {reported_user_id} has been banned due to {report_count} reports.")
+            await send_message_to_admin(bot, chat_id, f"User {reported_user_id} has been banned in chat {chat_id} due to {report_count} reports.")
 
 async def tg_thankyou(update, context):
     #category 0 - "thank you", 1 - "dislike"
@@ -116,7 +211,7 @@ async def tg_new_member(update, context):
 async def tg_update_user_status(update, context):
     #TODO: we need to rewrite all this to support multiple chats. May be we should add chat_id to user table
     if update.message is not None:
-        config_update_user_status = chat_helper.get_chat(update.message.chat.id, "update_user_status")
+        config_update_user_status = chat_helper.get_chat_config(update.message.chat.id, "update_user_status")
         if config_update_user_status == None:
             admin_log(f"Skip: no config for chat {update.message.chat.id} ({update.message.chat.title})")
             return
@@ -241,6 +336,9 @@ def main() -> None:
 
         # checking if user says thank you.
         application.add_handler(MessageHandler(filters.TEXT, tg_thankyou), group=3)
+
+        # reporting
+        application.add_handler(CommandHandler('report', tg_report, filters.ChatType.SUPERGROUP), group=4)
 
         # Start the Bot
         application.run_polling()

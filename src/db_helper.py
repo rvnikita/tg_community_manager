@@ -94,6 +94,18 @@ class User_Status(Base):
     user = relationship('User', back_populates='user_statuses')
     chat = relationship('Chat', back_populates='user_statuses')
 
+class Report(Base):
+    __table_args__ = (
+        PrimaryKeyConstraint('id', name='report_pkey'),
+    )
+
+    id = Column(BigInteger, Identity(start=1, increment=1, minvalue=1, maxvalue=9223372036854775807, cycle=False, cache=1))
+    reported_user_id = Column(BigInteger, nullable=False, index=True)
+    reporting_user_id = Column(BigInteger, nullable=False, index=True)
+    reported_message_id = Column(BigInteger, nullable=False, index=True)
+    chat_id = Column(BigInteger, nullable=False, index=True)
+    created_at = Column(DateTime(True), server_default=text('now()'))
+
 #connect to postgresql
 engine = create_engine(f"postgresql://{config['DB']['DB_USER']}:{config['DB']['DB_PASSWORD']}@{config['DB']['DB_HOST']}:{config['DB']['DB_PORT']}/{config['DB']['DB_DATABASE']}")
 
