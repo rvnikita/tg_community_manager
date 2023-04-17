@@ -12,3 +12,6 @@
 # Ignore files related to the Alembic database migrations
 /alembic/
 alembic.ini
+
+# Ignore session files
+*.session
