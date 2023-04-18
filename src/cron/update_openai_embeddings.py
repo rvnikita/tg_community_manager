@@ -1,6 +1,6 @@
 import sys
 sys.path.insert(0, '../') # add parent directory to the path
-from admin_log import admin_log
+from src.admin_log import admin_log
 import src.openai_helper as openai_helper
 import src.config_helper as config_helper
 
