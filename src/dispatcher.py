@@ -88,7 +88,7 @@ async def tg_report(update, context):
             chat_administrators = await bot.get_chat_administrators(chat_id)
             for admin in chat_administrators:
                 if admin.user.id == reported_user_id:
-                    bot.send_message(chat_id=chat_id, text="You cannot report an admin.")
+                    await bot.send_message(chat_id=chat_id, text="You cannot report an admin.")
                     return
 
             # Check if the user has already been warned by the same reporter
