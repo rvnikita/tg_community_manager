@@ -1,4 +1,3 @@
-from src.admin_log import admin_log
 import src.db_helper as db_helper
 
 def get_user_mention(user_id: int) -> str:

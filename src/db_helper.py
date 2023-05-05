@@ -1,4 +1,4 @@
-from src.admin_log import admin_log
+import src.logging_helper as logging_helper
 import src.config_helper as config_helper
 
 from sqlalchemy import create_engine, BigInteger, Boolean, Column, DateTime, Identity, Integer, JSON, PrimaryKeyConstraint, String, Text, UniqueConstraint, text, ForeignKey
@@ -9,9 +9,12 @@ import psycopg2
 import psycopg2.extras
 import os
 import inspect #we need this to get current file name path
+import traceback
 from contextlib import contextmanager
 
 config = config_helper.get_config()
+
+logger = logging_helper.get_logger()
 
 def connect():
     conn = None
@@ -24,7 +27,7 @@ def connect():
         return conn
     except (Exception, psycopg2.DatabaseError) as error:
         #write admin log mentioning file name and error
-        admin_log(f"Error in {__file__}: while connecting to PostgreSQL: {error}", critical=True)
+        logger.error(f"Error: {traceback.format_exc()}")
 
         return None
 

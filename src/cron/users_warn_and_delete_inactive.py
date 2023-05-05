@@ -1,7 +1,7 @@
 import sys
 sys.path.insert(0, '../') # add parent directory to the path
-from src.admin_log import admin_log
 import src.config_helper as config_helper
+import src.logging_helper as logging_helper
 
 import os
 import telegram
@@ -10,11 +10,13 @@ from telegram.request import HTTPXRequest
 import asyncio
 import psycopg2
 import psycopg2.extras
+import traceback
 
 config = config_helper.get_config()
 
+logger = logging_helper.get_logger()
 
-admin_log(f"Starting {__file__} in {config['BOT']['MODE']} mode at {os.uname()}")
+logger.info(f"Starting {__file__} in {config['BOT']['MODE']} mode at {os.uname()}")
 
 bot = telegram.Bot(token=config['BOT']['KEY'],
                    request=HTTPXRequest(http_version="1.1"),  #we need this to fix bug https://github.com/python-telegram-bot/python-telegram-bot/issues/3556
@@ -89,7 +91,7 @@ async def main() -> None:
         await warn_inactive()
         await delete_inactive()
     except Exception as e:
-        admin_log(f"Error in {__file__}: {e}", critical=True)
+        logger.error(traceback.format_exc())
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -1,12 +1,13 @@
 import sys
 sys.path.insert(0, '../') # add parent directory to the path
-from src.admin_log import admin_log
 import src.db_helper as db_helper
 import src.chat_helper as chat_helper
 import src.config_helper as config_helper
+import src.logging_helper as logging_helper
 
 import os
 import telegram
+import traceback
 from telegram.request import HTTPXRequest
 
 import asyncio
@@ -15,7 +16,9 @@ import psycopg2.extras
 
 config = config_helper.get_config()
 
-admin_log(f"Starting {__file__} in {config['BOT']['MODE']} mode at {os.uname()}")
+logger = logging_helper.get_logger()
+
+logger.info(f"Starting {__file__} in {config['BOT']['MODE']} mode at {os.uname()}")
 
 bot = telegram.Bot(token=config['BOT']['KEY'],
                    request=HTTPXRequest(http_version="1.1"), # we need this to fix bug https://github.com/python-telegram-bot/python-telegram-bot/issues/3556
@@ -43,9 +46,9 @@ async def chat_name_update():
                 cur.execute(update_sql)
                 conn.commit()
             except (Exception, psycopg2.DatabaseError) as error:
-                admin_log(f"Error in file {__file__}: {error}", critical=True)
+                logger.error(f"Error: {traceback.format_exc()}")
     except (Exception, psycopg2.DatabaseError) as error:
-        admin_log(f"Error in file {__file__}: {error}", critical=True)
+        logger.error(f"Error: {traceback.format_exc()}")
 
 
 async def status_update():
@@ -73,7 +76,7 @@ async def status_update():
                     status = chat_member.status
                     is_bot = chat_member.user.is_bot
                 except Exception as error:
-                    # admin_log(f"Error in file {__file__}: {error}", critical=True)
+                    # logger.error(f"Error: {traceback.format_exc()}"
                     status = str(error)
                     is_bot = 'NULL'
 
@@ -92,12 +95,16 @@ async def status_update():
 
                     config_update_user_status_critical = chat_helper.get_chat_config(user_status_row['chat_id'], "update_user_status_critical")
                     #TODO:MED: add "ban and delete" button in log
-                    admin_log(f"User @{user_row['username']} ({user_row['id']}) in {title} ({user_status_row['chat_id']}) status changed to {status}", critical=config_update_user_status_critical)
+                    if config_update_user_status_critical == "True":
+                        logger.warning(f"User @{user_row['username']} ({user_row['id']}) in {title} ({user_status_row['chat_id']}) status changed to {status}")
+                    else:
+                        logger.info(
+                            f"User @{user_row['username']} ({user_row['id']}) in {title} ({user_status_row['chat_id']}) status changed to {status}")
 
         conn.commit()
         cur.close()
     except (Exception, psycopg2.DatabaseError) as error:
-        admin_log(f"Error in file {__file__}: {error}", critical=True)
+        logger.error(f"Error: {traceback.format_exc()}")
     finally:
         if conn is not None:
                 conn.close()
@@ -107,7 +114,7 @@ async def main() -> None:
         await chat_name_update()
         await status_update()
     except Exception as e:
-        admin_log(f"Error in file {__file__}: {e}", critical=True)
+        logger.error(f"Error: {traceback.format_exc()}")
 
 if __name__ == "__main__":
     asyncio.run(main())

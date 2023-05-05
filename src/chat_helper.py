@@ -1,4 +1,4 @@
-from src.admin_log import admin_log
+import src.logging_helper as logging
 import src.db_helper as db_helper
 
 import psycopg2
@@ -7,6 +7,9 @@ import os
 import json
 from telegram import ChatPermissions
 from datetime import datetime, timedelta
+import traceback
+
+logger = logging.get_logger()
 
 def get_default_chat(config_param=None):
     with db_helper.session_scope() as db_session:
@@ -24,7 +27,7 @@ def get_default_chat(config_param=None):
             else:
                 return None
         except Exception as e:
-            admin_log(f"Error in {__file__}: {e}", critical=True)
+            logger.error(f"Error: {traceback.format_exc()}")
             return None
 
 def get_chat_config(chat_id=None, config_param=None):
@@ -60,7 +63,7 @@ def get_chat_config(chat_id=None, config_param=None):
                 else:
                     return default_full_config
         except Exception as e:
-            admin_log(f"Error in {__file__}: {e}", critical=True)
+            logger.error(f"Error: {traceback.format_exc()}")
             return None
 
 

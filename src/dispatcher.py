@@ -1,4 +1,3 @@
-from src.admin_log import admin_log #this is old one, better to move everythin to logging_helper
 import src.logging_helper as logging
 import src.openai_helper as openai_helper
 import src.chat_helper as chat_helper
@@ -12,6 +11,7 @@ from telegram import Bot
 from telegram.ext import Application, MessageHandler, CommandHandler, filters, ChatJoinRequestHandler
 from telegram.request import HTTPXRequest
 import openai
+import traceback
 
 
 from datetime import datetime
@@ -21,7 +21,7 @@ config = config_helper.get_config()
 
 logger = logging.get_logger()
 
-admin_log(f"Starting {__file__} in {config['BOT']['MODE']} mode at {os.uname()}")
+logger.info(f"Starting {__file__} in {config['BOT']['MODE']} mode at {os.uname()}")
 
 bot = Bot(config['BOT']['KEY'],
           request=HTTPXRequest(http_version="1.1"), #we need this to fix bug https://github.com/python-telegram-bot/python-telegram-bot/issues/3556
@@ -38,7 +38,7 @@ async def send_message_to_admin(bot, chat_id, text: str):
         try:
             await bot.send_message(chat_id=admin.user.id, text=text)
         except Exception as error:
-            admin_log(f"Error in file {__file__}: {error}", critical=True)
+            logger.error(f"Error: {traceback.format_exc()}")
 
 async def tg_report_reset(update, context):
     with db_helper.session_scope() as db_session:
@@ -208,7 +208,7 @@ async def tg_thankyou(update, context):
 
                         text_to_send = f"{judge_mention} ({int(judge_status.rating)}) {rating_action} reputation of {user_mention} ({user_status.rating})"
                         await bot.send_message(chat_id=update.message.chat.id, text=text_to_send, reply_to_message_id=update.message.message_id)
-                        admin_log(text_to_send + f" in chat {update.message.chat.id} ({update.message.chat.title})", critical=False)
+                        logger.info(text_to_send + f" in chat {update.message.chat.id} ({update.message.chat.title})")
 
                         db_session.close()
 
@@ -235,7 +235,7 @@ async def tg_join_request(update, context):
         # Automatically approve the join request
         await chat_join_request.approve()
 
-        logger.error(f"Error in tg_join_request: {e}")
+        logger.error(f"Error: {traceback.format_exc()}")
 
 async def tg_new_member(update, context):
     try:
@@ -246,18 +246,17 @@ async def tg_new_member(update, context):
         if delete_NEW_CHAT_MEMBERS_message == True:
             await bot.delete_message(update.message.chat.id,update.message.id)
 
-            admin_log(f"Joining message deleted from chat {update.message.chat.title} ({update.message.chat.id}) for user @{update.message.from_user.username} ({update.message.from_user.id})")
+            logger.info(f"Joining message deleted from chat {update.message.chat.title} ({update.message.chat.id}) for user @{update.message.from_user.username} ({update.message.from_user.id})")
 
     except Exception as e:
-        admin_log(f"Error in tg_new_member: {e}", critical=True)
-
+        logger.error(f"Error: {traceback.format_exc()}")
 
 async def tg_update_user_status(update, context):
     #TODO: we need to rewrite all this to support multiple chats. May be we should add chat_id to user table
     if update.message is not None:
         config_update_user_status = chat_helper.get_chat_config(update.message.chat.id, "update_user_status")
         if config_update_user_status == None:
-            admin_log(f"Skip: no config for chat {update.message.chat.id} ({update.message.chat.title})")
+            logger.info(f"Skip: no config for chat {update.message.chat.id} ({update.message.chat.title})")
             return
 
         if config_update_user_status == True:
@@ -267,7 +266,8 @@ async def tg_update_user_status(update, context):
             else:
                 # TODO:HIGH: We need to rewrite this so we can also add full name
                 db_update_user(update.message.from_user.id, update.message.chat.id, update.message.from_user.username, datetime.now(), update.message.from_user.first_name, update.message.from_user.last_name)
-            #admin_log(f"{update.message.from_user.username} ({update.message.from_user.id}): {update.message.text}")
+
+            #logger.info(f"User status updated for user {update.message.from_user.id} in chat {update.message.chat.id} ({update.message.chat.title})")
 
 
         #TODO: we need to separate this part of the code to separate funciton tg_openai_autorespond
@@ -298,14 +298,14 @@ async def tg_update_user_status(update, context):
             if "yes" in response.choices[0].message.content.lower():
                 rows = openai_helper.get_nearest_vectors(update.message.text, 0)
 
-                admin_log("Question detected " + update.message.text, critical=False)
+                logger.info("Question detected " + update.message.text)
 
                 if len(rows) > 0:
-                    admin_log("Vectors detected " + str(rows) + str(rows[0]['similarity']), critical=False)
+                    logger.info("Vectors detected " + str(rows) + str(rows[0]['similarity']))
 
                     #TODO this is a debug solution to skip questions with high similarity
                     if rows[0]['similarity'] < float(config['OPENAI']['SIMILARITY_THRESHOLD']):
-                        admin_log("Skip, similarity=" + str(rows[0]['similarity']) + f" while threshold={config['OPENAI']['SIMILARITY_THRESHOLD']}", critical=False)
+                        logger.info("Skip, similarity=" + str(rows[0]['similarity']) + f" while threshold={config['OPENAI']['SIMILARITY_THRESHOLD']}", critical=False)
                         return #skip this message
 
                     messages = [
@@ -339,7 +339,7 @@ def db_update_user(user_id, chat_id, username, last_message_datetime, first_name
 
     with db_helper.session_scope() as db_session:
         if chat_id is None:
-            admin_log(f"Debug: no chat_id for user {user_id} ({username}) last_message_datetime")
+            logger.info(f"Debug: no chat_id for user {user_id} ({username}) last_message_datetime")
 
         # Update or insert user
         user = db_session.query(db_helper.User).filter_by(id=user_id).first()
@@ -384,6 +384,6 @@ def main() -> None:
         # Start the Bot
         application.run_polling()
     except Exception as e:
-        admin_log(f"Error in file {__file__}: {e}", critical=True)
+        logger.error(f"Error: {traceback.format_exc()}")
 if __name__ == '__main__':
     main()

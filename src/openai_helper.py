@@ -1,11 +1,15 @@
 import openai
-from src.admin_log import admin_log
+import src.logging_helper as logging_helper
 import src.config_helper as config_helper
 
 import psycopg2
 import psycopg2.extras
+import configparser
+import traceback
 
 config = config_helper.get_config()
+
+logger = logging_helper.get_logger()
 
 openai.api_key = config['OPENAI']['KEY']
 
@@ -39,7 +43,7 @@ def get_nearest_vectors(query, threshold = config['OPENAI']['SIMILARITY_THRESHOL
 
 
     except (Exception, psycopg2.DatabaseError) as error:
-        admin_log(f"Error in file {__file__}: {error}", critical=True)
+        logger.error(f"Error: {traceback.format_exc()}")
     finally:
         if conn is not None:
             conn.close()

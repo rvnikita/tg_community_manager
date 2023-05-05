@@ -1,16 +1,20 @@
 import sys
 sys.path.insert(0, '../') # add parent directory to the path
-from src.admin_log import admin_log
+import src.logging_helper as logging
 import src.openai_helper as openai_helper
 import src.config_helper as config_helper
 
 import openai
 import psycopg2.extras
+import traceback
 
 from datetime import datetime
 import psycopg2
 
+
 config = config_helper.get_config()
+
+logger = logging.get_logger()
 
 openai.api_key = config['OPENAI']['KEY']
 
@@ -38,10 +42,10 @@ def update_embeddings():
             sql = f"UPDATE tg_qna SET embedding = '{embedding.data[0].embedding}' WHERE id = {row['id']}"
             cur.execute(sql)
             conn.commit()
-            admin_log(f"Embedding for message {row['id']} generated", critical=True)
+            logging.info(f"Embedding for message {row['id']} generated")
 
     except (Exception, psycopg2.DatabaseError) as error:
-        admin_log(f"Error while connecting to PostgreSQL: {error}", critical=True)
+        logger.error(f"Error: {traceback.format_exc()}")
     finally:
         if conn is not None:
                 conn.close()
