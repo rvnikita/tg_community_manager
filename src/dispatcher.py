@@ -217,8 +217,7 @@ async def tg_join_request(update, context):
 
         if welcome_message is not None and welcome_message != "":
             await bot.send_message(update.effective_user.id, welcome_message, disable_web_page_preview=True)
-            logger.info(
-                f"Welcome message sent to user {update.effective_user.id} in chat {update.effective_chat.id} ({update.effective_chat.title})")
+            logger.info(f"Welcome message sent to user {update.effective_user.id} in chat {update.effective_chat.id} ({update.effective_chat.title})")
             # admin_log(f"Welcome message sent to chat {update.message.chat.title} ({update.message.chat.id}) for user @{update.message.from_user.username} ({update.message.from_user.id})")
 
         chat_join_request = update.chat_join_request
