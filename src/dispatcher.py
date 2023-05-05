@@ -1,4 +1,5 @@
-from src.admin_log import admin_log
+from src.admin_log import admin_log #this is old one, better to move everythin to logging_helper
+import src.logging_helper as logging
 import src.openai_helper as openai_helper
 import src.chat_helper as chat_helper
 import src.db_helper as db_helper
@@ -17,6 +18,8 @@ from datetime import datetime
 import psycopg2
 
 config = config_helper.get_config()
+
+logger = logging.get_logger()
 
 admin_log(f"Starting {__file__} in {config['BOT']['MODE']} mode at {os.uname()}")
 
@@ -219,9 +222,10 @@ async def tg_join_request(update, context):
 
         if welcome_message is not None and welcome_message != "":
             await bot.send_message(update.effective_user.id, welcome_message, disable_web_page_preview=True)
-            admin_log(f"Welcome message sent to chat {update.message.chat.title} ({update.message.chat.id}) for user @{update.message.from_user.username} ({update.message.from_user.id})")
+            logger.info(f"Welcome message sent to user {update.effective_user.id} in chat {update.effective_chat.id} ({update.effective_chat.title})")
+            # admin_log(f"Welcome message sent to chat {update.message.chat.title} ({update.message.chat.id}) for user @{update.message.from_user.username} ({update.message.from_user.id})")
     except Exception as e:
-        admin_log(f"Error in handle_join_request: {e}", critical=True)
+        logger.error(f"Error in tg_join_request: {e}")
 
 async def tg_new_member(update, context):
     try:
