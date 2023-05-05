@@ -14,7 +14,7 @@ class TelegramLoggerHandler(logging.Handler):
     def emit(self, record):
         # OVERWRITE LOG METHOD WITH OUR TELEGRAM LOGIC
         # TODO:LOW: maybe it's better to rewrite this with bot.send_message
-        URL = f"https://api.telegram.org/bot{config['TELEGRAM']['KEY']}/sendMessage?chat_id={config['TELEGRAM']['ADMIN_ID']}&text={record}"
+        URL = f"https://api.telegram.org/bot{config['BOT']['KEY']}/sendMessage?chat_id={config['BOT']['ADMIN_ID']}&text={record}"
 
         r = requests.get(url=URL)
         data = r.json()
