@@ -152,6 +152,11 @@ async def tg_thankyou(update, context):
         if update.message is not None \
                 and update.message.reply_to_message is not None \
                 and update.message.reply_to_message.from_user.id != update.message.from_user.id:
+
+            # there is a strange behaviour when user send message in topic Telegram show it as a reply to forum_topic_created invisible message. We don't need to process it
+            if update.message.reply_to_message.forum_topic_created is not None:
+                return
+
             chat = db_session.query(db_helper.Chat).filter(db_helper.Chat.id == update.message.chat.id).first()
             #TODO:HIGH: check if we don't have like_words and dislike_words in config then we need to use default values
             like_words = chat.config['like_words']
