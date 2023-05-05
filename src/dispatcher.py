@@ -8,7 +8,7 @@ import src.user_helper as user_helper
 import os
 import configparser
 from telegram import Bot
-from telegram.ext import Application, MessageHandler, CommandHandler, filters
+from telegram.ext import Application, MessageHandler, CommandHandler, filters, ChatJoinRequestHandler
 from telegram.request import HTTPXRequest
 import openai
 
@@ -208,14 +208,35 @@ async def tg_thankyou(update, context):
         else:
             pass
 
-async def tg_new_member(update, context):
-    
-    delete_NEW_CHAT_MEMBERS_message = config.getboolean('NEW_CHAT_MEMBERS', 'delete_NEW_CHAT_MEMBERS_message')
-    
-    if delete_NEW_CHAT_MEMBERS_message == True:
-        await bot.delete_message(update.message.chat.id,update.message.id)
+async def tg_join_request(update, context):
+    try:
+        chat_join_request = update.chat_join_request
 
-        admin_log(f"Joining message deleted from chat {update.message.chat.title} ({update.message.chat.id}) for user @{update.message.from_user.username} ({update.message.from_user.id})")
+        # Automatically approve the join request
+        await chat_join_request.approve()
+
+        welcome_message = chat_helper.get_chat_config(update.effective_chat.id, "welcome_message")
+
+        if welcome_message is not None and welcome_message != "":
+            await bot.send_message(update.effective_user.id, welcome_message, disable_web_page_preview=True)
+            admin_log(f"Welcome message sent to chat {update.message.chat.title} ({update.message.chat.id}) for user @{update.message.from_user.username} ({update.message.from_user.id})")
+    except Exception as e:
+        admin_log(f"Error in handle_join_request: {e}", critical=True)
+
+async def tg_new_member(update, context):
+    try:
+        new_user_id = update.message.api_kwargs['new_chat_participant']['id']
+
+        delete_NEW_CHAT_MEMBERS_message = config.getboolean('NEW_CHAT_MEMBERS', 'delete_NEW_CHAT_MEMBERS_message')
+
+        if delete_NEW_CHAT_MEMBERS_message == True:
+            await bot.delete_message(update.message.chat.id,update.message.id)
+
+            admin_log(f"Joining message deleted from chat {update.message.chat.title} ({update.message.chat.id}) for user @{update.message.from_user.username} ({update.message.from_user.id})")
+
+    except Exception as e:
+        admin_log(f"Error in tg_new_member: {e}", critical=True)
+
 
 async def tg_update_user_status(update, context):
     #TODO: we need to rewrite all this to support multiple chats. May be we should add chat_id to user table
@@ -342,6 +363,9 @@ def main() -> None:
 
         # reporting
         application.add_handler(CommandHandler('report', tg_report, filters.ChatType.SUPERGROUP), group=4)
+
+        # Add a handler for chat join requests
+        application.add_handler(ChatJoinRequestHandler(tg_join_request), group=5)
 
         # Start the Bot
         application.run_polling()
