@@ -213,18 +213,25 @@ async def tg_thankyou(update, context):
 
 async def tg_join_request(update, context):
     try:
+        welcome_message = chat_helper.get_chat_config(update.effective_chat.id, "welcome_message")
+
+        if welcome_message is not None and welcome_message != "":
+            await bot.send_message(update.effective_user.id, welcome_message, disable_web_page_preview=True)
+            logger.info(
+                f"Welcome message sent to user {update.effective_user.id} in chat {update.effective_chat.id} ({update.effective_chat.title})")
+            # admin_log(f"Welcome message sent to chat {update.message.chat.title} ({update.message.chat.id}) for user @{update.message.from_user.username} ({update.message.from_user.id})")
+
         chat_join_request = update.chat_join_request
 
         # Automatically approve the join request
         await chat_join_request.approve()
 
-        welcome_message = chat_helper.get_chat_config(update.effective_chat.id, "welcome_message")
 
-        if welcome_message is not None and welcome_message != "":
-            await bot.send_message(update.effective_user.id, welcome_message, disable_web_page_preview=True)
-            logger.info(f"Welcome message sent to user {update.effective_user.id} in chat {update.effective_chat.id} ({update.effective_chat.title})")
-            # admin_log(f"Welcome message sent to chat {update.message.chat.title} ({update.message.chat.id}) for user @{update.message.from_user.username} ({update.message.from_user.id})")
     except Exception as e:
+        chat_join_request = update.chat_join_request
+        # Automatically approve the join request
+        await chat_join_request.approve()
+
         logger.error(f"Error in tg_join_request: {e}")
 
 async def tg_new_member(update, context):
