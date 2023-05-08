@@ -41,180 +41,188 @@ async def send_message_to_admin(bot, chat_id, text: str):
             logger.error(f"Error: {traceback.format_exc()}")
 
 async def tg_report_reset(update, context):
-    with db_helper.session_scope() as db_session:
-        #TODO:HIGH: this command reset all reports for this user. It could work when it is replied to message or followed by nickname. It could be done only by chat admin.
-        chat_id = update.effective_chat.id
-        message = update.message
+    try:
+        with db_helper.session_scope() as db_session:
+            #TODO:HIGH: this command reset all reports for this user. It could work when it is replied to message or followed by nickname. It could be done only by chat admin.
+            chat_id = update.effective_chat.id
+            message = update.message
 
-        chat_administrators = await bot.get_chat_administrators(chat_id)
-        is_admin = False
+            chat_administrators = await bot.get_chat_administrators(chat_id)
+            is_admin = False
 
-        for admin in chat_administrators:
-            if admin.user.id == message.from_user.id:
-                is_admin = True
-                break
+            for admin in chat_administrators:
+                if admin.user.id == message.from_user.id:
+                    is_admin = True
+                    break
 
-        if not is_admin:
-            bot.send_message(chat_id=chat_id, text="You are not an admin of this chat.")
-            return
+            if not is_admin:
+                bot.send_message(chat_id=chat_id, text="You are not an admin of this chat.")
+                return
 
-        if message.reply_to_message:
-            reported_user_id = message.reply_to_message.from_user.id
-        else:
-            #we need to take user nickname and then find user_id
-            #TODO:HIGH: implement this
-            return
+            if message.reply_to_message:
+                reported_user_id = message.reply_to_message.from_user.id
+            else:
+                #we need to take user nickname and then find user_id
+                #TODO:HIGH: implement this
+                return
 
-        reports = db_session.query(db_helper.Report).filter(db_helper.Report.reported_user_id == reported_user_id).all()
-        for report in reports:
-            db_session.delete(report)
+            reports = db_session.query(db_helper.Report).filter(db_helper.Report.reported_user_id == reported_user_id).all()
+            for report in reports:
+                db_session.delete(report)
 
-        db_session.commit()
+            db_session.commit()
 
-        bot.send_message(chat_id=chat_id, text="Reports for this user were reset.")
+            bot.send_message(chat_id=chat_id, text="Reports for this user were reset.")
+    except Exception as error:
+        logger.error(f"Error: {traceback.format_exc()}")
 
 
 async def tg_report(update, context):
-    with db_helper.session_scope() as db_session:
-        chat_id = update.effective_chat.id
+    try:
+        with db_helper.session_scope() as db_session:
+            chat_id = update.effective_chat.id
 
-        message = update.message
+            message = update.message
 
-        if message.reply_to_message:
-            number_of_reports_to_warn = int(chat_helper.get_chat_config(chat_id, 'number_of_reports_to_warn'))
-            number_of_reports_to_ban = int(chat_helper.get_chat_config(chat_id, 'number_of_reports_to_ban'))
+            if message.reply_to_message:
+                number_of_reports_to_warn = int(chat_helper.get_chat_config(chat_id, 'number_of_reports_to_warn'))
+                number_of_reports_to_ban = int(chat_helper.get_chat_config(chat_id, 'number_of_reports_to_ban'))
 
-            reported_message_id = message.reply_to_message.message_id
-            reported_user_id = message.reply_to_message.from_user.id
-            reporting_user_id = message.from_user.id
+                reported_message_id = message.reply_to_message.message_id
+                reported_user_id = message.reply_to_message.from_user.id
+                reporting_user_id = message.from_user.id
 
-            # Check if the reported user is an admin of the chat
-            chat_administrators = await bot.get_chat_administrators(chat_id)
-            for admin in chat_administrators:
-                if admin.user.id == reported_user_id:
-                    await bot.send_message(chat_id=chat_id, text="You cannot report an admin.")
+                # Check if the reported user is an admin of the chat
+                chat_administrators = await bot.get_chat_administrators(chat_id)
+                for admin in chat_administrators:
+                    if admin.user.id == reported_user_id:
+                        await bot.send_message(chat_id=chat_id, text="You cannot report an admin.")
+                        return
+
+                # Check if the user has already been warned by the same reporter
+                existing_report = db_session.query(db_helper.Report).filter(
+                    db_helper.Report.chat_id == chat_id,
+                    db_helper.Report.reported_user_id == reported_user_id,
+                    db_helper.Report.reporting_user_id == reporting_user_id
+                ).first()
+
+                if not existing_report or reporting_user_id in [admin.user.id for admin in chat_administrators]:
+                    # Add report to the database
+                    report = db_helper.Report(
+                        reported_user_id=reported_user_id,
+                        reporting_user_id=reporting_user_id,
+                        reported_message_id=reported_message_id,
+                        chat_id=chat_id
+                    )
+                    db_session.add(report)
+                    db_session.commit()
+                else:
+                    await bot.send_message(chat_id=chat_id, text="You have already reported this user.")
                     return
 
-            # Check if the user has already been warned by the same reporter
-            existing_report = db_session.query(db_helper.Report).filter(
-                db_helper.Report.chat_id == chat_id,
-                db_helper.Report.reported_user_id == reported_user_id,
-                db_helper.Report.reporting_user_id == reporting_user_id
-            ).first()
+                # Count unique reports for the reported user in the chat
+                report_count = db_session.query(db_helper.Report).filter(
+                    db_helper.Report.chat_id == chat_id,
+                    db_helper.Report.reported_user_id == reported_user_id
+                ).count()
 
-            if not existing_report or reporting_user_id in [admin.user.id for admin in chat_administrators]:
-                # Add report to the database
-                report = db_helper.Report(
-                    reported_user_id=reported_user_id,
-                    reporting_user_id=reporting_user_id,
-                    reported_message_id=reported_message_id,
-                    chat_id=chat_id
-                )
-                db_session.add(report)
-                db_session.commit()
-            else:
-                await bot.send_message(chat_id=chat_id, text="You have already reported this user.")
-                return
+                reported_user_mention = user_helper.get_user_mention(reported_user_id)
+                reporting_user_mention = user_helper.get_user_mention(reporting_user_id)
 
-            # Count unique reports for the reported user in the chat
-            report_count = db_session.query(db_helper.Report).filter(
-                db_helper.Report.chat_id == chat_id,
-                db_helper.Report.reported_user_id == reported_user_id
-            ).count()
+                await send_message_to_admin(bot, chat_id, f"User {reporting_user_mention} reported {reported_user_mention} in chat {chat_id}. Total reports: {report_count}. \nReported message: {message.reply_to_message.text}")
+                await bot.send_message(chat_id=chat_id, text=f"User {reported_user_mention} has been reported {report_count} times.")
 
-            reported_user_mention = user_helper.get_user_mention(reported_user_id)
-            reporting_user_mention = user_helper.get_user_mention(reporting_user_id)
+                if report_count >= number_of_reports_to_ban:
+                    await chat_helper.delete_message(bot, chat_id, reported_message_id)
+                    await chat_helper.ban_user(bot, chat_id, reported_user_id)
+                    await bot.send_message(chat_id=chat_id, text=f"User {reported_user_mention} has been banned due to {report_count} reports.")
+                    await send_message_to_admin(bot, chat_id, f"User {reported_user_mention} has been banned in chat {chat_id} due to {report_count} reports.")
 
-            await send_message_to_admin(bot, chat_id, f"User {reporting_user_mention} reported {reported_user_mention} in chat {chat_id}. Total reports: {report_count}. \nReported message: {message.reply_to_message.text}")
-            await bot.send_message(chat_id=chat_id, text=f"User {reported_user_mention} has been reported {report_count} times.")
+                    return #we don't need to warn and mute user if he is banned
 
-            if report_count >= number_of_reports_to_ban:
-                await chat_helper.delete_message(bot, chat_id, reported_message_id)
-                await chat_helper.ban_user(bot, chat_id, reported_user_id)
-                await bot.send_message(chat_id=chat_id, text=f"User {reported_user_mention} has been banned due to {report_count} reports.")
-                await send_message_to_admin(bot, chat_id, f"User {reported_user_mention} has been banned in chat {chat_id} due to {report_count} reports.")
-
-                return #we don't need to warn and mute user if he is banned
-
-            if report_count >= number_of_reports_to_warn:
-                await chat_helper.warn_user(bot, chat_id, reported_user_id)
-                await chat_helper.mute_user(bot, chat_id, reported_user_id)
-                await bot.send_message(chat_id=chat_id, text=f"User {reported_user_mention} has been warned and muted due to {report_count} reports.")
-                await send_message_to_admin(bot, chat_id, f"User {reported_user_mention} has been warned and muted in chat {chat_id} due to {report_count} reports.")
-
+                if report_count >= number_of_reports_to_warn:
+                    await chat_helper.warn_user(bot, chat_id, reported_user_id)
+                    await chat_helper.mute_user(bot, chat_id, reported_user_id)
+                    await bot.send_message(chat_id=chat_id, text=f"User {reported_user_mention} has been warned and muted due to {report_count} reports.")
+                    await send_message_to_admin(bot, chat_id, f"User {reported_user_mention} has been warned and muted in chat {chat_id} due to {report_count} reports.")
+    except Exception as error:
+        logger.error(f"Error: {traceback.format_exc()}")
 
 
 async def tg_thankyou(update, context):
-    #category 0 - "thank you", 1 - "dislike"
+    try:
+        #category 0 - "thank you", 1 - "dislike"
 
-    with db_helper.session_scope() as db_session:
+        with db_helper.session_scope() as db_session:
 
-        if update.message is not None \
-                and update.message.reply_to_message is not None \
-                and update.message.reply_to_message.from_user.id != update.message.from_user.id:
+            if update.message is not None \
+                    and update.message.reply_to_message is not None \
+                    and update.message.reply_to_message.from_user.id != update.message.from_user.id:
 
-            # there is a strange behaviour when user send message in topic Telegram show it as a reply to forum_topic_created invisible message. We don't need to process it
-            if update.message.reply_to_message.forum_topic_created is not None:
-                return
+                # there is a strange behaviour when user send message in topic Telegram show it as a reply to forum_topic_created invisible message. We don't need to process it
+                if update.message.reply_to_message.forum_topic_created is not None:
+                    return
 
-            chat = db_session.query(db_helper.Chat).filter(db_helper.Chat.id == update.message.chat.id).first()
-            #TODO:HIGH: check if we don't have like_words and dislike_words in config then we need to use default values
-            like_words = chat.config['like_words']
-            dislike_words = chat.config['dislike_words']
+                chat = db_session.query(db_helper.Chat).filter(db_helper.Chat.id == update.message.chat.id).first()
+                #TODO:HIGH: check if we don't have like_words and dislike_words in config then we need to use default values
+                like_words = chat.config['like_words']
+                dislike_words = chat.config['dislike_words']
 
-            for category, word_list in {'like_words': like_words, 'dislike_words': dislike_words}.items():
-                for word in word_list:
-                     #check without case if word in update message
-                    if word.lower() in update.message.text.lower():
-                        user = db_session.query(db_helper.User).filter(db_helper.User.id == update.message.reply_to_message.from_user.id).first()
-                        if user is None:
-                            user = db_helper.User(id=update.message.reply_to_message.from_user.id, first_name=update.message.reply_to_message.from_user.first_name, last_name=update.message.reply_to_message.from_user.last_name, username=update.message.reply_to_message.from_user.username)
-                            db_session.add(user)
+                for category, word_list in {'like_words': like_words, 'dislike_words': dislike_words}.items():
+                    for word in word_list:
+                         #check without case if word in update message
+                        if word.lower() in update.message.text.lower():
+                            user = db_session.query(db_helper.User).filter(db_helper.User.id == update.message.reply_to_message.from_user.id).first()
+                            if user is None:
+                                user = db_helper.User(id=update.message.reply_to_message.from_user.id, first_name=update.message.reply_to_message.from_user.first_name, last_name=update.message.reply_to_message.from_user.last_name, username=update.message.reply_to_message.from_user.username)
+                                db_session.add(user)
+                                db_session.commit()
+
+                            user_status = db_session.query(db_helper.User_Status).filter(db_helper.User_Status.chat_id == update.message.chat.id, db_helper.User_Status.user_id == update.message.reply_to_message.from_user.id).first()
+                            if user_status is None:
+                                user_status = db_helper.User_Status(chat_id=update.message.chat.id, user_id=update.message.reply_to_message.from_user.id, rating=0)
+                                db_session.add(user_status)
+                                db_session.commit()
+
+                            if category == "like_words":
+                                user_status.rating += 1
+                                rating_action = "increased"
+                            elif category == "dislike_words":
+                                user_status.rating -= 1
+                                rating_action = "decreased"
+
                             db_session.commit()
 
-                        user_status = db_session.query(db_helper.User_Status).filter(db_helper.User_Status.chat_id == update.message.chat.id, db_helper.User_Status.user_id == update.message.reply_to_message.from_user.id).first()
-                        if user_status is None:
-                            user_status = db_helper.User_Status(chat_id=update.message.chat.id, user_id=update.message.reply_to_message.from_user.id, rating=0)
-                            db_session.add(user_status)
-                            db_session.commit()
 
-                        if category == "like_words":
-                            user_status.rating += 1
-                            rating_action = "increased"
-                        elif category == "dislike_words":
-                            user_status.rating -= 1
-                            rating_action = "decreased"
+                            judge = db_session.query(db_helper.User).filter(db_helper.User.id == update.message.from_user.id).first()
+                            if judge is None:
+                                judge = db_helper.User(id=update.message.from_user.id, name=update.message.from_user.first_name)
+                                db_session.add(judge)
+                                db_session.commit()
 
-                        db_session.commit()
+                            judge_status = db_session.query(db_helper.User_Status).filter(db_helper.User_Status.chat_id == update.message.chat.id, db_helper.User_Status.user_id == update.message.from_user.id).first()
+                            if judge_status is None:
+                                judge_status = db_helper.User_Status(chat_id=update.message.chat.id, user_id=update.message.from_user.id, rating=0)
+                                db_session.add(judge_status)
+                                db_session.commit()
 
-
-                        judge = db_session.query(db_helper.User).filter(db_helper.User.id == update.message.from_user.id).first()
-                        if judge is None:
-                            judge = db_helper.User(id=update.message.from_user.id, name=update.message.from_user.first_name)
-                            db_session.add(judge)
-                            db_session.commit()
-
-                        judge_status = db_session.query(db_helper.User_Status).filter(db_helper.User_Status.chat_id == update.message.chat.id, db_helper.User_Status.user_id == update.message.from_user.id).first()
-                        if judge_status is None:
-                            judge_status = db_helper.User_Status(chat_id=update.message.chat.id, user_id=update.message.from_user.id, rating=0)
-                            db_session.add(judge_status)
-                            db_session.commit()
-
-                        #TODO:HIGH: we need to check if we have name or username and use something that is not None
+                            #TODO:HIGH: we need to check if we have name or username and use something that is not None
 
 
-                        user_mention = user_helper.get_user_mention(user.id)
-                        judge_mention = user_helper.get_user_mention(judge.id)
+                            user_mention = user_helper.get_user_mention(user.id)
+                            judge_mention = user_helper.get_user_mention(judge.id)
 
-                        text_to_send = f"{judge_mention} ({int(judge_status.rating)}) {rating_action} reputation of {user_mention} ({user_status.rating})"
-                        await bot.send_message(chat_id=update.message.chat.id, text=text_to_send, reply_to_message_id=update.message.message_id)
-                        logger.info(text_to_send + f" in chat {update.message.chat.id} ({update.message.chat.title})")
+                            text_to_send = f"{judge_mention} ({int(judge_status.rating)}) {rating_action} reputation of {user_mention} ({user_status.rating})"
+                            await bot.send_message(chat_id=update.message.chat.id, text=text_to_send, reply_to_message_id=update.message.message_id)
+                            logger.info(text_to_send + f" in chat {update.message.chat.id} ({update.message.chat.title})")
 
-                        db_session.close()
+                            db_session.close()
 
-                        return
-        else:
-            pass
+                            return
+            else:
+                pass
+    except Exception as error:
+        logger.error(f"Error: {traceback.format_exc()}")
 
 async def tg_join_request(update, context):
     try:
@@ -337,31 +345,34 @@ async def tg_update_user_status(update, context):
 
 
 def db_update_user(user_id, chat_id, username, last_message_datetime, first_name=None, last_name=None):
-    #TODO: we need to relocate this function to another location
+    try:
+        #TODO: we need to relocate this function to another location
 
-    with db_helper.session_scope() as db_session:
-        if chat_id is None:
-            logger.info(f"Debug: no chat_id for user {user_id} ({username}) last_message_datetime")
+        with db_helper.session_scope() as db_session:
+            if chat_id is None:
+                logger.info(f"Debug: no chat_id for user {user_id} ({username}) last_message_datetime")
 
-        # Update or insert user
-        user = db_session.query(db_helper.User).filter_by(id=user_id).first()
-        if user:
-            user.username = username
-            user.first_name = first_name
-            user.last_name = last_name
-        else:
-            user = db_helper.User(id=user_id, username=username, first_name=first_name, last_name=last_name)
-            db_session.add(user)
+            # Update or insert user
+            user = db_session.query(db_helper.User).filter_by(id=user_id).first()
+            if user:
+                user.username = username
+                user.first_name = first_name
+                user.last_name = last_name
+            else:
+                user = db_helper.User(id=user_id, username=username, first_name=first_name, last_name=last_name)
+                db_session.add(user)
 
-        # Update or insert user status
-        user_status = db_session.query(db_helper.User_Status).filter_by(user_id=user_id, chat_id=chat_id).first()
-        if user_status:
-            user_status.last_message_datetime = last_message_datetime
-        else:
-            user_status = db_helper.User_Status(user_id=user_id, chat_id=chat_id, last_message_datetime=last_message_datetime)
-            db_session.add(user_status)
+            # Update or insert user status
+            user_status = db_session.query(db_helper.User_Status).filter_by(user_id=user_id, chat_id=chat_id).first()
+            if user_status:
+                user_status.last_message_datetime = last_message_datetime
+            else:
+                user_status = db_helper.User_Status(user_id=user_id, chat_id=chat_id, last_message_datetime=last_message_datetime)
+                db_session.add(user_status)
 
-        db_session.commit()
+            db_session.commit()
+    except Exception as e:
+        logger.error(f"Error: {traceback.format_exc()}")
 
 def main() -> None:
     try:
