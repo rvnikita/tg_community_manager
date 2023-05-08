@@ -164,9 +164,9 @@ async def tg_thankyou(update, context):
                     return
 
                 chat = db_session.query(db_helper.Chat).filter(db_helper.Chat.id == update.message.chat.id).first()
-                #TODO:HIGH: check if we don't have like_words and dislike_words in config then we need to use default values
-                like_words = chat.config['like_words']
-                dislike_words = chat.config['dislike_words']
+
+                like_words = chat_helper.get_chat_config(update.message.chat.id, "like_words")
+                dislike_words = chat_helper.get_chat_config(update.message.chat.id, "dislike_words")
 
                 for category, word_list in {'like_words': like_words, 'dislike_words': dislike_words}.items():
                     for word in word_list:
