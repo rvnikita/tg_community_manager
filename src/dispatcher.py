@@ -306,7 +306,7 @@ async def tg_update_user_status(update, context):
 
                         #TODO this is a debug solution to skip questions with high similarity
                         if rows[0]['similarity'] < float(config['OPENAI']['SIMILARITY_THRESHOLD']):
-                            logger.info("Skip, similarity=" + str(rows[0]['similarity']) + f" while threshold={config['OPENAI']['SIMILARITY_THRESHOLD']}", critical=False)
+                            logger.info("Skip, similarity=" + str(rows[0]['similarity']) + f" while threshold={config['OPENAI']['SIMILARITY_THRESHOLD']}")
                             return #skip this message
 
                         messages = [
