@@ -278,6 +278,19 @@ async def tg_update_user_status(update, context):
 
                 #logger.info(f"User status updated for user {update.message.from_user.id} in chat {update.message.chat.id} ({update.message.chat.title})")
 
+            delete_channel_bot_message = chat_helper.get_chat_config(update.message.chat.id, "delete_channel_bot_message") #delete messages that posted by channels, not users
+
+            if delete_channel_bot_message == True:
+                if update.message.from_user.is_bot == True and update.message.from_user.name == "@Channel_Bot":
+                    #get all admins for this chat
+
+                    delete_channel_bot_message_allowed_ids = chat_helper.get_chat_config(update.message.chat.id, "delete_channel_bot_message_allowed_ids")
+
+                    if delete_channel_bot_message_allowed_ids is None or update.message.sender_chat.id not in delete_channel_bot_message_allowed_ids:
+                        await bot.delete_message(update.message.chat.id, update.message.id)
+                        await bot.send_message(update.message.chat.id, update.message.text)
+                        logger.info(
+                            f"Channel message deleted from chat {update.message.chat.title} ({update.message.chat.id}) for user @{update.message.from_user.username} ({update.message.from_user.id})")
 
             #TODO: we need to separate this part of the code to separate funciton tg_openai_autorespond
             if update.message.chat.id == -1001588101140: #O1
