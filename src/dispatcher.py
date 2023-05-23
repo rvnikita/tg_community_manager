@@ -251,6 +251,7 @@ async def tg_new_member(update, context):
 
         delete_NEW_CHAT_MEMBERS_message = config.getboolean('NEW_CHAT_MEMBERS', 'delete_NEW_CHAT_MEMBERS_message')
 
+        #TODO:MED: Move this to DB chat config
         if delete_NEW_CHAT_MEMBERS_message == True:
             await bot.delete_message(update.message.chat.id,update.message.id)
 
