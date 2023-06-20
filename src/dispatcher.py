@@ -257,6 +257,12 @@ async def tg_new_member(update, context):
 
             logger.info(f"Joining message deleted from chat {update.message.chat.title} ({update.message.chat.id}) for user @{update.message.from_user.username} ({update.message.from_user.id})")
 
+        welcome_message = chat_helper.get_chat_config(update.effective_chat.id, "welcome_message")
+
+        if welcome_message is not None and welcome_message != "":
+            #TODO:MED: Add user mention (with smart approach, maybe we should do it through function)
+            await bot.send_message(update.effective_chat.id, welcome_message, disable_web_page_preview=True)
+
     except Exception as e:
         logger.error(f"Error: {traceback.format_exc()}")
 
