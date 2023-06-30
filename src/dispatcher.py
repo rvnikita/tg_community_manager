@@ -4,6 +4,7 @@ import src.chat_helper as chat_helper
 import src.db_helper as db_helper
 import src.config_helper as config_helper
 import src.user_helper as user_helper
+import src.rating_helper as rating_helper
 
 import os
 import configparser
@@ -138,6 +139,9 @@ async def tg_report(update, context):
                     await bot.send_message(chat_id=chat_id, text=f"User {reported_user_mention} has been banned due to {report_count} reports.")
                     await send_message_to_admin(bot, chat_id, f"User {reported_user_mention} has been banned in chat {chat_id} due to {report_count} reports.")
 
+                    #let's now increase rating for all users who reported this user
+
+
                     return #we don't need to warn and mute user if he is banned
 
                 if report_count >= number_of_reports_to_warn:
@@ -151,8 +155,6 @@ async def tg_report(update, context):
 
 async def tg_thankyou(update, context):
     try:
-        #category 0 - "thank you", 1 - "dislike"
-
         with db_helper.session_scope() as db_session:
 
             if update.message is not None \
@@ -163,8 +165,6 @@ async def tg_thankyou(update, context):
                 if update.message.reply_to_message.forum_topic_created is not None:
                     return
 
-                chat = db_session.query(db_helper.Chat).filter(db_helper.Chat.id == update.message.chat.id).first()
-
                 like_words = chat_helper.get_chat_config(update.message.chat.id, "like_words")
                 dislike_words = chat_helper.get_chat_config(update.message.chat.id, "dislike_words")
 
@@ -172,49 +172,29 @@ async def tg_thankyou(update, context):
                     for word in word_list:
                          #check without case if word in update message
                         if word.lower() in update.message.text.lower():
-                            user = db_session.query(db_helper.User).filter(db_helper.User.id == update.message.reply_to_message.from_user.id).first()
+
+                            user = db_session.query(db_helper.User).filter(
+                                db_helper.User.id == update.message.reply_to_message.from_user.id).first()
                             if user is None:
-                                user = db_helper.User(id=update.message.reply_to_message.from_user.id, first_name=update.message.reply_to_message.from_user.first_name, last_name=update.message.reply_to_message.from_user.last_name, username=update.message.reply_to_message.from_user.username)
+                                user = db_helper.User(id=update.message.reply_to_message.from_user.id,
+                                                      first_name=update.message.reply_to_message.from_user.first_name,
+                                                      last_name=update.message.reply_to_message.from_user.last_name,
+                                                      username=update.message.reply_to_message.from_user.username)
                                 db_session.add(user)
                                 db_session.commit()
 
-                            user_status = db_session.query(db_helper.User_Status).filter(db_helper.User_Status.chat_id == update.message.chat.id, db_helper.User_Status.user_id == update.message.reply_to_message.from_user.id).first()
-                            if user_status is None:
-                                user_status = db_helper.User_Status(chat_id=update.message.chat.id, user_id=update.message.reply_to_message.from_user.id, rating=0)
-                                db_session.add(user_status)
-                                db_session.commit()
-
-                            if category == "like_words":
-                                user_status.rating += 1
-                                rating_action = "increased"
-                            elif category == "dislike_words":
-                                user_status.rating -= 1
-                                rating_action = "decreased"
-
-                            db_session.commit()
-
-
-                            judge = db_session.query(db_helper.User).filter(db_helper.User.id == update.message.from_user.id).first()
+                            judge = db_session.query(db_helper.User).filter(
+                                db_helper.User.id == update.message.from_user.id).first()
                             if judge is None:
-                                judge = db_helper.User(id=update.message.from_user.id, name=update.message.from_user.first_name)
+                                judge = db_helper.User(id=update.message.from_user.id,
+                                                       name=update.message.from_user.first_name)
                                 db_session.add(judge)
                                 db_session.commit()
 
-                            judge_status = db_session.query(db_helper.User_Status).filter(db_helper.User_Status.chat_id == update.message.chat.id, db_helper.User_Status.user_id == update.message.from_user.id).first()
-                            if judge_status is None:
-                                judge_status = db_helper.User_Status(chat_id=update.message.chat.id, user_id=update.message.from_user.id, rating=0)
-                                db_session.add(judge_status)
-                                db_session.commit()
-
-                            #TODO:HIGH: we need to check if we have name or username and use something that is not None
-
-
-                            user_mention = user_helper.get_user_mention(user.id)
-                            judge_mention = user_helper.get_user_mention(judge.id)
-
-                            text_to_send = f"{judge_mention} ({int(judge_status.rating)}) {rating_action} reputation of {user_mention} ({user_status.rating})"
-                            await bot.send_message(chat_id=update.message.chat.id, text=text_to_send, reply_to_message_id=update.message.message_id)
-                            logger.info(text_to_send + f" in chat {update.message.chat.id} ({update.message.chat.title})")
+                            if category == "like_words":
+                                await rating_helper.change_rating(update.message.reply_to_message.from_user.id, update.message.from_user.id, update.message.chat.id, 1, update.message.message_id)
+                            elif category == "dislike_words":
+                                rating_helper.change_rating(update.message.reply_to_message.from_user.id, update.message.from_user.id, update.message.chat.id, -1, update.message.message_id)
 
                             db_session.close()
 
