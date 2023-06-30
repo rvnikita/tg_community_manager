@@ -141,6 +141,18 @@ async def tg_report(update, context):
 
                     #let's now increase rating for all users who reported this user
 
+                    #first let's get all users who reported this user
+                    reporting_user_ids = db_session.query(db_helper.Report.reporting_user_id).filter(
+                        db_helper.Report.reported_user_id == reported_user_id,
+                        db_helper.Report.chat_id == chat_id
+                    ).distinct().all()
+                    reporting_user_ids = [item[0] for item in reporting_user_ids]
+
+                    bot_info = await bot.get_me()
+
+                    for user_id in reporting_user_ids:
+                        await rating_helper.change_rating(user_id, bot_info.id, chat_id, 1)
+
 
                     return #we don't need to warn and mute user if he is banned
 

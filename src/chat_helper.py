@@ -79,4 +79,7 @@ async def ban_user(bot, chat_id: int, user_id: int) -> None:
     await bot.ban_chat_member(chat_id, user_id)
 
 async def delete_message(bot, chat_id: int, message_id: int) -> None:
-    await bot.delete_message(chat_id, message_id)
+    try:
+        await bot.delete_message(chat_id, message_id)
+    except Exception as e:
+        logger.error(f"Error: {traceback.format_exc()}")
