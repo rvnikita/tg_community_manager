@@ -411,5 +411,4 @@ def main() -> None:
     except Exception as e:
         logger.error(f"Error: {traceback.format_exc()}")
 if __name__ == '__main__':
-    logger.error("Starting bot")
     main()
