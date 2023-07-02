@@ -46,6 +46,69 @@ class Chat(Base):
     )
 
     id = Column(BigInteger, primary_key=True)
+
+    """
+    Configurations for the chat explained:
+    {
+      // The words that indicate a positive reaction or agreement to increase user rating
+      "like_words": [
+        "мерси",
+        "спасиб",
+        "👍"
+      ],
+      
+      // The emoji that indicate a positive reaction or agreement to increase user rating
+      "like_reactions": [
+        "👍",
+        "❤️"
+      ],
+      
+      // The words that indicate a negative reaction or disagreement to decrease user rating
+      "dislike_words": [
+        "👎"
+      ],
+      
+      // The emoji that indicate a negative reaction or disagreement to decrease user rating
+      "dislike_reactions": [
+        "👎"
+      ],
+      
+      // The maximum number of days of inactivity before a user is removed from the chat. Set to 0 to disable
+      "kick_inactive": 90,
+      
+      // The number of days of inactivity after which a user is warned about potential removal. Set to 0 to disable
+      "warn_inactive": 60,
+      
+      // The welcome message for the chat that is posted into chat when a new user joins 
+      "welcome_message": "Добро пожаловать в чат",
+      
+      // A boolean value that determines if a user's status should be updated or not by cron script
+      "update_user_status": true,
+      
+      // A boolean value that determines if user status updates should be sent as logger.warning() or not
+      "update_user_status_critical": false,
+      
+      // The DM sent to welcome a new user
+      "welcome_dm_message": "👋 Добро пожаловать в чат",
+      
+      // The number of user reports required to ban a user
+      //TODO:MID: may be we need to use 0 to disable ban (need to change this in code as well)
+      "number_of_reports_to_ban": 4,
+      
+      // The number of user reports required to warn a user
+      //TODO:MID: may be we need to use 0 to disable warn (need to change this in code as well)
+      "number_of_reports_to_warn": 2,
+      
+      // A boolean value that determines if bot messages should be deleted from the channel or not
+      "delete_channel_bot_message": true,
+      
+      // The list of user IDs that are allowed to delete bot messages from the channel
+      "delete_channel_bot_message_allowed_ids": [
+        -1001120203630
+      ]
+    }
+    """
+
     config = Column(JSON, nullable=False)
     created_at = Column(DateTime(True), server_default=text('now()'))
     chat_name = Column(String, server_default=text("''::character varying"))
