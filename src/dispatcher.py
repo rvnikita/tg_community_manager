@@ -234,15 +234,18 @@ async def tg_join_request(update, context):
             await bot.send_message(update.effective_user.id, welcome_dm_message, disable_web_page_preview=True)
             logger.info(f"Welcome message sent to user {update.effective_user.id} in chat {update.effective_chat.id} ({update.effective_chat.title})")
 
-        await update.chat_join_request.approve()
-
     except TelegramError as e:
-        await update.chat_join_request.approve()
         logger.error(f"Telegram error: {e.message}")
 
     except Exception as e:
-        await update.chat_join_request.approve()
         logger.error(f"General error: {traceback.format_exc()}")
+
+    finally:
+        try:
+            await update.chat_join_request.approve()
+        except Exception as e:
+            logger.error(f"Error while trying to approve chat join request: {traceback.format_exc()}")
+
 
 async def tg_new_member(update, context):
     try:
