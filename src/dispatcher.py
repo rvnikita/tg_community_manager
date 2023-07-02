@@ -44,6 +44,8 @@ async def send_message_to_admin(bot, chat_id, text: str):
                 logger.info(f"Bot was blocked by the user {admin.user.id}.")
             elif error.message == "Forbidden: user is deactivated":
                 logger.info(f"User {admin.user.id} is deactivated.")
+            elif error.message == "Forbidden: bot can't initiate conversation with a user":
+                logger.info(f"Bot can't initiate conversation with a user {admin.user.id}.")
             else:
                 logger.error(f"Telegram error: {error.message}")
         except Exception as error:
