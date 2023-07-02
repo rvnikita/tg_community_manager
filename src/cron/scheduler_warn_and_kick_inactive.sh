@@ -5,5 +5,5 @@ day=$(date +%d)
 
 # If the current day is 1, start the Python script
 if [ $day -eq 1 ]; then
-    python3 users_warn_and_delete_inactive.py
+    python3 users_warn_and_kick_inactive.py
 fi
