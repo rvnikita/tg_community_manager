@@ -11,6 +11,7 @@ import configparser
 from telegram import Bot
 from telegram.ext import Application, MessageHandler, CommandHandler, filters, ChatJoinRequestHandler
 from telegram.request import HTTPXRequest
+from telegram.error import TelegramError
 import openai
 import traceback
 
@@ -38,6 +39,13 @@ async def send_message_to_admin(bot, chat_id, text: str):
             continue
         try:
             await bot.send_message(chat_id=admin.user.id, text=text)
+        except TelegramError as error:
+            if error.message == "Forbidden: bot was blocked by the user":
+                logger.info(f"Bot was blocked by the user {admin.user.id}.")
+            elif error.message == "Forbidden: user is deactivated":
+                logger.info(f"User {admin.user.id} is deactivated.")
+            else:
+                logger.error(f"Telegram error: {error.message}")
         except Exception as error:
             logger.error(f"Error: {traceback.format_exc()}")
 
