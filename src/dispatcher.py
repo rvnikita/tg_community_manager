@@ -220,7 +220,11 @@ async def tg_ban(update, context):
 
 async def tg_spam_check(update, context):
     try:
-        agressive_antispam = chat_helper.get_chat_config(update.message.chat.id, "agressive_antispam")
+        if update.message is not None:
+            agressive_antispam = chat_helper.get_chat_config(update.message.chat.id, "agressive_antispam")
+        else:
+            logger.warning("Update does not contain a message")
+            return
 
         if agressive_antispam == True:
             #TODO:HIGH: This is a very temporary untispam check. We need to implement a better solution (e.g. with a machine learning model or OpenAI's GPT-4)
