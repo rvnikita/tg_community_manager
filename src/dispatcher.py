@@ -293,10 +293,9 @@ async def tg_new_member(update, context):
     try:
         new_user_id = update.message.api_kwargs['new_chat_participant']['id']
 
-        delete_NEW_CHAT_MEMBERS_message = config.getboolean('NEW_CHAT_MEMBERS', 'delete_NEW_CHAT_MEMBERS_message')
+        delete_new_chat_members_message = chat_helper.get_chat_config(update.effective_chat.id, "delete_new_chat_members_message")
 
-        #TODO:MED: Move this to DB chat config
-        if delete_NEW_CHAT_MEMBERS_message == True:
+        if delete_new_chat_members_message == True:
             await bot.delete_message(update.message.chat.id,update.message.id)
 
             logger.info(f"Joining message deleted from chat {update.message.chat.title} ({update.message.chat.id}) for user @{update.message.from_user.username} ({update.message.from_user.id})")
