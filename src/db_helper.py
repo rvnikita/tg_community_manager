@@ -161,6 +161,17 @@ class User_Status(Base):
     user = relationship('User', back_populates='user_statuses')
     chat = relationship('Chat', back_populates='user_statuses')
 
+class User_Global_Ban(Base):
+    __table_args__ = (
+        PrimaryKeyConstraint('id', name='user_global_ban_pkey'),
+    )
+
+    id = Column(BigInteger, primary_key=True)
+    user_id = Column(BigInteger, ForeignKey(User.__table__.c.id, ondelete='CASCADE', onupdate='CASCADE'), nullable=False, index=True)
+    created_at = Column(DateTime(True), server_default=text('now()'))
+    reason = Column(String)
+
+#TODO:LOW: rename to User_Report
 class Report(Base):
     __table_args__ = (
         PrimaryKeyConstraint('id', name='report_pkey'),

@@ -75,8 +75,46 @@ async def mute_user(bot, chat_id: int, user_id: int) -> None:
     permissions = ChatPermissions(can_send_messages=False)
     await bot.restrict_chat_member(chat_id, user_id, permissions, until_date=datetime.now() + timedelta(hours=24))
 
-async def ban_user(bot, chat_id: int, user_id: int) -> None:
-    await bot.ban_chat_member(chat_id, user_id)
+from db_helper import session_scope
+
+async def ban_user(bot, chat_id, user_to_ban, global_ban=False, reason=None):
+    with session_scope() as db_session:
+        try:
+            await bot.ban_chat_member(chat_id, user_to_ban)
+
+            if global_ban:
+                # If global_ban is True, ban the user in all chats
+                all_chats = db_session.query(db_helper.Chat.id).filter(db_helper.Chat.id != 0).all()
+                bot_info = await bot.get_me()
+
+                for chat in all_chats:
+                    try:
+                        #check if bot is admin
+                        chat_admins = await bot.get_chat_administrators(chat.id)
+
+                        if bot_info.id not in [admin.user.id for admin in chat_admins]:
+                            continue
+                        else:
+                            await bot.ban_chat_member(chat.id, user_to_ban)
+                    except Exception as e:
+                        if e.message == "Chat not found":
+                            continue
+                        else:
+                            logger.error(f"Error: {traceback.format_exc()}")
+                            continue
+
+                # Add user to User_Global_Ban table
+                banned_user = db_helper.User_Global_Ban(
+                    user_id = user_to_ban,
+                    reason = reason,
+                )
+                db_session.add(banned_user)
+
+            # The commit is handled by the context manager
+        except Exception as e:
+            logger.error(f"Error: {traceback.format_exc()}")
+            return None
+
 
 async def delete_message(bot, chat_id: int, message_id: int) -> None:
     try:

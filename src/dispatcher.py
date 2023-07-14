@@ -174,6 +174,48 @@ async def tg_report(update, context):
     except Exception as error:
         logger.error(f"Error: {traceback.format_exc()}")
 
+async def tg_ban(update, context):
+    try:
+        with db_helper.session_scope() as db_session:
+            message = update.message
+            chat_id = update.effective_chat.id
+
+            # Check if the command was sent by an admin of the chat
+            chat_administrators = await bot.get_chat_administrators(chat_id)
+            if message.from_user.id not in [admin.user.id for admin in chat_administrators]:
+                await bot.send_message(chat_id=chat_id, text="You must be an admin to use this command.")
+                return
+
+            # Check if a user is mentioned in the command message
+            if not message.reply_to_message:
+                await bot.send_message(chat_id=chat_id, text="Please reply to a user's message to ban them.")
+                return
+
+            user_to_ban = message.reply_to_message.from_user.id
+
+            # Check if the user to ban is an admin of the chat
+            for admin in chat_administrators:
+                if admin.user.id == user_to_ban:
+                    await bot.send_message(chat_id=chat_id, text="You cannot ban an admin.")
+                    return
+
+            await chat_helper.delete_message(bot, chat_id, message.reply_to_message.message_id)
+
+            # Determine if the ban is global or not based on the command used
+            if update.message.text.split()[0] == "/global_ban" or update.message.text.split()[0] == "/gban":
+                global_ban = True
+            else:
+                global_ban = False
+
+            # Ban the user and add them to the banned_users table
+            await chat_helper.ban_user(bot, chat_id, user_to_ban, global_ban, reason=f"Ban command was used in the chat {chat_id}. Message: {message.reply_to_message.text}")
+
+            ban_type = "globally" if global_ban else "locally"
+            await bot.send_message(chat_id=chat_id, text=f"User {user_helper.get_user_mention(user_to_ban)} has been {ban_type} banned for spam.")
+    except Exception as error:
+        logger.error(f"Error: {traceback.format_exc()}")
+
+
 
 async def tg_thankyou(update, context):
     try:
@@ -258,6 +300,15 @@ async def tg_new_member(update, context):
             await bot.delete_message(update.message.chat.id,update.message.id)
 
             logger.info(f"Joining message deleted from chat {update.message.chat.title} ({update.message.chat.id}) for user @{update.message.from_user.username} ({update.message.from_user.id})")
+
+        with db_helper.session_scope() as db_session:
+            #check user in global ban list User_Global_Ban
+            user_global_ban = db_session.query(db_helper.User_Global_Ban).filter(db_helper.User_Global_Ban.user_id == new_user_id).first()
+            if user_global_ban is not None:
+                logger.info(f"User {new_user_id} is in global ban list. Kicking from chat {update.message.chat.title} ({update.message.chat.id})")
+                await chat_helper.ban_user(bot, update.message.chat.id, new_user_id, reason="User is in global ban list")
+                await bot.send_message(update.message.chat.id, f"User {new_user_id} is in global ban list. Kicking from chat {update.message.chat.title} ({update.message.chat.id})")
+                return
 
         welcome_message = chat_helper.get_chat_config(update.effective_chat.id, "welcome_message")
 
@@ -415,6 +466,11 @@ def main() -> None:
 
         # Add a handler for chat join requests
         application.add_handler(ChatJoinRequestHandler(tg_join_request), group=5)
+
+        application.add_handler(CommandHandler('ban', tg_ban, filters.ChatType.SUPERGROUP), group=6)
+        application.add_handler(CommandHandler('global_ban', tg_ban, filters.ChatType.SUPERGROUP), group=6)
+        application.add_handler(CommandHandler('gban', tg_ban, filters.ChatType.SUPERGROUP), group=6)
+
 
         # Start the Bot
         application.run_polling()
