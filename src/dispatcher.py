@@ -15,6 +15,8 @@ from telegram.error import TelegramError
 import openai
 import traceback
 
+from langdetect import detect
+
 
 from datetime import datetime
 import psycopg2
@@ -215,6 +217,32 @@ async def tg_ban(update, context):
     except Exception as error:
         logger.error(f"Error: {traceback.format_exc()}")
 
+
+async def tg_spam_check(update, context):
+    try:
+        agressive_antispam = chat_helper.get_chat_config(update.message.chat.id, "agressive_antispam")
+
+        if agressive_antispam == True:
+            #TODO:HIGH: This is a very temporary untispam check. We need to implement a better solution (e.g. with a machine learning model or OpenAI's GPT-4)
+            if update.message and update.message.text:
+                lang = detect(update.message.text)
+                if lang == 'ar' or lang == 'fa':
+                    # Ban the user for using Arabic or Persian language
+                    await chat_helper.ban_user(bot, update.message.chat.id, update.message.from_user.id, reason="Arabic or Persian language used.", global_ban=True)
+                    await bot.send_message(chat_id=update.message.chat.id, text=f"User {user_helper.get_user_mention(update.message.from_user.id)} has been banned based on language filter.")
+                    return  # exit the function as the user has already been banned
+
+            # Check for APK files
+            if update.message and update.message.document:
+                if update.message.document.file_name.endswith('.apk'):
+                    # Ban the user for sending an APK file
+                    await chat_helper.ban_user(bot, update.message.chat.id, update.message.from_user.id, reason="APK file uploaded.", global_ban=True)
+                    await bot.send_message(chat_id=update.message.chat.id, text=f"User {user_helper.get_user_mention(update.message.from_user.id)} has been banned for uploading an APK file.")
+                    return  # exit the function as the user has already been banned
+
+
+    except Exception as error:
+        logger.error(f"Error: {traceback.format_exc()}")
 
 
 async def tg_thankyou(update, context):
@@ -469,6 +497,8 @@ def main() -> None:
         application.add_handler(CommandHandler('ban', tg_ban, filters.ChatType.SUPERGROUP), group=6)
         application.add_handler(CommandHandler('global_ban', tg_ban, filters.ChatType.SUPERGROUP), group=6)
         application.add_handler(CommandHandler('gban', tg_ban, filters.ChatType.SUPERGROUP), group=6)
+
+        application.add_handler(MessageHandler(filters.TEXT | filters.Document.ALL, tg_spam_check), group=7)
 
 
         # Start the Bot

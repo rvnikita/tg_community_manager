@@ -6,3 +6,4 @@ openai
 numpy
 sqlalchemy
 alembic
+langdetect

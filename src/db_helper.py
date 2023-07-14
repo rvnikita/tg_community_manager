@@ -105,7 +105,14 @@ class Chat(Base):
       // The list of user IDs that are allowed to delete bot messages from the channel
       "delete_channel_bot_message_allowed_ids": [
         -1001120203630
-      ]
+      ],
+      
+      // A boolean value that determines if bot messages about joining users should be deleted from the chat or not
+      "delete_new_chat_members_message" : true,
+      
+      // A boolean value that determines if agressive antispam should be enabled or not
+      "agressive_antispam" : true
+      
     }
     """
 
