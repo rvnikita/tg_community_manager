@@ -47,7 +47,6 @@ def get_logger():
     logger.addHandler(error_handler)
     logger.addHandler(info_handler)
 
-    telegram_logger = logging.getLogger('telegram')
-    telegram_logger.setLevel(logging.WARNING)
+    logging.getLogger("httpx").setLevel(logging.WARNING)
 
     return logger
