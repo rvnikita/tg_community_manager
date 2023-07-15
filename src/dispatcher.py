@@ -232,7 +232,7 @@ async def tg_spam_check(update, context):
                 lang = detect(update.message.text)
                 if lang == 'ar' or lang == 'fa':
                     # Ban the user for using Arabic or Persian language
-                    await chat_helper.ban_user(bot, update.message.chat.id, update.message.from_user.id, reason="Arabic or Persian language used.", global_ban=True)
+                    await chat_helper.ban_user(bot, update.message.chat.id, update.message.from_user.id, reason=f"Arabic or Persian language used. Message {update.message.text}", global_ban=True)
                     await bot.send_message(chat_id=update.message.chat.id, text=f"User {user_helper.get_user_mention(update.message.from_user.id)} has been banned based on language filter.")
                     return  # exit the function as the user has already been banned
 
