@@ -232,6 +232,7 @@ async def tg_spam_check(update, context):
                 lang = detect(update.message.text)
                 if lang == 'ar' or lang == 'fa':
                     # Ban the user for using Arabic or Persian language
+                    await chat_helper.delete_message(bot, update.message.chat.id, update.message.message_id)
                     await chat_helper.ban_user(bot, update.message.chat.id, update.message.from_user.id, reason=f"Arabic or Persian language used. Message {update.message.text}", global_ban=True)
                     await bot.send_message(chat_id=update.message.chat.id, text=f"User {user_helper.get_user_mention(update.message.from_user.id)} has been banned based on language filter.")
                     return  # exit the function as the user has already been banned
@@ -240,6 +241,7 @@ async def tg_spam_check(update, context):
             if update.message and update.message.document:
                 if update.message.document.file_name.endswith('.apk'):
                     # Ban the user for sending an APK file
+                    await chat_helper.delete_message(bot, update.message.chat.id, update.message.message_id)
                     await chat_helper.ban_user(bot, update.message.chat.id, update.message.from_user.id, reason="APK file uploaded.", global_ban=True)
                     await bot.send_message(chat_id=update.message.chat.id, text=f"User {user_helper.get_user_mention(update.message.from_user.id)} has been banned for uploading an APK file.")
                     return  # exit the function as the user has already been banned
