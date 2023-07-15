@@ -104,12 +104,16 @@ async def ban_user(bot, chat_id, user_to_ban, global_ban=False, reason=None):
                             logger.error(f"Error: {traceback.format_exc()}")
                             continue
 
-                # Add user to User_Global_Ban table
-                banned_user = db_helper.User_Global_Ban(
-                    user_id = user_to_ban,
-                    reason = reason,
-                )
-                db_session.add(banned_user)
+                #check if user is already in User_Global_Ban table
+                banned_user = db_session.query(db_helper.User_Global_Ban).filter(db_helper.User_Global_Ban.user_id == user_to_ban).one_or_none()
+
+                if banned_user is None:
+                    # Add user to User_Global_Ban table
+                    banned_user = db_helper.User_Global_Ban(
+                        user_id = user_to_ban,
+                        reason = reason,
+                    )
+                    db_session.add(banned_user)
             else:
                 logger.info(f"User {user_to_ban} has been banned in chat {chat_id}. Reason: {reason}")
 
