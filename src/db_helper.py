@@ -174,7 +174,7 @@ class User_Global_Ban(Base):
     )
 
     id = Column(BigInteger, primary_key=True)
-    user_id = Column(BigInteger, ForeignKey(User.__table__.c.id, ondelete='CASCADE', onupdate='CASCADE'), nullable=False, index=True)
+    user_id = Column(BigInteger, ForeignKey(User.__table__.c.id, ondelete='CASCADE', onupdate='CASCADE'), nullable=False, index=True, unique=True)
     created_at = Column(DateTime(True), server_default=text('now()'))
     reason = Column(String)
 
