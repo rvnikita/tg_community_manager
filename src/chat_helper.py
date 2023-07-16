@@ -126,7 +126,7 @@ async def ban_user(bot, chat_id, user_to_ban, global_ban=False, reason=None):
                     )
                     db_session.add(banned_user)
             else:
-                logger.info(f"User {user_to_ban} has been banned in chat {chat_helper.get_chat_mention(chat_id)}. Reason: {reason}")
+                logger.info(f"User {user_to_ban} has been banned in chat {chat_helper.get_chat_mention(bot, chat_id)}. Reason: {reason}")
 
             # The commit is handled by the context manager
         except Exception as e:
