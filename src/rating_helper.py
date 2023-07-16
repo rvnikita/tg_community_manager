@@ -57,5 +57,5 @@ async def change_rating(user_id, judge_id, chat_id, change_value, message_id = N
             else:
                 await bot.send_message(chat_id=chat_id, text=text_to_send, reply_to_message_id=message_id)
 
-        logger.info(text_to_send + f" in chat {chat_helper.get_chat_mention(bot, chat_id)} ")
+        logger.info(text_to_send + f" in chat {await chat_helper.get_chat_mention(bot, chat_id)} ")
 
