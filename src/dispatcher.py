@@ -31,14 +31,14 @@ bot = Bot(config['BOT']['KEY'],
 
 ########################
 
-async def send_message_to_admin(bot, chat_id, text: str):
+async def send_message_to_admin(bot, chat_id, text: str, disable_web_page_preview: bool = True):
     chat_administrators = await bot.get_chat_administrators(chat_id)
 
     for admin in chat_administrators:
         if admin.user.is_bot == True: #don't send to bots
             continue
         try:
-            await bot.send_message(chat_id=admin.user.id, text=text)
+            await bot.send_message(chat_id=admin.user.id, text=text, disable_web_page_preview=True)
         except TelegramError as error:
             if error.message == "Forbidden: bot was blocked by the user":
                 logger.info(f"Bot was blocked by the user {admin.user.id}.")
