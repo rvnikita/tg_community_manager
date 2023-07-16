@@ -170,7 +170,7 @@ async def tg_report(update, context):
                     await chat_helper.warn_user(bot, chat_id, reported_user_id)
                     await chat_helper.mute_user(bot, chat_id, reported_user_id)
                     await bot.send_message(chat_id=chat_id, text=f"User {reported_user_mention} has been warned and muted due to {report_count} reports.")
-                    await send_message_to_admin(bot, chat_id, f"User {reported_user_mention} has been warned and muted in chat {chat_helper.get_chat_mention(bot, chat_id)} due to {report_count} reports.")
+                    await send_message_to_admin(bot, chat_id, f"User {reported_user_mention} has been warned and muted in chat {await chat_helper.get_chat_mention(bot, chat_id)} due to {report_count} reports.")
     except Exception as error:
         logger.error(f"Error: {traceback.format_exc()}")
 
