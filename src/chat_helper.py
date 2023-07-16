@@ -140,6 +140,7 @@ async def delete_message(bot, chat_id: int, message_id: int) -> None:
     except Exception as e:
         logger.error(f"Error: {traceback.format_exc()}")
 
+
 async def get_chat_mention(bot, chat_id: int) -> str:
     try:
         # Fetch chat details from the Telegram API
@@ -158,6 +159,13 @@ async def get_chat_mention(bot, chat_id: int) -> str:
             chat.invite_link = chat_details.invite_link  # Store invite link in invite_link field
 
             db_session.commit()
+
+            # Create chat mention
+            chat_mention = chat.chat_name if chat.chat_name else str(chat.id)
+            invite_link = chat.invite_link if chat.invite_link else "No link available"
+
+            return f"{chat_mention} - {invite_link}"
+
         except NoResultFound:
             # If chat is not found in the database, create a new one
             chat = db_helper.Chat(
@@ -168,8 +176,5 @@ async def get_chat_mention(bot, chat_id: int) -> str:
             db_session.add(chat)
             db_session.commit()
 
-    # Create chat mention
-    chat_mention = chat.chat_name if chat.chat_name else str(chat.id)
-    invite_link = chat.invite_link if chat.invite_link else "No link available"
+            return f"{chat.chat_name} - {chat.invite_link}"
 
-    return f"{chat_mention} - {invite_link}"
