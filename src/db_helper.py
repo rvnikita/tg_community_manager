@@ -119,6 +119,7 @@ class Chat(Base):
     config = Column(JSON, nullable=False)
     created_at = Column(DateTime(True), server_default=text('now()'))
     chat_name = Column(String, server_default=text("''::character varying"))
+    invite_link = Column(String, server_default=text("''::character varying"))
 
     user_statuses = relationship('User_Status', back_populates='chat')
 

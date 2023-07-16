@@ -1,11 +1,16 @@
 import src.logging_helper as logging
 import src.db_helper as db_helper
+import src.chat_helper as chat_helper
 
 import psycopg2
 import configparser
 import os
 import json
+
+from sqlalchemy.orm.exc import NoResultFound
+
 from telegram import ChatPermissions
+from telegram.error import BadRequest
 from datetime import datetime, timedelta
 import traceback
 
@@ -121,7 +126,7 @@ async def ban_user(bot, chat_id, user_to_ban, global_ban=False, reason=None):
                     )
                     db_session.add(banned_user)
             else:
-                logger.info(f"User {user_to_ban} has been banned in chat {chat_id}. Reason: {reason}")
+                logger.info(f"User {user_to_ban} has been banned in chat {chat_helper.get_chat_mention(chat_id)}. Reason: {reason}")
 
             # The commit is handled by the context manager
         except Exception as e:
@@ -134,3 +139,37 @@ async def delete_message(bot, chat_id: int, message_id: int) -> None:
         await bot.delete_message(chat_id, message_id)
     except Exception as e:
         logger.error(f"Error: {traceback.format_exc()}")
+
+async def get_chat_mention(bot, chat_id: int) -> str:
+    try:
+        # Fetch chat details from the Telegram API
+        chat_details = await bot.get_chat(chat_id)
+    except BadRequest as e:
+        # Handle case if bot has not enough rights to get chat details
+        return str(chat_id)
+
+    with db_helper.session_scope() as db_session:
+        try:
+            # Try to get the chat from the database
+            chat = db_session.query(db_helper.Chat).filter_by(id=chat_id).one()
+
+            # Update the chat name and invite link
+            chat.chat_name = chat_details.title
+            chat.invite_link = chat_details.invite_link  # Store invite link in invite_link field
+
+            db_session.commit()
+        except NoResultFound:
+            # If chat is not found in the database, create a new one
+            chat = db_helper.Chat(
+                id=chat_id,
+                chat_name=chat_details.title,
+                invite_link=chat_details.invite_link,  # Store invite link in invite_link field
+            )
+            db_session.add(chat)
+            db_session.commit()
+
+    # Create chat mention
+    chat_mention = chat.chat_name if chat.chat_name else str(chat.id)
+    invite_link = chat.invite_link if chat.invite_link else "No link available"
+
+    return f"{chat_mention} - {invite_link}"

@@ -2,6 +2,7 @@ import src.db_helper as db_helper
 import src.user_helper as user_helper
 import src.logging_helper as logging
 import src.config_helper as config_helper
+import src.chat_helper as chat_helper
 
 from telegram import Bot
 from telegram.request import HTTPXRequest
@@ -56,5 +57,5 @@ async def change_rating(user_id, judge_id, chat_id, change_value, message_id = N
             else:
                 await bot.send_message(chat_id=chat_id, text=text_to_send, reply_to_message_id=message_id)
 
-        logger.info(text_to_send + f" in chat {chat_id} ")
+        logger.info(text_to_send + f" in chat {chat_helper.get_chat_mention(chat_id)} ")
 
