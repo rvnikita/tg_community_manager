@@ -69,7 +69,7 @@ async def tg_report_reset(update, context):
                     break
 
             if not is_admin:
-                bot.send_message(chat_id=chat_id, text="You are not an admin of this chat.")
+                await bot.send_message(chat_id=chat_id, text="You are not an admin of this chat.")
                 return
 
             if message.reply_to_message:
@@ -85,7 +85,7 @@ async def tg_report_reset(update, context):
 
             db_session.commit()
 
-            bot.send_message(chat_id=chat_id, text="Reports for this user were reset.")
+            await bot.send_message(chat_id=chat_id, text="Reports for this user were reset.")
     except Exception as error:
         logger.error(f"Error: {traceback.format_exc()}")
 
@@ -292,7 +292,7 @@ async def tg_thankyou(update, context):
                             if category == "like_words":
                                 await rating_helper.change_rating(update.message.reply_to_message.from_user.id, update.message.from_user.id, update.message.chat.id, 1, update.message.message_id)
                             elif category == "dislike_words":
-                                rating_helper.change_rating(update.message.reply_to_message.from_user.id, update.message.from_user.id, update.message.chat.id, -1, update.message.message_id)
+                                await rating_helper.change_rating(update.message.reply_to_message.from_user.id, update.message.from_user.id, update.message.chat.id, -1, update.message.message_id)
 
                             db_session.close()
 
