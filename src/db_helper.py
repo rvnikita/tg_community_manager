@@ -113,6 +113,9 @@ class Chat(Base):
       // A boolean value that determines if agressive antispam should be enabled or not
       "agressive_antispam" : true
       
+      // A boolean value that determines if bot should auto approve join requests or not
+      "auto_approve_join_request":false
+      
     }
     """
 
