@@ -141,13 +141,13 @@ async def tg_report(update, context):
                 reporting_user_mention = user_helper.get_user_mention(reporting_user_id)
 
                 await send_message_to_admin(bot, chat_id, f"User {reporting_user_mention} reported {reported_user_mention} in chat {await chat_helper.get_chat_mention(bot, chat_id)}. Total reports: {report_count}. \nReported message: {message.reply_to_message.text}")
-                await bot.send_message(chat_id=chat_id, text=f"User {reported_user_mention} has been reported {report_count} times.")
+                await bot.send_message(chat_id=chat_id, text=f"User {reported_user_mention} has been reported {report_count}/{number_of_reports_to_ban} times.")
 
                 if report_count >= number_of_reports_to_ban:
                     await chat_helper.delete_message(bot, chat_id, reported_message_id)
                     await chat_helper.ban_user(bot, chat_id, reported_user_id)
                     await bot.send_message(chat_id=chat_id, text=f"User {reported_user_mention} has been banned due to {report_count} reports.")
-                    await send_message_to_admin(bot, chat_id, f"User {reported_user_mention} has been banned in chat {await chat_helper.get_chat_mention(bot, chat_id)} due to {report_count} reports.")
+                    await send_message_to_admin(bot, chat_id, f"User {reported_user_mention} has been banned in chat {await chat_helper.get_chat_mention(bot, chat_id)} due to {report_count}/{number_of_reports_to_ban} reports.")
 
                     #let's now increase rating for all users who reported this user
 
