@@ -108,6 +108,9 @@ async def ban_user(bot, chat_id, user_to_ban, global_ban=False, reason=None):
                             logger.info("Bot is admin in chat")
                             logger.info(f"Trying to ban user {user_to_ban} from chat {chat.id}")
                             await bot.ban_chat_member(chat.id, user_to_ban)
+                    except BadRequest:
+                        logger.error(f"Error: Bot is not an admin or chat does not exist. Chat: {chat_helper.get_chat_mention(bot, chat.id)}")
+                        continue
                     except Exception as e:
                         if e.message == "Chat not found":
                             continue
