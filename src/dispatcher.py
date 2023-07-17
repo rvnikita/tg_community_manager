@@ -303,6 +303,7 @@ async def tg_thankyou(update, context):
 async def tg_join_request(update, context):
     try:
         welcome_dm_message = chat_helper.get_chat_config(update.effective_chat.id, "welcome_dm_message")
+        auto_approve_join_request = chat_helper.get_chat_config(update.effective_chat.id, "auto_approve_join_request")
 
         if welcome_dm_message is not None and welcome_dm_message != "":
             await bot.send_message(update.effective_user.id, welcome_dm_message, disable_web_page_preview=True)
@@ -315,10 +316,12 @@ async def tg_join_request(update, context):
         logger.error(f"General error: {traceback.format_exc()}")
 
     finally:
-        try:
-            await update.chat_join_request.approve()
-        except Exception as e:
-            logger.error(f"Error while trying to approve chat join request: {traceback.format_exc()}")
+        if auto_approve_join_request:
+            try:
+                await update.chat_join_request.approve()
+            except Exception as e:
+                logger.error(f"Error while trying to approve chat join request: {traceback.format_exc()}")
+
 
 
 async def tg_new_member(update, context):
