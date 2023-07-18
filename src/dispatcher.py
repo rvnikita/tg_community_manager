@@ -232,11 +232,11 @@ async def tg_spam_check(update, context):
                 if text:
                     try:
                         lang = detect(text)
-                        if lang == 'ar' or lang == 'fa':
+                        if lang in ['ar', 'fa', 'ur', 'he', 'ps', 'sd', 'ku', 'ug', 'fa', 'zh']:
                             # Ban the user for using Arabic or Persian language
                             await chat_helper.delete_message(bot, update.message.chat.id, update.message.message_id)
-                            await chat_helper.ban_user(bot, update.message.chat.id, update.message.from_user.id, reason=f"Arabic or Persian language used. Message {update.message.text}", global_ban=True)
-                            await bot.send_message(chat_id=update.message.chat.id, text=f"User {user_helper.get_user_mention(update.message.from_user.id)} has been banned based on language filter.")
+                            await chat_helper.ban_user(bot, update.message.chat.id, update.message.from_user.id, reason=f"Filtered language used. Message {update.message.text}", global_ban=True)
+                            await bot.send_message(chat_id=update.message.chat.id, text=f"User {user_helper.get_user_mention(update.message.from_user.id)} has been banned based on language filter. - {lang}")
                             return  # exit the function as the user has already been banned
                     except langdetect.lang_detect_exception.LangDetectException as e:
                         if "No features in text." in str(e):
