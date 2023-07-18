@@ -341,7 +341,7 @@ async def tg_new_member(update, context):
         if delete_new_chat_members_message == True:
             await bot.delete_message(update.message.chat.id,update.message.id)
 
-            logger.info(f"Joining message deleted from chat {update.message.chat.title} ({update.message.chat.id}) for user @{update.message.from_user.username} ({update.message.from_user.id})")
+            logger.info(f"Joining message deleted from chat {await chat_helper.get_chat_mention(update.message.chat.id)} for user @{update.message.from_user.username} ({update.message.from_user.id})")
 
         with db_helper.session_scope() as db_session:
             #check user in global ban list User_Global_Ban
