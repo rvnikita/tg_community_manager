@@ -2,6 +2,7 @@ import os
 import configparser
 import requests
 import logging
+import urllib.parse
 
 config = configparser.ConfigParser(os.environ)
 config_path = os.path.dirname(__file__) + '/../config/' #we need this trick to get path to config folder
@@ -15,8 +16,8 @@ class TelegramLoggerHandler(logging.Handler):
         self.chat_id = chat_id
 
     def emit(self, record):
-        log_entry = self.format(record)
-        URL = f"https://api.telegram.org/bot{config['BOT']['KEY']}/sendMessage?chat_id={self.chat_id}&text={log_entry}&disable_web_page_preview=true"
+        encoded_log_entry = urllib.parse.quote(self.format(record), safe='')
+        URL = f"https://api.telegram.org/bot{config['BOT']['KEY']}/sendMessage?chat_id={self.chat_id}&text={encoded_log_entry}&disable_web_page_preview=true"
         requests.get(url=URL)
 
 
