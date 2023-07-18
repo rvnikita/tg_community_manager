@@ -96,10 +96,10 @@ async def status_update():
                     config_update_user_status_critical = chat_helper.get_chat_config(user_status_row['chat_id'], "update_user_status_critical")
                     #TODO:MED: add "ban and delete" button in log
                     if config_update_user_status_critical == "True":
-                        logger.warning(f"User @{user_row['username']} ({user_row['id']}) in {title} ({user_status_row['chat_id']}) status changed to {status}")
+                        logger.warning(f"User @{user_row['username']} ({user_row['id']}) in {await chat_helper.get_chat_mention(bot, user_status_row['chat_id'])} status changed to {status}")
                     else:
                         logger.info(
-                            f"User @{user_row['username']} ({user_row['id']}) in {title} ({user_status_row['chat_id']}) status changed to {status}")
+                            f"User @{user_row['username']} ({user_row['id']}) in {await chat_helper.get_chat_mention(bot, user_status_row['chat_id'])} status changed to {status}")
 
         conn.commit()
         cur.close()
