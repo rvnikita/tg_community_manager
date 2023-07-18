@@ -1,7 +1,7 @@
 import src.logging_helper as logging_helper
 import src.config_helper as config_helper
 
-from sqlalchemy import create_engine, BigInteger, Boolean, Column, DateTime, Identity, Integer, JSON, PrimaryKeyConstraint, String, Text, UniqueConstraint, text, ForeignKey
+from sqlalchemy import create_engine, BigInteger, Boolean, Column, DateTime, Identity, Integer, JSON, PrimaryKeyConstraint, String, Text, UniqueConstraint, text, ForeignKey, Index
 from sqlalchemy.orm import Session, DeclarativeBase, declared_attr, relationship
 from sqlalchemy.sql.sqltypes import NullType
 
@@ -158,7 +158,8 @@ class User(Base):
 class User_Status(Base):
     __table_args__ = (
         PrimaryKeyConstraint('id', name='user_status_pkey'),
-        UniqueConstraint('user_id', 'chat_id', name='unique_cols')
+        UniqueConstraint('user_id', 'chat_id', name='unique_cols'),
+        Index('ix_user_status_user_id', 'user_id') # To make SELECT * FROM tg_user_status WHERE user_id = $1 faster
     )
 
     id = Column(BigInteger, Identity(start=1, increment=1, minvalue=1, maxvalue=9223372036854775807, cycle=False, cache=1))
