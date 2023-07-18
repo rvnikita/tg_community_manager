@@ -15,6 +15,7 @@ import openai
 import traceback
 
 from langdetect import detect
+import langdetect
 
 
 from datetime import datetime
@@ -225,15 +226,22 @@ async def tg_spam_check(update, context):
             return
 
         if agressive_antispam == True:
-            #TODO:HIGH: This is a very temporary untispam check. We need to implement a better solution (e.g. with a machine learning model or OpenAI's GPT-4)
+            # TODO:HIGH: This is a very temporary antispam check. We need to implement a better solution (e.g. with a machine learning model or OpenAI's GPT-4)
             if update.message and update.message.text:
-                lang = detect(update.message.text)
-                if lang == 'ar' or lang == 'fa':
-                    # Ban the user for using Arabic or Persian language
-                    await chat_helper.delete_message(bot, update.message.chat.id, update.message.message_id)
-                    await chat_helper.ban_user(bot, update.message.chat.id, update.message.from_user.id, reason=f"Arabic or Persian language used. Message {update.message.text}", global_ban=True)
-                    await bot.send_message(chat_id=update.message.chat.id, text=f"User {user_helper.get_user_mention(update.message.from_user.id)} has been banned based on language filter.")
-                    return  # exit the function as the user has already been banned
+                text = update.message.text.strip()
+                if text:
+                    try:
+                        lang = detect(text)
+                        if lang == 'ar' or lang == 'fa':
+                            # Ban the user for using Arabic or Persian language
+                            await chat_helper.delete_message(bot, update.message.chat.id, update.message.message_id)
+                            await chat_helper.ban_user(bot, update.message.chat.id, update.message.from_user.id, reason=f"Arabic or Persian language used. Message {update.message.text}", global_ban=True)
+                            await bot.send_message(chat_id=update.message.chat.id, text=f"User {user_helper.get_user_mention(update.message.from_user.id)} has been banned based on language filter.")
+                            return  # exit the function as the user has already been banned
+                    except langdetect.lang_detect_exception.LangDetectException as e:
+                        if "No features in text." in str(e):
+                            # No features in text
+                            pass
 
             # Check for APK files
             if update.message and update.message.document:
