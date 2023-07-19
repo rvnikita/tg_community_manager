@@ -10,9 +10,10 @@ import json
 from sqlalchemy.orm.exc import NoResultFound
 
 from telegram import ChatPermissions
-from telegram.error import BadRequest
+from telegram.error import BadRequest, TelegramError
 from datetime import datetime, timedelta
 import traceback
+import re
 
 logger = logging.get_logger()
 
@@ -115,15 +116,29 @@ async def ban_user(bot, chat_id, user_to_ban, global_ban=False, reason=None):
                             #logger.info("Bot is admin in chat")
                             #logger.info(f"Trying to ban user {user_to_ban} from chat {chat.id}")
                             await bot.ban_chat_member(chat.id, user_to_ban)
+                    except TelegramError as e:
+                        if "Bot is not a member of the group chat" in e.message:
+                            logger.info(f"Bot is not a member in chat {chat.id}")
+                            continue
+                        elif "Group migrated to supergroup. New chat id" in e.message:
+                            new_chat_id = int(re.search(r"New chat id: (-\d+)", e.message).group(1))
+                            logger.info(f"Chat {chat.id} migrated to supergroup {new_chat_id}")
+                            chat_to_update = db_session.query(Chat).filter(Chat.id == chat.id).first()
+                            if chat_to_update:
+                                # Update the chat id
+                                chat_to_update.id = new_chat_id
+                                db_session.commit()  # Commit the changes to the database
+                                logger.info(f"Updated chat id from {chat.id} to {new_chat_id}")
+                            else:
+                                logger.error(f"Could not find chat with id {chat.id} to update")
+
+
                     except BadRequest as e:
                         if "There are no administrators in the private chat" in e.message:
                             logger.info(f"Bot is not admin in chat {chat.id}")
                             continue
                         elif "User_not_participant" in e.message:
                             logger.info(f"User {user_to_ban} is not in chat {chat.id}")
-                            continue
-                        elif "Bot is not a member of the group chat" in e.message:
-                            logger.info(f"Bot is not a member in chat {chat.id}")
                             continue
                         logger.error(f"BadRequest. Chat: {await chat_helper.get_chat_mention(bot, chat.id)}. Traceback: {traceback.format_exc()}")
                         continue
