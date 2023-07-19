@@ -181,8 +181,9 @@ async def tg_ban(update, context):
         with db_helper.session_scope() as db_session:
             message = update.message
             chat_id = update.effective_chat.id
-            user_to_ban = None
-            chat_id_to_ban_in = None
+            ban_user_id = None
+            ban_chat_id = None
+            ban_reason = None
 
             # Check if the command was sent by an admin of the chat
             chat_administrators = await bot.get_chat_administrators(chat_id)
@@ -192,18 +193,20 @@ async def tg_ban(update, context):
 
             command_parts = message.text.split()  # Split the message into parts
             if len(command_parts) > 1:  # if the command has more than one part (means it has a user ID or username parameter)
+                ban_reason = f"User was banned by {message.text} command."
                 if '@' in command_parts[1]:  # if the second part is a username
                     user = db_session.query(db_helper.User).filter(db_helper.User.username == command_parts[1][1:]).first()  # Remove @ and query
                     if user is None:
                         await message.reply_text(f"No user found with username {command_parts[1]}.")
                         return
-                    user_to_ban = user.id
+                    ban_user_id = user.id
                 elif command_parts[1].isdigit():  # if the second part is a user ID
-                    user_to_ban = int(command_parts[1])
+                    ban_user_id = int(command_parts[1])
                 else:
                     await message.reply_text("Invalid format. Use /ban @username or /ban user_id.")
                     return
             elif chat_id == int(config['LOGGING']['INFO_CHAT_ID']) or chat_id == int(config['LOGGING']['ERROR_CHAT_ID']): # Check if this command is placed in info chat (this is a Trick to be able to ban users from info chat logs without specifying user_id or username)
+                ban_reason = f"User was banned by {message.text} command in info chat."
                 if not message.reply_to_message:
                     await message.reply_text("Please reply to a message containing usernames to ban.")
                     return
@@ -220,20 +223,21 @@ async def tg_ban(update, context):
                     if user is None:
                         await message.reply_text(f"No user found with username {username_list[0]}.")
                         return
-                    user_to_ban = user.id
+                    ban_user_id = user.id
             else: # Check if a user is mentioned in the command message as a reply to message
-                chat_id_to_ban_in = chat_id # We need to ban in the same chat as the command was sent
+                ban_reason = f"User was banned by {message.text} command in {chat_helper.get_chat_mention(chat_id)}. Message: {message.reply_to_message.text}"
+                ban_chat_id = chat_id # We need to ban in the same chat as the command was sent
 
                 if not message.reply_to_message:
                     await message.reply_text("Please reply to a user's message to ban them.")
                     return
-                user_to_ban = message.reply_to_message.from_user.id
+                ban_user_id = message.reply_to_message.from_user.id
 
                 await chat_helper.delete_message(bot, chat_id, message.reply_to_message.message_id)
 
             # Check if the user to ban is an admin of the chat
             for admin in chat_administrators:
-                if admin.user.id == user_to_ban:
+                if admin.user.id == ban_user_id:
                     await message.reply_text("You cannot ban an admin.")
                     return
 
@@ -246,11 +250,11 @@ async def tg_ban(update, context):
                 global_ban = False
 
             # Ban the user and add them to the banned_users table
-            #chat_id_to_ban_in could be None if we are banning from info chat logs or sending dirrectly to the bot
-            await chat_helper.ban_user(bot, chat_id_to_ban_in, user_to_ban, global_ban, reason=f"Ban command was used in the chat {chat_id}. Message: {message.text}")
+            #ban_chat_id could be None if we are banning from info chat logs or sending dirrectly to the bot
+            await chat_helper.ban_user(bot, ban_chat_id, ban_user_id, global_ban, reason=ban_reason)
 
             ban_type = "globally" if global_ban else "locally"
-            await message.reply_text(f"User {user_helper.get_user_mention(user_to_ban)} has been {ban_type} banned for spam.")
+            await message.reply_text(f"User {user_helper.get_user_mention(ban_user_id)} has been {ban_type} banned for spam.")
     except Exception as error:
         logger.error(f"Error: {traceback.format_exc()}")
 
