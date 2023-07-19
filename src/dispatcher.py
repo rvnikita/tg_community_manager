@@ -254,6 +254,27 @@ async def tg_gban(update, context):
                 else:
                     await message.reply_text("Invalid format. Use gban @username or gban user_id.")
                     return
+            elif chat_id == int(config['LOGGING']['INFO_CHAT_ID']) or chat_id == int(
+                    config['LOGGING']['ERROR_CHAT_ID']):
+                ban_reason = f"User was globally banned by {message.text} command in info chat. Message: {message.reply_to_message.text}"
+                if not message.reply_to_message:
+                    await message.reply_text("Please reply to a message containing usernames to ban.")
+                    return
+                username_list = re.findall('@(\w+)',
+                                           message.reply_to_message.text)  # extract usernames from the reply_to_message
+                if len(username_list) > 2:  # Check if there are more than 2 usernames in the message
+                    await message.reply_text("More than two usernames found. Please specify which user to ban.")
+                    return
+                elif len(username_list) == 0:  # Check if there are no usernames in the message
+                    await message.reply_text("No usernames found. Please specify which user to ban.")
+                    return
+                else:  # There is exactly one username
+                    # Fetch user_id based on username from database
+                    user = db_session.query(db_helper.User).filter(db_helper.User.username == username_list[0]).first()
+                    if user is None:
+                        await message.reply_text(f"No user found with username {username_list[0]}.")
+                        return
+                    ban_user_id = user.id
             else: # Check if a user is mentioned in the command message as a reply to message
                 ban_reason = f"User was globally banned by {message.text} command in {chat_helper.get_chat_mention(bot, chat_id)}. Message: {message.reply_to_message.text}"
                 ban_chat_id = chat_id # We need to ban in the same chat as the command was sent
