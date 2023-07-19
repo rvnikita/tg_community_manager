@@ -85,7 +85,14 @@ from db_helper import session_scope
 async def ban_user(bot, chat_id, user_to_ban, global_ban=False, reason=None):
     with session_scope() as db_session:
         try:
-            await bot.ban_chat_member(chat_id, user_to_ban)
+            if chat_id is not None:
+                try:
+                    await bot.ban_chat_member(chat_id, user_to_ban)
+                except BadRequest:
+                    logger.error(
+                        f"Error: Bot is not an admin or chat does not exist. Chat: {await chat_helper.get_chat_mention(bot, chat.id)}. Traceback: {traceback.format_exc()}")
+                except Exception as e:
+                    logger.error(f"Error: {traceback.format_exc()}")
 
             if global_ban:
                 logger.info(f"User {user_to_ban} has been globally banned. Reason: {reason}")

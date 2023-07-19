@@ -182,6 +182,7 @@ async def tg_ban(update, context):
             message = update.message
             chat_id = update.effective_chat.id
             user_to_ban = None
+            chat_id_to_ban_in = None
 
             # Check if the command was sent by an admin of the chat
             chat_administrators = await bot.get_chat_administrators(chat_id)
@@ -221,10 +222,14 @@ async def tg_ban(update, context):
                         return
                     user_to_ban = user.id
             else: # Check if a user is mentioned in the command message as a reply to message
+                chat_id_to_ban_in = chat_id # We need to ban in the same chat as the command was sent
+
                 if not message.reply_to_message:
                     await message.reply_text("Please reply to a user's message to ban them.")
                     return
                 user_to_ban = message.reply_to_message.from_user.id
+
+                await chat_helper.delete_message(bot, chat_id, message.reply_to_message.message_id)
 
             # Check if the user to ban is an admin of the chat
             for admin in chat_administrators:
@@ -241,7 +246,8 @@ async def tg_ban(update, context):
                 global_ban = False
 
             # Ban the user and add them to the banned_users table
-            await chat_helper.ban_user(bot, chat_id, user_to_ban, global_ban, reason=f"Ban command was used in the chat {chat_id}. Message: {message.text}")
+            #chat_id_to_ban_in could be None if we are banning from info chat logs or sending dirrectly to the bot
+            await chat_helper.ban_user(bot, chat_id_to_ban_in, user_to_ban, global_ban, reason=f"Ban command was used in the chat {chat_id}. Message: {message.text}")
 
             ban_type = "globally" if global_ban else "locally"
             await message.reply_text(f"User {user_helper.get_user_mention(user_to_ban)} has been {ban_type} banned for spam.")
