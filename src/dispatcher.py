@@ -203,7 +203,10 @@ async def tg_ban(update, context):
                     await message.reply_text("Invalid format. Use /ban @username or /ban user_id.")
                     return
             elif chat_id == int(config['LOGGING']['INFO_CHAT_ID']) or chat_id == int(config['LOGGING']['ERROR_CHAT_ID']): # Check if this command is placed in info chat (this is a Trick to be able to ban users from info chat logs without specifying user_id or username)
-                username_list = re.findall('@(\w+)', message.text) # extract usernames from the message
+                if not message.reply_to_message:
+                    await message.reply_text("Please reply to a message containing usernames to ban.")
+                    return
+                username_list = re.findall('@(\w+)', message.reply_to_message.text) # extract usernames from the reply_to_message
                 if len(username_list) > 2: # Check if there are more than 2 usernames in the message
                     await message.reply_text("More than two usernames found. Please specify which user to ban.")
                     return
