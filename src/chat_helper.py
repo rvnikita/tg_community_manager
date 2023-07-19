@@ -109,7 +109,7 @@ async def ban_user(bot, chat_id, user_to_ban, global_ban=False, reason=None):
 
                         #logger.info("Checking if bot is admin in chat")
                         if bot_info.id not in [admin.user.id for admin in chat_admins]:
-                            logger.info(f"Bot is not admin in chat {await chat_helper.get_chat_mention(chat.id)}")
+                            logger.info(f"Bot is not admin in chat {await chat_helper.get_chat_mention(bot, chat.id)}")
                             continue
                         else:
                             #logger.info("Bot is admin in chat")
@@ -117,7 +117,7 @@ async def ban_user(bot, chat_id, user_to_ban, global_ban=False, reason=None):
                             await bot.ban_chat_member(chat.id, user_to_ban)
                     except TelegramError as e:
                         if "Bot is not a member of the group chat" in e.message:
-                            logger.info(f"Bot is not a member in chat {await chat_helper.get_chat_mention(chat.id)}")
+                            logger.info(f"Bot is not a member in chat {await chat_helper.get_chat_mention(bot, chat.id)}")
                             continue
                         elif "Group migrated to supergroup. New chat id" in e.message:
                             # Extract new chat id from the exception message using a regular expression
@@ -127,7 +127,7 @@ async def ban_user(bot, chat_id, user_to_ban, global_ban=False, reason=None):
                             existing_chat = db_session.query(db_helper.Chat).filter(db_helper.Chat.id == new_chat_id).first()
                             if existing_chat:
                                 # Handle the case where the new chat id already exists
-                                logger.info(f"Cannot update chat id from {await chat_helper.get_chat_mention(chat.id)} to {await chat_helper.get_chat_mention(new_chat_id)} as the new id already exists")
+                                logger.info(f"Cannot update chat id from {await chat_helper.get_chat_mention(bot, chat.id)} to {await chat_helper.get_chat_mention(new_chat_id)} as the new id already exists")
                             else:
                                 # Update the chat id as before
                                 chat_to_update = db_session.query(db_helper.Chat).filter(db_helper.Chat.id == chat.id).first()
@@ -138,13 +138,13 @@ async def ban_user(bot, chat_id, user_to_ban, global_ban=False, reason=None):
                                 else:
                                     logger.error(f"Could not find chat with id {chat.id} to update")
                         elif "bot was kicked from the supergroup chat" in e.message:
-                            logger.info(f"Bot was kicked from chat {await chat_helper.get_chat_mention(chat.id)}")
+                            logger.info(f"Bot was kicked from chat {await chat_helper.get_chat_mention(bot, chat.id)}")
                             continue
 
 
                     except BadRequest as e:
                         if "There are no administrators in the private chat" in e.message:
-                            logger.info(f"Bot is not admin in chat {await chat_helper.get_chat_mention(chat.id)}")
+                            logger.info(f"Bot is not admin in chat {await chat_helper.get_chat_mention(bot, chat.id)}")
                             continue
                         elif "User_not_participant" in e.message:
                             logger.info(f"User {user_to_ban} is not in chat {chat.id}")
