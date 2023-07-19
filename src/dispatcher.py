@@ -189,7 +189,20 @@ async def tg_ban(update, context):
                 await message.reply_text("You must be an admin to use this command.")
                 return
 
-            if chat_id == config['LOGGING']['INFO_CHAT_ID']: # Check if this command is placed in info chat
+            command_parts = message.text.split()  # Split the message into parts
+            if len(command_parts) > 1:  # if the command has more than one part (means it has a user ID or username parameter)
+                if '@' in command_parts[1]:  # if the second part is a username
+                    user = db_session.query(db_helper.User).filter(db_helper.User.username == command_parts[1][1:]).first()  # Remove @ and query
+                    if user is None:
+                        await message.reply_text(f"No user found with username {command_parts[1]}.")
+                        return
+                    user_to_ban = user.id
+                elif command_parts[1].isdigit():  # if the second part is a user ID
+                    user_to_ban = int(command_parts[1])
+                else:
+                    await message.reply_text("Invalid format. Use /ban @username or /ban user_id.")
+                    return
+            elif chat_id == config['LOGGING']['INFO_CHAT_ID']: # Check if this command is placed in info chat (this is a Trick to be able to ban users from info chat logs without specifying user_id or username)
                 username_list = re.findall('@(\w+)', message.text) # extract usernames from the message
                 if len(username_list) > 2: # Check if there are more than 2 usernames in the message
                     await message.reply_text("More than two usernames found. Please specify which user to ban.")
@@ -204,8 +217,7 @@ async def tg_ban(update, context):
                         await message.reply_text(f"No user found with username {username_list[0]}.")
                         return
                     user_to_ban = user.id
-            else:
-                # Check if a user is mentioned in the command message
+            else: # Check if a user is mentioned in the command message as a reply to message
                 if not message.reply_to_message:
                     await message.reply_text("Please reply to a user's message to ban them.")
                     return
@@ -529,9 +541,9 @@ def main() -> None:
         # Add a handler for chat join requests
         application.add_handler(ChatJoinRequestHandler(tg_join_request), group=5)
 
-        application.add_handler(CommandHandler('ban', tg_ban, filters.ChatType.SUPERGROUP), group=6)
-        application.add_handler(CommandHandler('global_ban', tg_ban, filters.ChatType.SUPERGROUP), group=6)
-        application.add_handler(CommandHandler('gban', tg_ban, filters.ChatType.SUPERGROUP), group=6)
+        application.add_handler(CommandHandler('ban', tg_ban), group=6)
+        application.add_handler(CommandHandler('global_ban', tg_ban), group=6)
+        application.add_handler(CommandHandler('gban', tg_ban), group=6)
 
         application.add_handler(MessageHandler(filters.TEXT | filters.Document.ALL, tg_spam_check), group=7)
 
