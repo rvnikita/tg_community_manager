@@ -103,17 +103,17 @@ async def ban_user(bot, chat_id, user_to_ban, global_ban=False, reason=None):
                 for chat in all_chats:
                     try:
                         #check if bot is admin
-                        logger.info(f"Trying to get admins of chat {chat.id}")
+                        #logger.info(f"Trying to get admins of chat {chat.id}")
                         chat_admins = await bot.get_chat_administrators(chat.id)
-                        logger.info(f"Get admins of chat {chat.id}")
+                        #logger.info(f"Get admins of chat {chat.id}")
 
-                        logger.info("Checking if bot is admin in chat")
+                        #logger.info("Checking if bot is admin in chat")
                         if bot_info.id not in [admin.user.id for admin in chat_admins]:
                             logger.info("Bot is not admin in chat")
                             continue
                         else:
-                            logger.info("Bot is admin in chat")
-                            logger.info(f"Trying to ban user {user_to_ban} from chat {chat.id}")
+                            #logger.info("Bot is admin in chat")
+                            #logger.info(f"Trying to ban user {user_to_ban} from chat {chat.id}")
                             await bot.ban_chat_member(chat.id, user_to_ban)
                     except BadRequest as e:
                         if "There are no administrators in the private chat" in e.message:
