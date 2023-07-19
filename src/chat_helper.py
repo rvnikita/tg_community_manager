@@ -96,7 +96,6 @@ async def ban_user(bot, chat_id, user_to_ban, global_ban=False, reason=None):
                     logger.error(f"Error: {traceback.format_exc()}")
 
             if global_ban:
-                logger.info(f"User {user_to_ban} has been globally banned. Reason: {reason}")
                 # If global_ban is True, ban the user in all chats
                 all_chats = db_session.query(db_helper.Chat.id).filter(db_helper.Chat.id != 0).all()
                 bot_info = await bot.get_me()
@@ -162,6 +161,8 @@ async def ban_user(bot, chat_id, user_to_ban, global_ban=False, reason=None):
                         reason = reason,
                     )
                     db_session.add(banned_user)
+
+                logger.info(f"User {user_to_ban} has been globally banned. Reason: {reason}")
             else:
                 logger.info(f"User {user_to_ban} has been banned in chat {await chat_helper.get_chat_mention(bot, chat_id)}. Reason: {reason}")
 
