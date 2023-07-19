@@ -90,7 +90,7 @@ async def ban_user(bot, chat_id, user_to_ban, global_ban=False, reason=None):
                     await bot.ban_chat_member(chat_id, user_to_ban)
                 except BadRequest:
                     logger.error(
-                        f"Error: Bot is not an admin or chat does not exist. Chat: {await chat_helper.get_chat_mention(bot, chat.id)}. Traceback: {traceback.format_exc()}")
+                        f"BadRequest. Chat: {await chat_helper.get_chat_mention(bot, chat_id)}. Traceback: {traceback.format_exc()}")
                 except Exception as e:
                     logger.error(f"Error: {traceback.format_exc()}")
 
@@ -116,7 +116,7 @@ async def ban_user(bot, chat_id, user_to_ban, global_ban=False, reason=None):
                             logger.info(f"Trying to ban user {user_to_ban} from chat {chat.id}")
                             await bot.ban_chat_member(chat.id, user_to_ban)
                     except BadRequest:
-                        logger.error(f"Error: Bot is not an admin or chat does not exist. Chat: {await chat_helper.get_chat_mention(bot, chat.id)}. Traceback: {traceback.format_exc()}")
+                        logger.error(f"BadRequest. Chat: {await chat_helper.get_chat_mention(bot, chat.id)}. Traceback: {traceback.format_exc()}")
                         continue
                     except Exception as e:
                         if e.message == "Chat not found":
