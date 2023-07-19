@@ -273,36 +273,37 @@ async def tg_thankyou(update, context):
                 dislike_words = chat_helper.get_chat_config(update.message.chat.id, "dislike_words")
 
                 for category, word_list in {'like_words': like_words, 'dislike_words': dislike_words}.items():
-                    for word in word_list:
-                         #check without case if word in update message
-                        if word.lower() in update.message.text.lower():
+                    if word_list is not None:
+                        for word in word_list:
+                             #check without case if word in update message
+                            if word.lower() in update.message.text.lower():
 
-                            user = db_session.query(db_helper.User).filter(
-                                db_helper.User.id == update.message.reply_to_message.from_user.id).first()
-                            if user is None:
-                                user = db_helper.User(id=update.message.reply_to_message.from_user.id,
-                                                      first_name=update.message.reply_to_message.from_user.first_name,
-                                                      last_name=update.message.reply_to_message.from_user.last_name,
-                                                      username=update.message.reply_to_message.from_user.username)
-                                db_session.add(user)
-                                db_session.commit()
+                                user = db_session.query(db_helper.User).filter(
+                                    db_helper.User.id == update.message.reply_to_message.from_user.id).first()
+                                if user is None:
+                                    user = db_helper.User(id=update.message.reply_to_message.from_user.id,
+                                                          first_name=update.message.reply_to_message.from_user.first_name,
+                                                          last_name=update.message.reply_to_message.from_user.last_name,
+                                                          username=update.message.reply_to_message.from_user.username)
+                                    db_session.add(user)
+                                    db_session.commit()
 
-                            judge = db_session.query(db_helper.User).filter(
-                                db_helper.User.id == update.message.from_user.id).first()
-                            if judge is None:
-                                judge = db_helper.User(id=update.message.from_user.id,
-                                                       name=update.message.from_user.first_name)
-                                db_session.add(judge)
-                                db_session.commit()
+                                judge = db_session.query(db_helper.User).filter(
+                                    db_helper.User.id == update.message.from_user.id).first()
+                                if judge is None:
+                                    judge = db_helper.User(id=update.message.from_user.id,
+                                                           name=update.message.from_user.first_name)
+                                    db_session.add(judge)
+                                    db_session.commit()
 
-                            if category == "like_words":
-                                await rating_helper.change_rating(update.message.reply_to_message.from_user.id, update.message.from_user.id, update.message.chat.id, 1, update.message.message_id)
-                            elif category == "dislike_words":
-                                await rating_helper.change_rating(update.message.reply_to_message.from_user.id, update.message.from_user.id, update.message.chat.id, -1, update.message.message_id)
+                                if category == "like_words":
+                                    await rating_helper.change_rating(update.message.reply_to_message.from_user.id, update.message.from_user.id, update.message.chat.id, 1, update.message.message_id)
+                                elif category == "dislike_words":
+                                    await rating_helper.change_rating(update.message.reply_to_message.from_user.id, update.message.from_user.id, update.message.chat.id, -1, update.message.message_id)
 
-                            db_session.close()
+                                db_session.close()
 
-                            return
+                                return
             else:
                 pass
     except Exception as error:
