@@ -48,7 +48,7 @@ async def send_message_to_admin(bot, chat_id, text: str, disable_web_page_previe
             elif error.message == "Forbidden: bot can't initiate conversation with a user":
                 logger.info(f"Bot can't initiate conversation with a user {admin.user.id}.")
             else:
-                logger.error(f"Telegram error: {error.message}")
+                logger.error(f"Telegram error: {error.message}. Traceback: {traceback.format_exc()}")
         except Exception as error:
             logger.error(f"Error: {traceback.format_exc()}")
 
@@ -319,7 +319,7 @@ async def tg_join_request(update, context):
             logger.info(f"Welcome message sent to user {update.effective_user.id} in chat {update.effective_chat.id} ({update.effective_chat.title})")
 
     except TelegramError as e:
-        logger.error(f"Telegram error: {e.message}")
+        logger.error(f"Telegram error: {e.message}. Traceback: {traceback.format_exc()}")
 
     except Exception as e:
         logger.error(f"General error: {traceback.format_exc()}")
