@@ -255,7 +255,7 @@ async def tg_ban(update, context):
             await chat_helper.ban_user(bot, ban_chat_id, ban_user_id, ban_global, reason=ban_reason)
 
             ban_type = "globally" if ban_global else "locally"
-            await message.reply_text(f"User {user_helper.get_user_mention(ban_user_id)} has been {ban_type} banned for spam.")
+            await bot.send_message(chat_id, f"User {user_helper.get_user_mention(ban_user_id)} has been {ban_type} banned for spam.")
     except Exception as error:
         logger.error(f"Error: {traceback.format_exc()}")
 
