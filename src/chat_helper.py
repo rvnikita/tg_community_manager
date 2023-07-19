@@ -127,7 +127,7 @@ async def ban_user(bot, chat_id, user_to_ban, global_ban=False, reason=None):
                             existing_chat = db_session.query(db_helper.Chat).filter(db_helper.Chat.id == new_chat_id).first()
                             if existing_chat:
                                 # Handle the case where the new chat id already exists
-                                logger.info(f"Cannot update chat id from {await chat_helper.get_chat_mention(bot, chat.id)} to {await chat_helper.get_chat_mention(new_chat_id)} as the new id already exists")
+                                logger.info(f"Cannot update chat id from {await chat_helper.get_chat_mention(bot, chat.id)} to {await chat_helper.get_chat_mention(bot, new_chat_id)} as the new id already exists")
                             else:
                                 # Update the chat id as before
                                 chat_to_update = db_session.query(db_helper.Chat).filter(db_helper.Chat.id == chat.id).first()
