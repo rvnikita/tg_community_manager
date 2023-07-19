@@ -115,7 +115,10 @@ async def ban_user(bot, chat_id, user_to_ban, global_ban=False, reason=None):
                             logger.info("Bot is admin in chat")
                             logger.info(f"Trying to ban user {user_to_ban} from chat {chat.id}")
                             await bot.ban_chat_member(chat.id, user_to_ban)
-                    except BadRequest:
+                    except BadRequest as e:
+                        if "There are no administrators in the private chat" in e.message:
+                            logger.info(f"Bot is not admin in chat {chat.id}")
+                            continue
                         logger.error(f"BadRequest. Chat: {await chat_helper.get_chat_mention(bot, chat.id)}. Traceback: {traceback.format_exc()}")
                         continue
                     except Exception as e:
