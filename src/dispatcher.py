@@ -187,10 +187,17 @@ async def tg_ban(update, context):
             ban_global = None
 
             # Check if the command was sent by an admin of the chat
-            chat_administrators = await bot.get_chat_administrators(chat_id)
-            if message.from_user.id not in [admin.user.id for admin in chat_administrators]:
-                await message.reply_text("You must be an admin to use this command.")
-                return
+            if update.effective_chat.type != 'private':
+                chat_administrators = await bot.get_chat_administrators(chat_id)
+                if message.from_user.id not in [admin.user.id for admin in chat_administrators]:
+                    await message.reply_text("You must be an admin to use this command.")
+                    return
+            else:
+                #continue, because comand was send to bot in private chat
+                #how could we check that user is admin of the bot?
+                #TODO:HIGH Implement check for bot admin
+                #seems like we need to allow /ban command for admin of chats while gban for bot admins only
+                pass
 
             command_parts = message.text.split()  # Split the message into parts
             if len(command_parts) > 1:  # if the command has more than one part (means it has a user ID or username parameter)
