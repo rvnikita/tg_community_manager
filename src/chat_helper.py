@@ -193,6 +193,11 @@ async def get_chat_mention(bot, chat_id: int) -> str:
     except BadRequest as e:
         # Handle case if bot has not enough rights to get chat details
         return str(chat_id)
+    except TelegramError as e:
+        return str(chat_id)
+    except Exception as e:
+        logger.error(f"Error: {traceback.format_exc()}")
+        return str(chat_id)
 
     with db_helper.session_scope() as db_session:
         try:
