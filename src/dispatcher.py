@@ -13,6 +13,7 @@ from telegram.request import HTTPXRequest
 from telegram.error import TelegramError
 import openai
 import traceback
+import re
 
 from langdetect import detect
 import langdetect
@@ -180,27 +181,43 @@ async def tg_ban(update, context):
         with db_helper.session_scope() as db_session:
             message = update.message
             chat_id = update.effective_chat.id
+            user_to_ban = None
 
             # Check if the command was sent by an admin of the chat
             chat_administrators = await bot.get_chat_administrators(chat_id)
             if message.from_user.id not in [admin.user.id for admin in chat_administrators]:
-                await bot.send_message(chat_id=chat_id, text="You must be an admin to use this command.")
+                await message.reply_text("You must be an admin to use this command.")
                 return
 
-            # Check if a user is mentioned in the command message
-            if not message.reply_to_message:
-                await bot.send_message(chat_id=chat_id, text="Please reply to a user's message to ban them.")
-                return
-
-            user_to_ban = message.reply_to_message.from_user.id
+            if chat_id == config['LOGGING']['INFO_CHAT_ID']: # Check if this command is placed in info chat
+                username_list = re.findall('@(\w+)', message.text) # extract usernames from the message
+                if len(username_list) > 2: # Check if there are more than 2 usernames in the message
+                    await message.reply_text("More than two usernames found. Please specify which user to ban.")
+                    return
+                elif len(username_list) == 0: # Check if there are no usernames in the message
+                    await message.reply_text("No usernames found. Please specify which user to ban.")
+                    return
+                else: # There is exactly one username
+                    # Fetch user_id based on username from database
+                    user = db_session.query(db_helper.User).filter(db_helper.User.username == username_list[0]).first()
+                    if user is None:
+                        await message.reply_text(f"No user found with username {username_list[0]}.")
+                        return
+                    user_to_ban = user.id
+            else:
+                # Check if a user is mentioned in the command message
+                if not message.reply_to_message:
+                    await message.reply_text("Please reply to a user's message to ban them.")
+                    return
+                user_to_ban = message.reply_to_message.from_user.id
 
             # Check if the user to ban is an admin of the chat
             for admin in chat_administrators:
                 if admin.user.id == user_to_ban:
-                    await bot.send_message(chat_id=chat_id, text="You cannot ban an admin.")
+                    await message.reply_text("You cannot ban an admin.")
                     return
 
-            await chat_helper.delete_message(bot, chat_id, message.reply_to_message.message_id)
+            await chat_helper.delete_message(bot, chat_id, message.message_id) # delete the ban command message
 
             # Determine if the ban is global or not based on the command used
             if update.message.text.split()[0] == "/global_ban" or update.message.text.split()[0] == "/gban":
@@ -209,12 +226,14 @@ async def tg_ban(update, context):
                 global_ban = False
 
             # Ban the user and add them to the banned_users table
-            await chat_helper.ban_user(bot, chat_id, user_to_ban, global_ban, reason=f"Ban command was used in the chat {chat_id}. Message: {message.reply_to_message.text}")
+            await chat_helper.ban_user(bot, chat_id, user_to_ban, global_ban, reason=f"Ban command was used in the chat {chat_id}. Message: {message.text}")
 
             ban_type = "globally" if global_ban else "locally"
-            await bot.send_message(chat_id=chat_id, text=f"User {user_helper.get_user_mention(user_to_ban)} has been {ban_type} banned for spam.")
+            await message.reply_text(f"User {user_helper.get_user_mention(user_to_ban)} has been {ban_type} banned for spam.")
     except Exception as error:
         logger.error(f"Error: {traceback.format_exc()}")
+
+
 
 
 async def tg_spam_check(update, context):
