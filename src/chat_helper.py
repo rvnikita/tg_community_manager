@@ -123,7 +123,7 @@ async def ban_user(bot, chat_id, user_to_ban, global_ban=False, reason=None):
                         elif "Group migrated to supergroup. New chat id" in e.message:
                             new_chat_id = int(re.search(r"New chat id: (-\d+)", e.message).group(1))
                             logger.info(f"Chat {chat.id} migrated to supergroup {new_chat_id}")
-                            chat_to_update = db_session.query(Chat).filter(Chat.id == chat.id).first()
+                            chat_to_update = db_session.query(db_helper.Chat).filter(db_helper.Chat.id == chat.id).first()
                             if chat_to_update:
                                 # Update the chat id
                                 chat_to_update.id = new_chat_id
