@@ -396,8 +396,16 @@ async def tg_join_request(update, context):
         auto_approve_join_request = chat_helper.get_chat_config(update.effective_chat.id, "auto_approve_join_request")
 
         if welcome_dm_message is not None and welcome_dm_message != "":
-            await bot.send_message(update.effective_user.id, welcome_dm_message, disable_web_page_preview=True)
-            logger.info(f"Welcome message sent to user {update.effective_user.id} in chat {update.effective_chat.id} ({update.effective_chat.title})")
+            try:
+                await bot.send_message(update.effective_user.id, welcome_dm_message, disable_web_page_preview=True)
+                logger.info(f"Welcome message sent to user {update.effective_user.id} in chat {update.effective_chat.id} ({update.effective_chat.title})")
+            except TelegramError as e:
+                if "bot can't initiate conversation with a user" in e.message:
+                    logger.info(f"Bot can't initiate conversation with user {update.effective_user.id} in chat {update.effective_chat.id} ({update.effective_chat.title})")
+                else:
+                    logger.error(f"Telegram error: {e.message}. Traceback: {traceback.format_exc()}")
+            except Exception as e:
+                logger.error(f"General error: {traceback.format_exc()}")
 
     except TelegramError as e:
         logger.error(f"Telegram error: {e.message}. Traceback: {traceback.format_exc()}")
