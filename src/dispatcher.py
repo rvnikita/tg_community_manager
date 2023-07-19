@@ -184,6 +184,7 @@ async def tg_ban(update, context):
             ban_user_id = None
             ban_chat_id = None
             ban_reason = None
+            ban_global = None
 
             # Check if the command was sent by an admin of the chat
             chat_administrators = await bot.get_chat_administrators(chat_id)
@@ -206,7 +207,7 @@ async def tg_ban(update, context):
                     await message.reply_text("Invalid format. Use /ban @username or /ban user_id.")
                     return
             elif chat_id == int(config['LOGGING']['INFO_CHAT_ID']) or chat_id == int(config['LOGGING']['ERROR_CHAT_ID']): # Check if this command is placed in info chat (this is a Trick to be able to ban users from info chat logs without specifying user_id or username)
-                ban_reason = f"User was banned by {message.text} command in info chat."
+                ban_reason = f"User was banned by {message.text} command in info chat. Message: {message.reply_to_message.text}"
                 if not message.reply_to_message:
                     await message.reply_text("Please reply to a message containing usernames to ban.")
                     return
@@ -245,15 +246,15 @@ async def tg_ban(update, context):
 
             # Determine if the ban is global or not based on the command used
             if update.message.text.split()[0] == "/global_ban" or update.message.text.split()[0] == "/gban":
-                global_ban = True
+                ban_global = True
             else:
-                global_ban = False
+                ban_global = False
 
             # Ban the user and add them to the banned_users table
             #ban_chat_id could be None if we are banning from info chat logs or sending dirrectly to the bot
-            await chat_helper.ban_user(bot, ban_chat_id, ban_user_id, global_ban, reason=ban_reason)
+            await chat_helper.ban_user(bot, ban_chat_id, ban_user_id, ban_global, reason=ban_reason)
 
-            ban_type = "globally" if global_ban else "locally"
+            ban_type = "globally" if ban_global else "locally"
             await message.reply_text(f"User {user_helper.get_user_mention(ban_user_id)} has been {ban_type} banned for spam.")
     except Exception as error:
         logger.error(f"Error: {traceback.format_exc()}")
