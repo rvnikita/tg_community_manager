@@ -265,7 +265,7 @@ async def tg_gban(update, context):
 
                 await chat_helper.delete_message(bot, chat_id, message.reply_to_message.message_id)
 
-            await chat_helper.delete_message(bot, chat_id, message.message_id) # delete the ban command message
+            #await chat_helper.delete_message(bot, chat_id, message.message_id) # delete the ban command message
 
             # Ban the user and add them to the banned_users table
             await chat_helper.ban_user(bot, ban_chat_id, ban_user_id, True, reason=ban_reason)
