@@ -316,7 +316,7 @@ async def tg_spam_check(update, context):
                         if lang in ['ar', 'fa', 'ur', 'he', 'ps', 'sd', 'ku', 'ug', 'fa', 'zh']:
                             # Ban the user for using Arabic or Persian language
                             await chat_helper.delete_message(bot, update.message.chat.id, update.message.message_id)
-                            await chat_helper.ban_user(bot, update.message.chat.id, update.message.from_user.id, reason=f"Filtered language used. Message {update.message.text}", global_ban=True)
+                            await chat_helper.ban_user(bot, update.message.chat.id, update.message.from_user.id, reason=f"Filtered language used. Message {update.message.text}. Chat: {await chat_helper.get_chat_mention(bot, update.message.chat.id)}", global_ban=True)
                             await bot.send_message(chat_id=update.message.chat.id, text=f"User {user_helper.get_user_mention(update.message.from_user.id)} has been banned based on language filter. - {lang}")
                             return  # exit the function as the user has already been banned
                     except langdetect.lang_detect_exception.LangDetectException as e:
@@ -329,7 +329,7 @@ async def tg_spam_check(update, context):
                 if update.message.document.file_name.endswith('.apk'):
                     # Ban the user for sending an APK file
                     await chat_helper.delete_message(bot, update.message.chat.id, update.message.message_id)
-                    await chat_helper.ban_user(bot, update.message.chat.id, update.message.from_user.id, reason="APK file uploaded.", global_ban=True)
+                    await chat_helper.ban_user(bot, update.message.chat.id, update.message.from_user.id, reason=f"APK file uploaded. Chat: {await chat_helper.get_chat_mention(bot, update.message.chat.id)}", global_ban=True)
                     await bot.send_message(chat_id=update.message.chat.id, text=f"User {user_helper.get_user_mention(update.message.from_user.id)} has been banned for uploading an APK file.")
                     return  # exit the function as the user has already been banned
 
