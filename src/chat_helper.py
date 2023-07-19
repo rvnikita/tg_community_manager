@@ -120,16 +120,24 @@ async def ban_user(bot, chat_id, user_to_ban, global_ban=False, reason=None):
                             logger.info(f"Bot is not a member in chat {chat.id}")
                             continue
                         elif "Group migrated to supergroup. New chat id" in e.message:
+                            # Extract new chat id from the exception message using a regular expression
                             new_chat_id = int(re.search(r"New chat id: (-\d+)", e.message).group(1))
-                            logger.info(f"Chat {chat.id} migrated to supergroup {new_chat_id}")
-                            chat_to_update = db_session.query(db_helper.Chat).filter(db_helper.Chat.id == chat.id).first()
-                            if chat_to_update:
-                                # Update the chat id
-                                chat_to_update.id = new_chat_id
-                                db_session.commit()  # Commit the changes to the database
-                                logger.info(f"Updated chat id from {chat.id} to {new_chat_id}")
+
+                            # Check if new chat id already exists in the database
+                            existing_chat = db_session.query(db_helper.Chat).filter(db_helper.Chat.id == new_chat_id).first()
+                            if existing_chat:
+                                # Handle the case where the new chat id already exists
+                                logger.error(
+                                    f"Cannot update chat id from {chat.id} to {new_chat_id} as the new id already exists")
                             else:
-                                logger.error(f"Could not find chat with id {chat.id} to update")
+                                # Update the chat id as before
+                                chat_to_update = db_session.query(db_helper.Chat).filter(db_helper.Chat.id == chat.id).first()
+                                if chat_to_update:
+                                    chat_to_update.id = new_chat_id
+                                    db_session.commit()
+                                    logger.info(f"Updated chat id from {chat.id} to {new_chat_id}")
+                                else:
+                                    logger.error(f"Could not find chat with id {chat.id} to update")
                         elif "bot was kicked from the supergroup chat" in e.message:
                             logger.info(f"Bot was kicked from chat {chat.id}")
                             continue
