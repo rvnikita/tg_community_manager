@@ -131,6 +131,9 @@ async def ban_user(bot, chat_id, user_to_ban, global_ban=False, reason=None):
                                 logger.info(f"Updated chat id from {chat.id} to {new_chat_id}")
                             else:
                                 logger.error(f"Could not find chat with id {chat.id} to update")
+                        elif "bot was kicked from the supergroup chat" in e.message:
+                            logger.info(f"Bot was kicked from chat {chat.id}")
+                            continue
 
 
                     except BadRequest as e:
