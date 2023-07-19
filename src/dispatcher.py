@@ -255,7 +255,7 @@ async def tg_gban(update, context):
                     await message.reply_text("Invalid format. Use gban @username or gban user_id.")
                     return
             else: # Check if a user is mentioned in the command message as a reply to message
-                ban_reason = f"User was globally banned by {message.text} command in {chat_helper.get_chat_mention(chat_id)}. Message: {message.reply_to_message.text}"
+                ban_reason = f"User was globally banned by {message.text} command in {chat_helper.get_chat_mention(bot, chat_id)}. Message: {message.reply_to_message.text}"
                 ban_chat_id = chat_id # We need to ban in the same chat as the command was sent
 
                 if not message.reply_to_message:
