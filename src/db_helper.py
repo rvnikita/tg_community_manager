@@ -193,7 +193,6 @@ class User_Status(Base):
     chat_id = Column(BigInteger, ForeignKey(Chat.__table__.c.id, ondelete='CASCADE', onupdate='CASCADE'), nullable=False, index=True)
     last_message_datetime = Column(DateTime(True))
     status = Column(String)
-    rating = Column(Integer, default=0)
 
     user = relationship('User', back_populates='user_statuses')
     chat = relationship('Chat', back_populates='user_statuses')
