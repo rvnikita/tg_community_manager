@@ -7,6 +7,9 @@ import telegram
 from telegram.request import HTTPXRequest
 import asyncio
 import traceback
+import sys
+
+sys.path.append('../../../')
 
 import src.config_helper as config_helper
 import src.logging_helper as logging_helper
