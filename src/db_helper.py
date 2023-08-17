@@ -39,106 +39,6 @@ class Base(DeclarativeBase):
     def __tablename__(cls):
         return cls.__prefix__ + cls.__name__.lower()
 
-
-class Chat(Base):
-    __table_args__ = (
-        PrimaryKeyConstraint('id', name='chat_pkey'),
-    )
-
-    id = Column(BigInteger, primary_key=True)
-
-    """
-    Configurations for the chat explained:
-    {
-      // The words that indicate a positive reaction or agreement to increase user rating
-      "like_words": [
-        "мерси",
-        "спасиб",
-        "👍"
-      ],
-      
-      // The emoji that indicate a positive reaction or agreement to increase user rating
-      "like_reactions": [
-        "👍",
-        "❤️"
-      ],
-      
-      // The words that indicate a negative reaction or disagreement to decrease user rating
-      "dislike_words": [
-        "👎"
-      ],
-      
-      // The emoji that indicate a negative reaction or disagreement to decrease user rating
-      "dislike_reactions": [
-        "👎"
-      ],
-      
-      // The maximum number of days of inactivity before a user is removed from the chat. Set to 0 to disable
-      "kick_inactive": 90,
-      
-      // The number of days of inactivity after which a user is warned about potential removal. Set to 0 to disable
-      "warn_inactive": 60,
-      
-      // The welcome message for the chat that is posted into chat when a new user joins 
-      "welcome_message": "Добро пожаловать в чат",
-      
-      // A boolean value that determines if a user's status should be updated or not by cron script
-      "update_user_status": true,
-      
-      // A boolean value that determines if user status updates should be sent as logger.warning() or not
-      "update_user_status_critical": false,
-      
-      // The DM sent to welcome a new user
-      "welcome_dm_message": "👋 Добро пожаловать в чат",
-      
-      // The number of user reports required to ban a user
-      //TODO:MID: may be we need to use 0 to disable ban (need to change this in code as well)
-      "number_of_reports_to_ban": 4,
-      
-      // The number of user reports required to warn a user
-      //TODO:MID: may be we need to use 0 to disable warn (need to change this in code as well)
-      "number_of_reports_to_warn": 2,
-      
-      // A boolean value that determines if bot messages should be deleted from the channel or not
-      "delete_channel_bot_message": true,
-      
-      // The list of user IDs that are allowed to delete bot messages from the channel
-      "delete_channel_bot_message_allowed_ids": [
-        -1001120203630
-      ],
-      
-      // A boolean value that determines if bot messages about joining users should be deleted from the chat or not
-      "delete_new_chat_members_message" : true,
-      
-      // A boolean value that determines if agressive antispam should be enabled or not
-      "agressive_antispam" : true
-      
-      // A boolean value that determines if bot should auto approve join requests or not
-      "auto_approve_join_request":false
-      
-    }
-    """
-
-    config = Column(JSON, nullable=False)
-    created_at = Column(DateTime(True), server_default=text('now()'))
-    chat_name = Column(String, server_default=text("''::character varying"))
-    invite_link = Column(String, server_default=text("''::character varying"))
-
-    user_statuses = relationship('User_Status', back_populates='chat')
-
-
-class Qna(Base):
-    __table_args__ = (
-        PrimaryKeyConstraint('id', name='qna_pkey'),
-    )
-
-    id = Column(BigInteger, primary_key=True)
-    title = Column(Text, nullable=False)
-    body = Column(Text, nullable=False)
-    created_at = Column(DateTime, server_default=text('now()'))
-    embedding = Column(NullType)
-
-
 class User(Base):
     __table_args__ = (
         PrimaryKeyConstraint('id', name='user_pkey'),
@@ -153,6 +53,131 @@ class User(Base):
     is_anonymous = Column(Boolean)
 
     user_statuses = relationship('User_Status', back_populates='user')
+
+class Chat_Group(Base):
+    __table_args__ = (PrimaryKeyConstraint('id', name='chat_group_pkey'),)
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String, nullable=True)
+
+    chats = relationship('Chat', back_populates='chat_group')
+
+
+class Chat(Base):
+    __table_args__ = (PrimaryKeyConstraint('id', name='chat_pkey'),)
+
+    id = Column(BigInteger, primary_key=True)
+    group_id = Column(Integer, ForeignKey(Chat_Group.__table__.c.id), nullable=True)
+
+    """
+    Configurations for the chat explained:
+    {
+      // The words that indicate a positive reaction or agreement to increase user rating
+      "like_words": [
+        "мерси",
+        "спасиб",
+        "👍"
+      ],
+
+      // The emoji that indicate a positive reaction or agreement to increase user rating
+      "like_reactions": [
+        "👍",
+        "❤️"
+      ],
+
+      // The words that indicate a negative reaction or disagreement to decrease user rating
+      "dislike_words": [
+        "👎"
+      ],
+
+      // The emoji that indicate a negative reaction or disagreement to decrease user rating
+      "dislike_reactions": [
+        "👎"
+      ],
+
+      // The maximum number of days of inactivity before a user is removed from the chat. Set to 0 to disable
+      "kick_inactive": 90,
+
+      // The number of days of inactivity after which a user is warned about potential removal. Set to 0 to disable
+      "warn_inactive": 60,
+
+      // The welcome message for the chat that is posted into chat when a new user joins 
+      "welcome_message": "Добро пожаловать в чат",
+
+      // A boolean value that determines if a user's status should be updated or not by cron script
+      "update_user_status": true,
+
+      // A boolean value that determines if user status updates should be sent as logger.warning() or not
+      "update_user_status_critical": false,
+
+      // The DM sent to welcome a new user
+      "welcome_dm_message": "👋 Добро пожаловать в чат",
+
+      // The number of user reports required to ban a user
+      //TODO:MID: may be we need to use 0 to disable ban (need to change this in code as well)
+      "number_of_reports_to_ban": 4,
+
+      // The number of user reports required to warn a user
+      //TODO:MID: may be we need to use 0 to disable warn (need to change this in code as well)
+      "number_of_reports_to_warn": 2,
+
+      // A boolean value that determines if bot messages should be deleted from the channel or not
+      "delete_channel_bot_message": true,
+
+      // The list of user IDs that are allowed to delete bot messages from the channel
+      "delete_channel_bot_message_allowed_ids": [
+        -1001120203630
+      ],
+
+      // A boolean value that determines if bot messages about joining users should be deleted from the chat or not
+      "delete_new_chat_members_message" : true,
+
+      // A boolean value that determines if agressive antispam should be enabled or not
+      "agressive_antispam" : true
+
+      // A boolean value that determines if bot should auto approve join requests or not
+      "auto_approve_join_request":false
+
+    }
+    """
+
+    config = Column(JSON, nullable=False)
+    created_at = Column(DateTime(True), server_default=text('now()'))
+    chat_name = Column(String, server_default=text("''::character varying"))
+    invite_link = Column(String, server_default=text("''::character varying"))
+
+    chat_group = relationship('Chat_Group', back_populates='chats')
+    user_statuses = relationship('User_Status', back_populates='chat')
+    user_ratings = relationship('User_Rating', back_populates='chat')
+
+class User_Rating(Base):
+    __table_args__ = (
+        PrimaryKeyConstraint('id', name='user_rating_pkey'),
+    )
+
+    id = Column(BigInteger, Identity(start=1, increment=1, minvalue=1, maxvalue=9223372036854775807, cycle=False, cache=1))
+    user_id = Column(BigInteger, ForeignKey(User.__table__.c.id, ondelete='CASCADE', onupdate='CASCADE'), nullable=False, index=True)
+    chat_id = Column(BigInteger, ForeignKey(Chat.__table__.c.id, ondelete='CASCADE', onupdate='CASCADE'), nullable=False, index=True)
+    judge_id = Column(BigInteger, ForeignKey(User.__table__.c.id, ondelete='CASCADE', onupdate='CASCADE'), nullable=False, index=True)
+    change_value = Column(Integer, nullable=False)
+    change_date = Column(DateTime(True), server_default=text('now()'))
+
+    user = relationship('User', foreign_keys=[user_id])
+    chat = relationship('Chat', back_populates='user_ratings')
+    judge = relationship('User', foreign_keys=[judge_id])
+
+
+
+class Qna(Base):
+    __table_args__ = (
+        PrimaryKeyConstraint('id', name='qna_pkey'),
+    )
+
+    id = Column(BigInteger, primary_key=True)
+    title = Column(Text, nullable=False)
+    body = Column(Text, nullable=False)
+    created_at = Column(DateTime, server_default=text('now()'))
+    embedding = Column(NullType)
 
 
 class User_Status(Base):
