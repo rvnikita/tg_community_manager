@@ -24,11 +24,27 @@ async def change_rating(user_id, judge_id, chat_id, change_value, message_id=Non
 
         group_id = chat.group_id
 
-        # Calculate the user's total rating within the group
-        total_rating = db_session.query(func.sum(db_helper.User_Rating.change_value)).filter(
-            db_helper.User_Rating.user_id == user_id,
-            db_helper.Chat.group_id == group_id,
-            db_helper.Chat.id == db_helper.User_Rating.chat_id).scalar() or 0
+        if group_id is None:
+            # If group_id is null, get ratings only for this specific chat
+            user_total_rating_query = db_session.query(func.sum(db_helper.User_Rating.change_value)).filter(
+                db_helper.User_Rating.user_id == user_id,
+                db_helper.User_Rating.chat_id == chat_id)
+            judge_total_rating_query = db_session.query(func.sum(db_helper.User_Rating.change_value)).filter(
+                db_helper.User_Rating.user_id == judge_id,
+                db_helper.User_Rating.chat_id == chat_id)
+        else:
+            # If group_id is not null, get ratings for all chats in the group
+            user_total_rating_query = db_session.query(func.sum(db_helper.User_Rating.change_value)).filter(
+                db_helper.User_Rating.user_id == user_id,
+                db_helper.Chat.group_id == group_id,
+                db_helper.Chat.id == db_helper.User_Rating.chat_id)
+            judge_total_rating_query = db_session.query(func.sum(db_helper.User_Rating.change_value)).filter(
+                db_helper.User_Rating.user_id == judge_id,
+                db_helper.Chat.group_id == group_id,
+                db_helper.Chat.id == db_helper.User_Rating.chat_id)
+
+        user_total_rating = user_total_rating_query.scalar() or 0
+        judge_total_rating = judge_total_rating_query.scalar() or 0
 
         # Add a new User_Rating record for each rating change
         user_rating = db_helper.User_Rating(user_id=user_id, chat_id=chat_id, judge_id=judge_id, change_value=change_value)
@@ -44,16 +60,10 @@ async def change_rating(user_id, judge_id, chat_id, change_value, message_id=Non
             rating_action = "not changed"
             pass
 
-        # Get the judge's total rating within the group
-        judge_total_rating = db_session.query(func.sum(db_helper.User_Rating.change_value)).filter(
-            db_helper.User_Rating.user_id == judge_id,
-            db_helper.Chat.group_id == group_id,
-            db_helper.Chat.id == db_helper.User_Rating.chat_id).scalar() or 0
-
         user_mention = user_helper.get_user_mention(user_id)
         judge_mention = user_helper.get_user_mention(judge_id)
 
-        text_to_send = f"{judge_mention} ({judge_total_rating}) {rating_action} reputation of {user_mention} ({total_rating})"
+        text_to_send = f"{judge_mention} ({judge_total_rating}) {rating_action} reputation of {user_mention} ({user_total_rating})"
 
         if announce == True:
             if message_id is None:
@@ -62,4 +72,5 @@ async def change_rating(user_id, judge_id, chat_id, change_value, message_id=Non
                 await bot.send_message(chat_id=chat_id, text=text_to_send, reply_to_message_id=message_id)
 
         logger.info(text_to_send + f" in chat {await chat_helper.get_chat_mention(bot, chat_id)} ")
+
 
