@@ -176,6 +176,43 @@ async def tg_report(update, context):
     except Exception as error:
         logger.error(f"Error: {traceback.format_exc()}")
 
+async def tg_warn(update, context):
+    try:
+        chat_id = update.effective_chat.id
+        message = update.message
+        admin_ids = [admin.user.id for admin in await bot.get_chat_administrators(chat_id)]
+
+        if message.from_user.id not in admin_ids:
+            await bot.send_message(chat_id=chat_id, text="You must be an admin to use this command.", reply_to_message_id=message.message_id)
+            return
+
+        if not message.reply_to_message:
+            await bot.send_message(chat_id=chat_id, text="Reply to a message to warn the user.")
+            return
+
+        reason = ' '.join(message.text.split()[1:]) or "You've been warned by an admin."
+        warned_user_id = message.reply_to_message.from_user.id
+
+        with db_helper.session_scope() as db_session:
+            report = db_helper.Report(
+                reported_user_id=warned_user_id,
+                reporting_user_id=message.from_user.id,
+                reported_message_id=message.reply_to_message.message_id,
+                chat_id=chat_id,
+                reason=reason  # Populate the reason in the Report table
+            )
+            db_session.add(report)
+            db_session.commit()
+
+        warned_user_mention = user_helper.get_user_mention(warned_user_id)
+        warning_admin_mention = user_helper.get_user_mention(message.from_user.id)
+
+        await bot.send_message(chat_id=chat_id, text=f"{warned_user_mention}, {reason}")
+        await send_message_to_admin(bot, chat_id, f"{warning_admin_mention} warned {warned_user_mention} in chat {await chat_helper.get_chat_mention(bot, chat_id)}. Reason: {reason}")
+
+    except Exception as error:
+        logger.error(f"Error in warn: {traceback.format_exc()}")
+
 async def tg_ban(update, context):
     try:
         with db_helper.session_scope() as db_session:
@@ -595,6 +632,7 @@ def main() -> None:
 
         # reporting
         application.add_handler(CommandHandler('report', tg_report, filters.ChatType.SUPERGROUP), group=4)
+        application.add_handler(CommandHandler('warn', tg_warn, filters.ChatType.SUPERGROUP), group=4)
 
         # Add a handler for chat join requests
         application.add_handler(ChatJoinRequestHandler(tg_join_request), group=5)

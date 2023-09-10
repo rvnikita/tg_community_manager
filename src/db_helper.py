@@ -219,6 +219,7 @@ class Report(Base):
     reported_message_id = Column(BigInteger, nullable=False, index=True)
     chat_id = Column(BigInteger, nullable=False, index=True)
     created_at = Column(DateTime(True), server_default=text('now()'))
+    reason = Column(String, nullable=True)
 
 session = None
 
