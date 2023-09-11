@@ -192,26 +192,56 @@ async def tg_warn(update, context):
 
         reason = ' '.join(message.text.split()[1:]) or "You've been warned by an admin."
         warned_user_id = message.reply_to_message.from_user.id
+        warned_message_id = message.reply_to_message.message_id
 
         with db_helper.session_scope() as db_session:
             report = db_helper.Report(
                 reported_user_id=warned_user_id,
                 reporting_user_id=message.from_user.id,
-                reported_message_id=message.reply_to_message.message_id,
+                reported_message_id=warned_message_id,
                 chat_id=chat_id,
-                reason=reason  # Populate the reason in the Report table
+                reason=reason
             )
             db_session.add(report)
             db_session.commit()
 
-        warned_user_mention = user_helper.get_user_mention(warned_user_id)
-        warning_admin_mention = user_helper.get_user_mention(message.from_user.id)
+            warn_count = db_session.query(db_helper.Report).filter(
+                db_helper.Report.chat_id == chat_id,
+                db_helper.Report.reported_user_id == warned_user_id,
+                db_helper.Report.reason != None
+            ).count()
 
-        await bot.send_message(chat_id=chat_id, text=f"{warned_user_mention}, {reason}")
-        await send_message_to_admin(bot, chat_id, f"{warning_admin_mention} warned {warned_user_mention} in chat {await chat_helper.get_chat_mention(bot, chat_id)}. Reason: {reason}")
+            number_of_reports_to_ban = int(chat_helper.get_chat_config(chat_id, 'number_of_reports_to_ban'))
+
+            if warn_count >= number_of_reports_to_ban:
+                await chat_helper.delete_message(bot, chat_id, warned_message_id)
+                await chat_helper.ban_user(bot, chat_id, warned_user_id)
+                warned_user_mention = user_helper.get_user_mention(warned_user_id)
+                await bot.send_message(chat_id=chat_id, text=f"User {warned_user_mention} has been banned due to {warn_count}/{number_of_reports_to_ban} warnings.")
+                await send_message_to_admin(bot, chat_id, f"User {warned_user_mention} has been banned in chat {await chat_helper.get_chat_mention(bot, chat_id)} due to {warn_count}/{number_of_reports_to_ban} warnings.")
+
+                reporting_user_ids = db_session.query(db_helper.Report.reporting_user_id).filter(
+                    db_helper.Report.reported_user_id == warned_user_id,
+                    db_helper.Report.chat_id == chat_id
+                ).distinct().all()
+                reporting_user_ids = [item[0] for item in reporting_user_ids]
+
+                bot_info = await bot.get_me()
+                for user_id in reporting_user_ids:
+                    await rating_helper.change_rating(user_id, bot_info.id, chat_id, 1)
+
+                return
+
+            warned_user_mention = user_helper.get_user_mention(warned_user_id)
+            warning_admin_mention = user_helper.get_user_mention(message.from_user.id)
+
+            await bot.send_message(chat_id=chat_id, text=f"{warned_user_mention}, you've been warned {warn_count}/{number_of_reports_to_ban} times. Reason: {reason}")
+            await chat_helper.delete_message(bot, chat_id, warned_message_id)
+            await send_message_to_admin(bot, chat_id, f"{warning_admin_mention} warned {warned_user_mention} in chat {await chat_helper.get_chat_mention(bot, chat_id)}. Reason: {reason}. Total Warnings: {warn_count}/{number_of_reports_to_ban}")
 
     except Exception as error:
         logger.error(f"Error in warn: {traceback.format_exc()}")
+
 
 async def tg_ban(update, context):
     try:
