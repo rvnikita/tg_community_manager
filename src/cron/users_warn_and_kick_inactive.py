@@ -58,7 +58,7 @@ async def kick_inactive(chat_id, inactivity_period_in_days_to_kick):
             for user_status in inactive_users:
                 try:
                     user_mention = user_helper.get_user_mention(user_status.user.id)
-                    await bot.kick_chat_member(chat_id, user_status.user_id)
+                    await bot.ban_chat_member(chat_id, user_status.user_id)
                     await bot.send_message(chat_id,f"User {user_mention} was kicked for inactivity")
                     user_status.status = 'kicked' # Updating the user status after they're kicked
                     session.commit()  # Committing the changes to the database
