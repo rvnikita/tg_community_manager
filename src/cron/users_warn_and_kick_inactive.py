@@ -68,7 +68,7 @@ async def kick_inactive(chat_id, inactivity_period_in_days_to_kick):
             for user_status in inactive_users:
                 try:
                     user_mention = user_helper.get_user_mention(user_status.user.id)
-                    # await bot.kick_chat_member(chat_id, user_status.user_id)
+                    await bot.kick_chat_member(chat_id, user_status.user_id)
                     #write to chat that we kicked inactive user
                     await bot.send_message(chat_id,f"User {user_mention} was kicked for inactivity")
 
