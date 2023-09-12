@@ -81,6 +81,8 @@ async def kick_inactive(chat_id, inactivity_period_in_days_to_kick):
 
 async def main() -> None:
     try:
+        print("Starting users_warn_and_kick_inactive.py")
+
         with db_helper.session_scope() as session:
 
             # Get chat configs where "kick_inactive" > 0
