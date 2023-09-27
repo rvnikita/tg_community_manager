@@ -9,7 +9,7 @@ import os
 import telegram
 import traceback
 from telegram.request import HTTPXRequest
-from telegram.error import BadRequest
+from telegram.error import BadRequest, Forbidden
 
 import asyncio
 import psycopg2
@@ -77,6 +77,9 @@ async def status_update():
                     else:
                         # If it's another kind of BadRequest, you might still want to log it
                         logger.error(f"BadRequest error: {bad_request_error}")
+                except Forbidden as forbidden_error:
+                    # Log the Forbidden error as an informational entry with chat ID
+                    logger.info(f"Bot is not a member of the group chat (Chat ID: {user_status_row['chat_id']}): {forbidden_error}")
                 except Exception as error:
                     logger.error(f"Error fetching chat member status: {traceback.format_exc()}")
 
