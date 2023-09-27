@@ -44,9 +44,11 @@ async def chat_name_update():
 
 
 async def status_update():
+    updates = []  # A list to store all updates
+
     with db_helper.connect() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            sql = "SELECT * FROM tg_user ORDER BY RANDOM() LIMIT 300"
+            sql = "SELECT * FROM tg_user ORDER BY RANDOM() LIMIT 150"
             cur.execute(sql)
             user_rows = cur.fetchall()
 
@@ -60,14 +62,18 @@ async def status_update():
                         chat_member = await bot.get_chat_member(user_status_row['chat_id'], user_row['id'])
                         status = chat_member.status
 
-                        # Update only if the status has changed
+                        # Add to updates only if the status has changed
                         if status != user_status_row['status']:
-                            user_update_sql = "UPDATE tg_user_status set status = %s WHERE user_id = %s AND chat_id = %s"
-                            cur.execute(user_update_sql, (status, user_row['id'], user_status_row['chat_id']))
-                            logger.info(
-                                f"Updated status for user @{user_row['username']} ({user_row['id']}) in chat {user_status_row['chat_id']} to {status}")
+                            updates.append((status, user_row['id'], user_status_row['chat_id']))
+                            logger.info(f"Status change detected for user @{user_row['username']} ({user_row['id']}) in chat {user_status_row['chat_id']} to {status}")
                     except Exception as error:
                         logger.error(f"Error fetching chat member status: {traceback.format_exc()}")
+
+            # Batch update all statuses
+            if updates:
+                user_update_sql = "UPDATE tg_user_status set status = %s WHERE user_id = %s AND chat_id = %s"
+                cur.executemany(user_update_sql, updates)
+
             conn.commit()
 
 
