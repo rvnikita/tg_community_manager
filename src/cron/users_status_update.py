@@ -75,11 +75,15 @@ async def status_update():
                         updates.append((status, user_status_row['user_id'], user_status_row['chat_id']))
                         logger.info(f"Status change detected for user {'@' if not (isinstance(user_display, int) or user_display.isdigit()) else ''}{user_display} in chat {user_status_row['chat_id']} to {status}")
                 except BadRequest as bad_request_error:
-                    if "User not found" in str(bad_request_error):
+                    error_message = str(bad_request_error)
+                    if "User not found" in error_message:
                         # Update the user's status to "User not found"
-                        updates.append(("User not found", user_status_row['user_id'], user_status_row['chat_id']))  # logger.info(f"User with ID {user_status_row['user_id']} not found in chat {user_status_row['chat_id']}. Updating status to 'User not found'.")
+                        updates.append(("User not found", user_status_row['user_id'], user_status_row['chat_id']))
+                    elif "Chat not found" in error_message:
+                        # Log the "Chat not found" error as an informational entry with chat ID
+                        logger.info(f"Chat not found (Chat ID: {user_status_row['chat_id']}): {error_message}")
                     else:
-                        # If it's another kind of BadRequest, you might still want to log it
+                        # If it's another kind of BadRequest, log it as an error
                         logger.error(f"BadRequest error: {bad_request_error}")
                 except Forbidden as forbidden_error:
                     # Log the Forbidden error as an informational entry with chat ID
