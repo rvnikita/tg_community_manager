@@ -9,6 +9,7 @@ import os
 import telegram
 import traceback
 from telegram.request import HTTPXRequest
+from telegram.error import BadRequest
 
 import asyncio
 import psycopg2
@@ -66,6 +67,14 @@ async def status_update():
                         if status != user_status_row['status']:
                             updates.append((status, user_row['id'], user_status_row['chat_id']))
                             logger.info(f"Status change detected for user @{user_row['username']} ({user_row['id']}) in chat {user_status_row['chat_id']} to {status}")
+                    except BadRequest as bad_request_error:
+                        if "User not found" in str(bad_request_error):
+                            # Update the user's status to "User not found"
+                            updates.append(("User not found", user_row['id'], user_status_row['chat_id']))
+                            logger.info(f"User @{user_row['username']} ({user_row['id']}) not found in chat {user_status_row['chat_id']}. Updating status to 'User not found'.")
+                        else:
+                            # If it's another kind of BadRequest, you might still want to log it
+                            logger.error(f"BadRequest error: {bad_request_error}")
                     except Exception as error:
                         logger.error(f"Error fetching chat member status: {traceback.format_exc()}")
 
