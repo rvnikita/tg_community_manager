@@ -49,7 +49,7 @@ async def status_update():
 
     with db_helper.connect() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            sql = "SELECT * FROM tg_user ORDER BY RANDOM() LIMIT 150"
+            sql = "SELECT * FROM tg_user ORDER BY RANDOM() LIMIT 500"
             cur.execute(sql)
             user_rows = cur.fetchall()
 
