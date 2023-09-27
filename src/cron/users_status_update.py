@@ -49,34 +49,36 @@ async def status_update():
 
     with db_helper.connect() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            sql = "SELECT * FROM tg_user ORDER BY RANDOM() LIMIT 500"
+            # Step 1: Retrieve 500 random user IDs.
+            sql = "SELECT id FROM tg_user ORDER BY RANDOM() LIMIT 1000"
             cur.execute(sql)
             user_rows = cur.fetchall()
+            user_ids = [row['id'] for row in user_rows]
 
-            for user_row in user_rows:
-                user_status_sql = "SELECT * FROM tg_user_status WHERE user_id = %s"
-                cur.execute(user_status_sql, (user_row['id'],))
-                user_status_rows = cur.fetchall()
+            # Step 2: Fetch associated statuses for these users.
+            user_status_sql = "SELECT * FROM tg_user_status WHERE user_id = ANY(%s)"
+            cur.execute(user_status_sql, (user_ids,))
+            user_status_rows = cur.fetchall()
 
-                for user_status_row in user_status_rows:
-                    try:
-                        chat_member = await bot.get_chat_member(user_status_row['chat_id'], user_row['id'])
-                        status = chat_member.status
+            for user_status_row in user_status_rows:
+                try:
+                    chat_member = await bot.get_chat_member(user_status_row['chat_id'], user_status_row['user_id'])
+                    status = chat_member.status
 
-                        # Add to updates only if the status has changed
-                        if status != user_status_row['status']:
-                            updates.append((status, user_row['id'], user_status_row['chat_id']))
-                            logger.info(f"Status change detected for user @{user_row['username']} ({user_row['id']}) in chat {user_status_row['chat_id']} to {status}")
-                    except BadRequest as bad_request_error:
-                        if "User not found" in str(bad_request_error):
-                            # Update the user's status to "User not found"
-                            updates.append(("User not found", user_row['id'], user_status_row['chat_id']))
-                            logger.info(f"User @{user_row['username']} ({user_row['id']}) not found in chat {user_status_row['chat_id']}. Updating status to 'User not found'.")
-                        else:
-                            # If it's another kind of BadRequest, you might still want to log it
-                            logger.error(f"BadRequest error: {bad_request_error}")
-                    except Exception as error:
-                        logger.error(f"Error fetching chat member status: {traceback.format_exc()}")
+                    # Add to updates only if the status has changed
+                    if status != user_status_row['status']:
+                        updates.append((status, user_status_row['user_id'], user_status_row['chat_id']))
+                        logger.info(f"Status change detected for user in chat {user_status_row['chat_id']} to {status}")
+                except BadRequest as bad_request_error:
+                    if "User not found" in str(bad_request_error):
+                        # Update the user's status to "User not found"
+                        updates.append(("User not found", user_status_row['user_id'], user_status_row['chat_id']))
+                        logger.info(f"User with ID {user_status_row['user_id']} not found in chat {user_status_row['chat_id']}. Updating status to 'User not found'.")
+                    else:
+                        # If it's another kind of BadRequest, you might still want to log it
+                        logger.error(f"BadRequest error: {bad_request_error}")
+                except Exception as error:
+                    logger.error(f"Error fetching chat member status: {traceback.format_exc()}")
 
             # Batch update all statuses
             if updates:
