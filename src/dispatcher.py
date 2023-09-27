@@ -358,7 +358,8 @@ async def tg_gban(update, context):
             # Ban the user and add them to the banned_users table
             await chat_helper.ban_user(bot, ban_chat_id, ban_user_id, True, reason=ban_reason)
 
-            await bot.send_message(chat_id, f"User {user_helper.get_user_mention(ban_user_id)} has been globally banned for spam.")
+            # await bot.send_message(chat_id, f"User {user_helper.get_user_mention(ban_user_id)} has been globally banned for spam.")
+            await bot.delete_message(chat_id, message.message_id) # delete the ban command message
     except Exception as error:
         logger.error(f"Error: {traceback.format_exc()}")
 
