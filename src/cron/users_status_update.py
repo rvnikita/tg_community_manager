@@ -45,6 +45,8 @@ async def chat_name_update():
 
 
 async def status_update():
+    logger.info("Starting status update cron script")
+
     updates = []  # A list to store all updates
 
     with db_helper.connect() as conn:
@@ -54,6 +56,7 @@ async def status_update():
             cur.execute(sql)
             user_rows = cur.fetchall()
             user_ids = [row['id'] for row in user_rows]
+            user_dict = {row['id']: row['username'] for row in user_rows}
 
             # Step 2: Fetch associated statuses for these users.
             user_status_sql = "SELECT * FROM tg_user_status WHERE user_id = ANY(%s)"
@@ -61,6 +64,8 @@ async def status_update():
             user_status_rows = cur.fetchall()
 
             for user_status_row in user_status_rows:
+                user_display = user_dict.get(user_status_row['user_id']) or user_status_row['user_id']
+
                 try:
                     chat_member = await bot.get_chat_member(user_status_row['chat_id'], user_status_row['user_id'])
                     status = chat_member.status
@@ -68,12 +73,11 @@ async def status_update():
                     # Add to updates only if the status has changed
                     if status != user_status_row['status']:
                         updates.append((status, user_status_row['user_id'], user_status_row['chat_id']))
-                        logger.info(f"Status change detected for user in chat {user_status_row['chat_id']} to {status}")
+                        logger.info(f"Status change detected for user {'@' if not (isinstance(user_display, int) or user_display.isdigit()) else ''}{user_display} in chat {user_status_row['chat_id']} to {status}")
                 except BadRequest as bad_request_error:
                     if "User not found" in str(bad_request_error):
                         # Update the user's status to "User not found"
-                        updates.append(("User not found", user_status_row['user_id'], user_status_row['chat_id']))
-                        #logger.info(f"User with ID {user_status_row['user_id']} not found in chat {user_status_row['chat_id']}. Updating status to 'User not found'.")
+                        updates.append(("User not found", user_status_row['user_id'], user_status_row['chat_id']))  # logger.info(f"User with ID {user_status_row['user_id']} not found in chat {user_status_row['chat_id']}. Updating status to 'User not found'.")
                     else:
                         # If it's another kind of BadRequest, you might still want to log it
                         logger.error(f"BadRequest error: {bad_request_error}")
