@@ -52,62 +52,60 @@ async def chat_name_update():
 
 
 async def status_update():
-    #FIXME: we need to rewrite this with new structure of user and user_status tables
-    #TODO:HIGH: rewrite with ORM and update fullname for user
     conn = None
     try:
         conn = db_helper.connect()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-        sql = "SELECT * FROM tg_user"
-        cur = conn.cursor(cursor_factory = psycopg2.extras.RealDictCursor)
+        # Limit the number of users fetched to prevent overloading. Adjust this number based on your needs.
+        sql = "SELECT * FROM tg_user LIMIT 100"
         cur.execute(sql)
+        user_rows = cur.fetchall()
 
-        rows = cur.fetchall()
-
-        for user_row in rows:
-            print(user_row['id'])
-            sql = f"SELECT * FROM tg_user_status WHERE user_id = {user_row['id']}"
-            cur.execute(sql)
+        for user_row in user_rows:
+            user_status_sql = f"SELECT * FROM tg_user_status WHERE user_id = {user_row['id']}"
+            cur.execute(user_status_sql)
             user_status_rows = cur.fetchall()
+
             for user_status_row in user_status_rows:
                 try:
-                    print(f"chat_id={user_status_row['chat_id']}, user_id={user_row['id']}")
                     chat_member = await bot.get_chat_member(user_status_row['chat_id'], user_row['id'])
                     status = chat_member.status
-                    is_bot = chat_member.user.is_bot
+
+                    # Update only if the status has changed
+                    if status != user_status_row['status']:
+                        user_update_sql = f"UPDATE tg_user_status set status = '{status}' WHERE user_id = {user_row['id']} AND chat_id = {user_status_row['chat_id']}"
+                        cur.execute(user_update_sql)
+                        conn.commit()
+
+                        # Logging the status change
+                        logger.info(f"Updated status for user @{user_row['username']} ({user_row['id']}) in chat {user_status_row['chat_id']} to {status}")
+
+                        # Fetching chat title
+                        try:
+                            chat = await bot.get_chat(user_status_row['chat_id'])
+                            title = chat.title
+                        except Exception as error:
+                            title = "Not found"
+
+                        config_update_user_status_critical = chat_helper.get_chat_config(user_status_row['chat_id'], "update_user_status_critical")
+                        if config_update_user_status_critical == "True":
+                            logger.warning(f"User @{user_row['username']} ({user_row['id']}) in {await chat_helper.get_chat_mention(bot, user_status_row['chat_id'])} status changed to {status}")
+                        else:
+                            logger.info(
+                                f"User @{user_row['username']} ({user_row['id']}) in {await chat_helper.get_chat_mention(bot, user_status_row['chat_id'])} status changed to {status}")
+
                 except Exception as error:
-                    # logger.error(f"Error: {traceback.format_exc()}"
-                    status = str(error)
-                    is_bot = 'NULL'
+                    logger.error(f"Error fetching chat member status: {traceback.format_exc()}")
 
-                if status != user_status_row['status']: #status has changed
-                    user_update_sql = f"UPDATE tg_user_status set status = '{status}' WHERE user_id = {user_row['id']} AND chat_id = {user_status_row['chat_id']}"
-                    print(user_update_sql)
-                    cur.execute(user_update_sql)
-                    conn.commit()
-
-                    try:
-                        chat = await bot.get_chat(user_status_row['chat_id'])
-                        title = chat.title
-                    except Exception as error:
-                        title = "Not found"
-
-
-                    config_update_user_status_critical = chat_helper.get_chat_config(user_status_row['chat_id'], "update_user_status_critical")
-                    #TODO:MED: add "ban and delete" button in log
-                    if config_update_user_status_critical == "True":
-                        logger.warning(f"User @{user_row['username']} ({user_row['id']}) in {await chat_helper.get_chat_mention(bot, user_status_row['chat_id'])} status changed to {status}")
-                    else:
-                        logger.info(
-                            f"User @{user_row['username']} ({user_row['id']}) in {await chat_helper.get_chat_mention(bot, user_status_row['chat_id'])} status changed to {status}")
-
-        conn.commit()
         cur.close()
+
     except (Exception, psycopg2.DatabaseError) as error:
         logger.error(f"Error: {traceback.format_exc()}")
     finally:
         if conn is not None:
-                conn.close()
+            conn.close()
+
 
 async def main() -> None:
     try:
