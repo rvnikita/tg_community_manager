@@ -56,7 +56,7 @@ async def status_update():
             cur.execute(sql)
             user_rows = cur.fetchall()
             user_ids = [row['id'] for row in user_rows]
-            user_dict = {row['id']: row['username'] for row in user_rows}
+            user_dict = {row['id']: row.get('username', '') for row in user_rows}
 
             # Step 2: Fetch associated statuses for these users.
             user_status_sql = "SELECT * FROM tg_user_status WHERE user_id = ANY(%s)"
