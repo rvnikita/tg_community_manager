@@ -54,6 +54,10 @@ def get_chat_config(chat_id=None, config_param=None):
                 else:
                     return chat.config
             else:
+                if chat_id > 0:  # Suspecting it might be a DM due to a positive chat_id
+                    logger.info(f"Chat ID {chat_id} seems to be a direct message. Not adding to the database.")
+                    return None
+
                 default_full_config = get_default_chat()
                 if default_full_config is not None:
                     new_chat = db_helper.Chat(id=chat_id, config=default_full_config)
