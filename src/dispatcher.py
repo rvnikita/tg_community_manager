@@ -151,22 +151,17 @@ async def tg_report(update, context):
                     await bot.send_message(chat_id=chat_id, text=f"User {reported_user_mention} has been banned due to {report_count} reports.")
                     await send_message_to_admin(bot, chat_id, f"User {reported_user_mention} has been banned in chat {await chat_helper.get_chat_mention(bot, chat_id)} due to {report_count}/{number_of_reports_to_ban} reports.")
 
-                    #let's now increase rating for all users who reported this user
-
-                    #first let's get all users who reported this user
-                    reporting_user_ids = db_session.query(db_helper.Report.reporting_user_id).filter(
-                        db_helper.Report.reported_user_id == reported_user_id,
-                        db_helper.Report.chat_id == chat_id
-                    ).distinct().all()
+                    # let's now increase rating for all users who reported this user
+                    # first let's get all users who reported this user
+                    reporting_user_ids = db_session.query(db_helper.Report.reporting_user_id).filter(db_helper.Report.reported_user_id == reported_user_id, db_helper.Report.chat_id == chat_id).distinct().all()
                     reporting_user_ids = [item[0] for item in reporting_user_ids]
 
                     bot_info = await bot.get_me()
 
-                    for user_id in reporting_user_ids:
-                        await rating_helper.change_rating(user_id, bot_info.id, chat_id, 1)
+                    # Instead of looping here, just call the function once with the entire list
+                    await rating_helper.change_rating(reporting_user_ids, bot_info.id, chat_id, 1)
 
-
-                    return #we don't need to warn and mute user if he is banned
+                    return # we don't need to warn and mute user if he is banned
 
                 if report_count >= number_of_reports_to_warn:
                     await chat_helper.warn_user(bot, chat_id, reported_user_id)
