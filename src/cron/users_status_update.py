@@ -73,7 +73,7 @@ async def status_update():
                     if "User not found" in str(bad_request_error):
                         # Update the user's status to "User not found"
                         updates.append(("User not found", user_status_row['user_id'], user_status_row['chat_id']))
-                        logger.info(f"User with ID {user_status_row['user_id']} not found in chat {user_status_row['chat_id']}. Updating status to 'User not found'.")
+                        #logger.info(f"User with ID {user_status_row['user_id']} not found in chat {user_status_row['chat_id']}. Updating status to 'User not found'.")
                     else:
                         # If it's another kind of BadRequest, you might still want to log it
                         logger.error(f"BadRequest error: {bad_request_error}")
