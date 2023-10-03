@@ -98,7 +98,7 @@ async def tg_report(update, context):
 
             message = update.message
 
-            asyncio.create_task(chat_helper.delete_message(bot, chat_id, message.message_id), delay_seconds = 120) #delete report in 2 minutes
+            asyncio.create_task(chat_helper.delete_message(bot, chat_id, message.message_id, delay_seconds = 120)) #delete report in 2 minutes
 
             if not message:
                 logger.info(f"Could not get message from update {update}. Traceback: {traceback.format_exc()}. Update: {update}")
