@@ -153,14 +153,14 @@ async def tg_report(update, context):
                 await send_message_to_admin(bot, chat_id, f"User {reporting_user_mention} reported {reported_user_mention} in chat {await chat_helper.get_chat_mention(bot, chat_id)}. Total reports: {report_count}. \nReported message: {message.reply_to_message.text}")
                 
                 message = await bot.send_message(chat_id=chat_id, text=f"User {reported_user_mention} has been reported {report_count}/{number_of_reports_to_ban} times.")
-                asyncio.create_task(chat_helper.delete_message(bot, message.message_id, delay_seconds = 120)) #delete message after 120 seconds
+                asyncio.create_task(chat_helper.delete_message(bot, chat_id, message.message_id,delay_seconds = 120)) #delete message after 120 seconds
 
                 if report_count >= number_of_reports_to_ban:
                     await chat_helper.delete_message(bot, chat_id, reported_message_id)
                     await chat_helper.ban_user(bot, chat_id, reported_user_id)
                     
                     temp_message = await bot.send_message(chat_id=chat_id, text=f"User {reported_user_mention} has been banned due to {report_count} reports.")
-                    asyncio.create_task(chat_helper.delete_message(bot, temp_message.message_id, delay_seconds = 120)) #delete message after 120 seconds
+                    asyncio.create_task(chat_helper.delete_message(bot, chat_id, temp_message.message_id, delay_seconds = 120)) #delete message after 120 seconds
                     
                     await send_message_to_admin(bot, chat_id, f"User {reported_user_mention} has been banned in chat {await chat_helper.get_chat_mention(bot, chat_id)} due to {report_count}/{number_of_reports_to_ban} reports.")
 
@@ -181,7 +181,7 @@ async def tg_report(update, context):
                     await chat_helper.mute_user(bot, chat_id, reported_user_id)
                     
                     temp_message = await bot.send_message(chat_id=chat_id, text=f"User {reported_user_mention} has been warned and muted due to {report_count} reports.")
-                    asyncio.create_task(chat_helper.delete_message(bot, temp_message.message_id, delay_seconds = 120)) #delete message after 120 seconds
+                    asyncio.create_task(chat_helper.delete_message(bot, chat_id, temp_message.message_id, delay_seconds = 120)) #delete message after 120 seconds
                     
                     await send_message_to_admin(bot, chat_id, f"User {reported_user_mention} has been warned and muted in chat {await chat_helper.get_chat_mention(bot, chat_id)} due to {report_count} reports.")
     except Exception as error:
