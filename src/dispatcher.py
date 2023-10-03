@@ -97,7 +97,11 @@ async def tg_report(update, context):
 
             message = update.message
 
-            if message.reply_to_message:
+            if not message:
+                logger.info(f"Could not get message from update {update}. Traceback: {traceback.format_exc()}. Update: {update}")
+                return
+
+            if message and message.reply_to_message:
                 number_of_reports_to_warn = int(chat_helper.get_chat_config(chat_id, 'number_of_reports_to_warn'))
                 number_of_reports_to_ban = int(chat_helper.get_chat_config(chat_id, 'number_of_reports_to_ban'))
 
