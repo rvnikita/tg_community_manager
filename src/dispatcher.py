@@ -14,6 +14,7 @@ from telegram.error import TelegramError
 import openai
 import traceback
 import re
+import asyncio
 
 from langdetect import detect
 import langdetect
@@ -97,9 +98,12 @@ async def tg_report(update, context):
 
             message = update.message
 
+            asyncio.create_task(chat_helper.delete_message(bot, chat_id, message.message_id), delay_seconds = 120) #delete report in 2 minutes
+
             if not message:
                 logger.info(f"Could not get message from update {update}. Traceback: {traceback.format_exc()}. Update: {update}")
                 return
+
 
             if message and message.reply_to_message:
                 number_of_reports_to_warn = int(chat_helper.get_chat_config(chat_id, 'number_of_reports_to_warn'))
@@ -147,12 +151,17 @@ async def tg_report(update, context):
                 reporting_user_mention = user_helper.get_user_mention(reporting_user_id)
 
                 await send_message_to_admin(bot, chat_id, f"User {reporting_user_mention} reported {reported_user_mention} in chat {await chat_helper.get_chat_mention(bot, chat_id)}. Total reports: {report_count}. \nReported message: {message.reply_to_message.text}")
-                await bot.send_message(chat_id=chat_id, text=f"User {reported_user_mention} has been reported {report_count}/{number_of_reports_to_ban} times.")
+                
+                message = await bot.send_message(chat_id=chat_id, text=f"User {reported_user_mention} has been reported {report_count}/{number_of_reports_to_ban} times.")
+                asyncio.create_task(chat_helper.delete_message(bot, message.message_id, delay_seconds = 120)) #delete message after 120 seconds
 
                 if report_count >= number_of_reports_to_ban:
                     await chat_helper.delete_message(bot, chat_id, reported_message_id)
                     await chat_helper.ban_user(bot, chat_id, reported_user_id)
-                    await bot.send_message(chat_id=chat_id, text=f"User {reported_user_mention} has been banned due to {report_count} reports.")
+                    
+                    temp_message = await bot.send_message(chat_id=chat_id, text=f"User {reported_user_mention} has been banned due to {report_count} reports.")
+                    asyncio.create_task(chat_helper.delete_message(bot, temp_message.message_id, delay_seconds = 120)) #delete message after 120 seconds
+                    
                     await send_message_to_admin(bot, chat_id, f"User {reported_user_mention} has been banned in chat {await chat_helper.get_chat_mention(bot, chat_id)} due to {report_count}/{number_of_reports_to_ban} reports.")
 
                     # let's now increase rating for all users who reported this user
@@ -170,7 +179,10 @@ async def tg_report(update, context):
                 if report_count >= number_of_reports_to_warn:
                     await chat_helper.warn_user(bot, chat_id, reported_user_id)
                     await chat_helper.mute_user(bot, chat_id, reported_user_id)
-                    await bot.send_message(chat_id=chat_id, text=f"User {reported_user_mention} has been warned and muted due to {report_count} reports.")
+                    
+                    temp_message = await bot.send_message(chat_id=chat_id, text=f"User {reported_user_mention} has been warned and muted due to {report_count} reports.")
+                    asyncio.create_task(chat_helper.delete_message(bot, temp_message.message_id, delay_seconds = 120)) #delete message after 120 seconds
+                    
                     await send_message_to_admin(bot, chat_id, f"User {reported_user_mention} has been warned and muted in chat {await chat_helper.get_chat_mention(bot, chat_id)} due to {report_count} reports.")
     except Exception as error:
         logger.error(f"Error: {traceback.format_exc()}")

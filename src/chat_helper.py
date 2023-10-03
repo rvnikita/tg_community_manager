@@ -6,6 +6,7 @@ import psycopg2
 import configparser
 import os
 import json
+import asyncio
 
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -183,7 +184,10 @@ async def ban_user(bot, chat_id, user_to_ban, global_ban=False, reason=None):
             return None
 
 
-async def delete_message(bot, chat_id: int, message_id: int) -> None:
+async def delete_message(bot, chat_id: int, message_id: int, delay_seconds: int = None) -> None:
+    if delay_seconds:
+        await asyncio.sleep(delay_seconds)
+
     try:
         await bot.delete_message(chat_id, message_id)
     except BadRequest as e:
