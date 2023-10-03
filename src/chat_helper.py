@@ -186,9 +186,13 @@ async def ban_user(bot, chat_id, user_to_ban, global_ban=False, reason=None):
 async def delete_message(bot, chat_id: int, message_id: int) -> None:
     try:
         await bot.delete_message(chat_id, message_id)
+    except BadRequest as e:
+        if "Message to delete not found" in str(e):
+            logger.info(f"Message with ID {message_id} in chat {chat_id} not found or already deleted.")
+        else:
+            logger.error(f"BadRequest Error: {e}")
     except Exception as e:
         logger.error(f"Error: {traceback.format_exc()}")
-
 
 async def get_chat_mention(bot, chat_id: int) -> str:
     try:
