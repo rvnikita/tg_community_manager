@@ -194,7 +194,7 @@ async def delete_message(bot, chat_id: int, message_id: int, delay_seconds: int 
         if "Message to delete not found" in str(e):
             logger.info(f"Message with ID {message_id} in chat {chat_id} not found or already deleted.")
         else:
-            logger.error(f"BadRequest Error: {e}")
+            logger.error(f"BadRequest Error: {e}. Traceback: {traceback.format_exc()}")
     except Exception as e:
         logger.error(f"Error: {traceback.format_exc()}")
 
