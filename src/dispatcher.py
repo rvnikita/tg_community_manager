@@ -15,6 +15,8 @@ import openai
 import traceback
 import re
 import asyncio
+import signal
+import sys
 
 from langdetect import detect
 import langdetect
@@ -658,36 +660,54 @@ def db_update_user(user_id, chat_id, username, last_message_datetime, first_name
     except Exception as e:
         logger.error(f"Error: {traceback.format_exc()}")
 
-def main() -> None:
-    try:
-        application = Application.builder().token(config['BOT']['KEY']).build()
 
-        #delete new member message
-        application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, tg_new_member), group=1)
+class BotManager:
+    def __init__(self):
+        self.application = None
 
-        #wiretapping
-        application.add_handler(MessageHandler(filters.TEXT & filters.ChatType.SUPERGROUP, tg_update_user_status), group=2) #filters.ChatType.SUPERGROUP to get only chat messages
-        application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, tg_update_user_status), group=2)
+    def signal_handler(self, signum, frame):
+        logger.error(f"Signal {signum} received, exiting...") #TODO:MED: log as an error for now, we will change it to info later
 
-        # checking if user says thank you.
-        application.add_handler(MessageHandler(filters.TEXT, tg_thankyou), group=3)
+        # If your library supports stopping the polling:
+        if self.application:
+            self.application.stop()
 
-        # reporting
-        application.add_handler(CommandHandler('report', tg_report, filters.ChatType.SUPERGROUP), group=4)
-        application.add_handler(CommandHandler('warn', tg_warn, filters.ChatType.SUPERGROUP), group=4)
+        sys.exit(0)
 
-        # Add a handler for chat join requests
-        application.add_handler(ChatJoinRequestHandler(tg_join_request), group=5)
+    def run(self):
+        try:
+            self.application = Application.builder().token(config['BOT']['KEY']).build()
 
-        application.add_handler(CommandHandler('ban', tg_ban, filters.ChatType.SUPERGROUP), group=6)
-        application.add_handler(CommandHandler('gban', tg_gban), group=6)
+            # delete new member message
+            self.application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, tg_new_member), group=1)
 
-        application.add_handler(MessageHandler(filters.TEXT | filters.Document.ALL, tg_spam_check), group=7)
+            # wiretapping
+            self.application.add_handler(MessageHandler(filters.TEXT & filters.ChatType.SUPERGROUP, tg_update_user_status), group=2)  # filters.ChatType.SUPERGROUP to get only chat messages
+            self.application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, tg_update_user_status), group=2)
 
+            # checking if user says thank you.
+            self.application.add_handler(MessageHandler(filters.TEXT, tg_thankyou), group=3)
 
-        # Start the Bot
-        application.run_polling()
-    except Exception as e:
-        logger.error(f"Error: {traceback.format_exc()}")
+            # reporting
+            self.application.add_handler(CommandHandler('report', tg_report, filters.ChatType.SUPERGROUP), group=4)
+            self.application.add_handler(CommandHandler('warn', tg_warn, filters.ChatType.SUPERGROUP), group=4)
+
+            # Add a handler for chat join requests
+            self.application.add_handler(ChatJoinRequestHandler(tg_join_request), group=5)
+
+            self.application.add_handler(CommandHandler('ban', tg_ban, filters.ChatType.SUPERGROUP), group=6)
+            self.application.add_handler(CommandHandler('gban', tg_gban), group=6)
+
+            self.application.add_handler(MessageHandler(filters.TEXT | filters.Document.ALL, tg_spam_check), group=7)
+
+            # Set up the graceful shutdown mechanism
+            signal.signal(signal.SIGTERM, self.signal_handler)
+
+            # Start the Bot
+            self.application.run_polling()
+        except Exception as e:
+            logger.error(f"Error: {traceback.format_exc()}")
+
 if __name__ == '__main__':
-    main()
+    manager = BotManager()
+    manager.run()
