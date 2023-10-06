@@ -78,6 +78,22 @@ def get_chat_config(chat_id=None, config_param=None):
             return None
 
 
+async def send_message(bot, chat_id, text, reply_to_message_id = None, delete_after = None, disable_web_page_preview = True):
+    """
+    Send a message and optionally delete it after a specified delay.
+
+    :param bot: Bot instance.
+    :param chat_id: Chat ID where the message will be sent.
+    :param text: Text of the message to be sent.
+    :param reply_to_message_id: ID of the message to which the new message will reply.
+    :param delete_after: Duration (in seconds) after which the sent message will be deleted. If None, the message will not be deleted.
+    """
+    message = await bot.send_message(chat_id=chat_id, text=text, reply_to_message_id=reply_to_message_id, disable_web_page_preview=disable_web_page_preview)
+
+    if delete_after is not None:
+        asyncio.create_task(delete_message(bot, chat_id, message.message_id, delay_seconds=delete_after))
+
+
 async def warn_user(bot, chat_id: int, user_id: int) -> None:
     # bot.send_message(chat_id, text=f"User {user_id} has been warned due to multiple reports.")
     pass

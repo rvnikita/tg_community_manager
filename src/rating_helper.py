@@ -75,12 +75,10 @@ async def change_rating(user_id_or_ids, judge_id, chat_id, change_value, message
 
         if announce:
             if message_id is None:
-                temp_message = await bot.send_message(chat_id=chat_id, text=text_to_send)
-                asyncio.create_task(chat_helper.delete_message(bot, chat_id, temp_message.message_id, delay_seconds=120))  # delete message after 120 seconds
+                await chat_helper.send_message(bot, chat_id, text_to_send, delete_delay=120)
             else:
                 #TODO:MED: Maybe we need to wrap bot.send_message to add delete_delay parameter and not copy the same code again and again
-                temp_message = await bot.send_message(chat_id=chat_id, text=text_to_send, reply_to_message_id=message_id)
-                asyncio.create_task(chat_helper.delete_message(bot, chat_id, temp_message.message_id, delay_seconds=120))  # delete message after 120 seconds
+                await chat_helper.send_message(bot, chat_id, text_to_send, reply_to_message_id=message_id, delete_delay=120)
 
         logger.info(text_to_send + f" in chat {await chat_helper.get_chat_mention(bot, chat_id)}")
 
