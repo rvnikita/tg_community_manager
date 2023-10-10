@@ -191,6 +191,8 @@ async def tg_warn(update, context):
         message = update.message
         admin_ids = [admin.user.id for admin in await bot.get_chat_administrators(chat_id)]
 
+        chat_helper.delete_message(bot, chat_id, message.message_id, delay_seconds=120)  # clean up the command message
+
         if message.from_user.id not in admin_ids:
             await chat_helper.send_message(bot, chat_id, "You must be an admin to use this command.", reply_to_message_id=message.message_id, delete_after = 120)
             return
@@ -248,8 +250,6 @@ async def tg_warn(update, context):
             await chat_helper.delete_message(bot, chat_id, warned_message_id)
             await send_message_to_admin(bot, chat_id, f"{warning_admin_mention} warned {warned_user_mention} in chat {await chat_helper.get_chat_mention(bot, chat_id)}. Reason: {reason}. Total Warnings: {warn_count}/{number_of_reports_to_ban}")
 
-            chat_helper.delete_message(bot, chat_id, message.message_id, delay_seconds = 120) #let's delete the command message
-
     except Exception as error:
         logger.error(f"Error in warn: {traceback.format_exc()}")
 
@@ -260,6 +260,8 @@ async def tg_ban(update, context):
             message = update.message
             chat_id = update.effective_chat.id
             ban_user_id = None
+
+            await chat_helper.delete_message(bot, chat_id, message.message_id)  # clean up the command message
 
             # Check if the command was sent by an admin of the chat
             chat_administrators = await bot.get_chat_administrators(chat_id)
@@ -293,8 +295,6 @@ async def tg_ban(update, context):
                 if admin.user.id == ban_user_id:
                     await message.reply_text("You cannot ban an admin.")
                     return
-
-            await chat_helper.delete_message(bot, chat_id, message.message_id) # delete the ban command message
 
             # Ban the user
             await chat_helper.ban_user(bot, chat_id, ban_user_id)
