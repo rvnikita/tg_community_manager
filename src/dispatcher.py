@@ -687,14 +687,14 @@ class BotManager:
             self.application.add_handler(MessageHandler(filters.TEXT, tg_thankyou), group=3)
 
             # reporting
-            self.application.add_handler(CommandHandler('report', tg_report, filters.ChatType.SUPERGROUP), group=4)
-            self.application.add_handler(CommandHandler('warn', tg_warn, filters.ChatType.SUPERGROUP), group=4)
+            self.application.add_handler(CommandHandler(['report', 'r'], tg_report, filters.ChatType.SUPERGROUP), group=4)
+            self.application.add_handler(CommandHandler(['warn', 'w'], tg_warn, filters.ChatType.SUPERGROUP), group=4)
 
             # Add a handler for chat join requests
             self.application.add_handler(ChatJoinRequestHandler(tg_join_request), group=5)
 
-            self.application.add_handler(CommandHandler('ban', tg_ban, filters.ChatType.SUPERGROUP), group=6)
-            self.application.add_handler(CommandHandler('gban', tg_gban), group=6)
+            self.application.add_handler(CommandHandler(['ban', 'b'], tg_ban, filters.ChatType.SUPERGROUP), group=6)
+            self.application.add_handler(CommandHandler(['gban', 'g'], tg_gban), group=6)
 
             self.application.add_handler(MessageHandler(filters.TEXT | filters.Document.ALL, tg_spam_check), group=7)
 
