@@ -318,6 +318,8 @@ async def tg_gban(update, context):
                 await message.reply_text("You must be a global bot admin to use this command.")
                 return
 
+            await bot.delete_message(chat_id, message.message_id)  # delete the ban command message
+
             command_parts = message.text.split()  # Split the message into parts
             if len(command_parts) > 1:  # if the command has more than one part (means it has a user ID or username parameter)
                 ban_reason = f"User was globally banned by {message.text} command."
@@ -364,13 +366,8 @@ async def tg_gban(update, context):
 
                 await chat_helper.delete_message(bot, chat_id, message.reply_to_message.message_id)
 
-            #await chat_helper.delete_message(bot, chat_id, message.message_id) # delete the ban command message
-
             # Ban the user and add them to the banned_users table
             await chat_helper.ban_user(bot, ban_chat_id, ban_user_id, True, reason=ban_reason)
-
-            # await bot.send_message(chat_id, f"User {user_helper.get_user_mention(ban_user_id)} has been globally banned for spam.")
-            await bot.delete_message(chat_id, message.message_id) # delete the ban command message
     except Exception as error:
         logger.error(f"Error: {traceback.format_exc()}")
 
