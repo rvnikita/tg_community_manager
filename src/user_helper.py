@@ -1,5 +1,6 @@
 import src.db_helper as db_helper
 import src.logging_helper as logging
+import src.cache_helper as cache_helper
 
 from sqlalchemy.dialects.postgresql import insert
 import traceback
@@ -32,25 +33,42 @@ def get_user_mention(user_id: int) -> str:
 
 def db_upsert_user(user_id, chat_id, username, last_message_datetime, first_name=None, last_name=None):
     try:
-        with db_helper.session_scope() as db_session:
-            # Upsert User
-            insert_stmt = insert(db_helper.User).values(
-                id=user_id, username=username, first_name=first_name, last_name=last_name
-            ).on_conflict_do_update(
-                index_elements=['id'],  # Assumes 'id' is a unique index or primary key
-                set_=dict(username=username, first_name=first_name, last_name=last_name)
-            )
-            db_session.execute(insert_stmt)
+        # Generate a unique cache key for the user's data
+        cache_key = f"user_{user_id}_chat_{chat_id}"
 
-            # Upsert User Status
-            insert_stmt = insert(db_helper.User_Status).values(
-                user_id=user_id, chat_id=chat_id, last_message_datetime=last_message_datetime
-            ).on_conflict_do_update(
-                index_elements=['user_id', 'chat_id'],  # Assumes this combination is unique
-                set_=dict(last_message_datetime=last_message_datetime)
-            )
-            db_session.execute(insert_stmt)
+        # Attempt to retrieve the user's current data from cache
+        cached_data = cache_helper.get_key(cache_key)
 
-            db_session.commit()
+        # Define the new data for comparison and potential cache update
+        new_data = {"username": username, "first_name": first_name, "last_name": last_name, "last_message_datetime": last_message_datetime, }
+
+        # If data is in cache and hasn't changed, skip DB operation
+        if cached_data and cached_data == new_data:
+            return  # Data is up-to-date; no need to hit the DB
+
+        else:
+            with db_helper.session_scope() as db_session:
+                # Upsert User
+                insert_stmt = insert(db_helper.User).values(
+                    id=user_id, username=username, first_name=first_name, last_name=last_name
+                ).on_conflict_do_update(
+                    index_elements=['id'],  # Assumes 'id' is a unique index or primary key
+                    set_=dict(username=username, first_name=first_name, last_name=last_name)
+                )
+                db_session.execute(insert_stmt)
+
+                # Upsert User Status
+                insert_stmt = insert(db_helper.User_Status).values(
+                    user_id=user_id, chat_id=chat_id, last_message_datetime=last_message_datetime
+                ).on_conflict_do_update(
+                    index_elements=['user_id', 'chat_id'],  # Assumes this combination is unique
+                    set_=dict(last_message_datetime=last_message_datetime)
+                )
+                db_session.execute(insert_stmt)
+
+                db_session.commit()
+
+                # Update the cache with the new data
+                cache_helper.set_key(cache_key, new_data, expire=3600)  # Cache expires in 1 hour (3600 seconds)
     except Exception as e:
         logger.error(f"Error: {traceback.format_exc()}")
