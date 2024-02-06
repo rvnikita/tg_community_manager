@@ -191,7 +191,7 @@ async def tg_warn(update, context):
         message = update.message
         admin_ids = [admin.user.id for admin in await bot.get_chat_administrators(chat_id)]
 
-        chat_helper.delete_message(bot, chat_id, message.message_id, delay_seconds=120)  # clean up the command message
+        await chat_helper.delete_message(bot, chat_id, message.message_id, delay_seconds=120)  # clean up the command message
 
         if message.from_user.id not in admin_ids:
             await chat_helper.send_message(bot, chat_id, "You must be an admin to use this command.", reply_to_message_id=message.message_id, delete_after = 120)
