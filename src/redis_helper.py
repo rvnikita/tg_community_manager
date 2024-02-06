@@ -2,17 +2,25 @@ from src.config_helper import get_config
 from src.logging_helper import get_logger
 
 import redis
+import ssl
 
 config = get_config()
 logger = get_logger()
 
 def get_redis_connection():
+    # Create an SSL context for the Redis connection
+    ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS)
+
+    # Specify the path to your CA certificate file if needed
+    # ssl_context.load_verify_locations(cafile='/path/to/ca_certificate.pem')
+
     return redis.Redis(
         host=config['REDIS']['REDIS_HOST'],
         port=config['REDIS']['REDIS_PORT'],
         db=config['REDIS']['REDIS_DB'],
         password=config['REDIS']['REDIS_PASSWORD'],
-        decode_responses=True
+        decode_responses=True,
+        ssl=ssl_context  # Pass the SSL context to enable SSL/TLS
     )
 
 def get_key(key):
