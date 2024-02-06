@@ -1,5 +1,6 @@
 from src.config_helper import get_config
 from src.logging_helper import get_logger
+
 from time import time
 
 config = get_config()
@@ -27,6 +28,6 @@ def set_key(key, value, expire=None):
     try:
         expire_at = time() + expire if expire is not None else float('inf')  # Use 'inf' for no expiration
         cache[key] = (value, expire_at)
-        logger.info(f"Set key {key} in cache with value {value} and expiration {expire_at}")
+        # logger.info(f"Set key {key} in cache with value {value} and expiration {expire_at}")
     except Exception as e:
         logger.error(f"Failed to set key {key} in cache: {e}")
