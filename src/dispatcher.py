@@ -539,10 +539,10 @@ async def tg_update_user_status(update, context):
             if config_update_user_status == True:
                 if len(update.message.new_chat_members) > 0: #user added
                     #TODO:HIGH: We need to rewrite this so we can also add full name
-                    db_update_user(update.message.new_chat_members[0].id, update.message.chat.id,  update.message.new_chat_members[0].username, datetime.now(), update.message.new_chat_members[0].first_name, update.message.new_chat_members[0].last_name)
+                    user_helper.db_upsert_user(update.message.new_chat_members[0].id, update.message.chat.id,  update.message.new_chat_members[0].username, datetime.now(), update.message.new_chat_members[0].first_name, update.message.new_chat_members[0].last_name)
                 else:
                     # TODO:HIGH: We need to rewrite this so we can also add full name
-                    db_update_user(update.message.from_user.id, update.message.chat.id, update.message.from_user.username, datetime.now(), update.message.from_user.first_name, update.message.from_user.last_name)
+                    user_helper.db_upsert_user(update.message.from_user.id, update.message.chat.id, update.message.from_user.username, datetime.now(), update.message.from_user.first_name, update.message.from_user.last_name)
 
                 #logger.info(f"User status updated for user {update.message.from_user.id} in chat {update.message.chat.id} ({update.message.chat.title})")
 
@@ -623,38 +623,6 @@ async def tg_update_user_status(update, context):
             #             await chat_helper.send_message(bot, config['BOT']['ADMIN_ID'], response.choices[0].message.content + f" ({rows[0]['similarity']:.2f})", disable_web_page_preview=True)
     except Exception as e:
         logger.error(f"Error: {traceback.format_exc()}")
-
-
-def db_update_user(user_id, chat_id, username, last_message_datetime, first_name=None, last_name=None):
-    try:
-        #TODO: we need to relocate this function to another location
-
-        with db_helper.session_scope() as db_session:
-            if chat_id is None:
-                logger.info(f"Debug: no chat_id for user {user_id} ({username}) last_message_datetime")
-
-            # Update or insert user
-            user = db_session.query(db_helper.User).filter_by(id=user_id).first()
-            if user:
-                user.username = username
-                user.first_name = first_name
-                user.last_name = last_name
-            else:
-                user = db_helper.User(id=user_id, username=username, first_name=first_name, last_name=last_name)
-                db_session.add(user)
-
-            # Update or insert user status
-            user_status = db_session.query(db_helper.User_Status).filter_by(user_id=user_id, chat_id=chat_id).first()
-            if user_status:
-                user_status.last_message_datetime = last_message_datetime
-            else:
-                user_status = db_helper.User_Status(user_id=user_id, chat_id=chat_id, last_message_datetime=last_message_datetime)
-                db_session.add(user_status)
-
-            db_session.commit()
-    except Exception as e:
-        logger.error(f"Error: {traceback.format_exc()}")
-
 
 class BotManager:
     def __init__(self):
