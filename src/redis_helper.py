@@ -6,15 +6,14 @@ import redis
 config = get_config()
 logger = get_logger()
 
-
 def get_redis_connection():
-    redis_url = config['REDIS']['REDIS_URL']
-
-    if not redis_url:
-        logger.error("REDIS_URL environment variable not found.")
-        return None
-
-    return redis.Redis.from_url(redis_url, decode_responses=True)
+    return redis.Redis(
+        host=config['REDIS']['REDIS_HOST'],
+        port=config['REDIS']['REDIS_PORT'],
+        db=config['REDIS']['REDIS_DB'],
+        password=config['REDIS']['REDIS_PASSWORD'],
+        decode_responses=True
+    )
 
 def get_key(key):
     try:
