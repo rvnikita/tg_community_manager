@@ -34,7 +34,7 @@ def get_default_chat(config_param=None):
             if chat is not None:
                 if config_param is not None:
                     if config_param in chat.config:
-                        redis_helper.set_key(redis_key, json.dumps(chat.config[config_param]), expire=3600)  # Cache result
+                        redis_helper.set_key(redis_key, json.dumps(chat.config[config_param]), expire=86400)  # Cache result
                         return chat.config[config_param]
                     else:
                         return None
