@@ -1,7 +1,7 @@
 import src.logging_helper as logging
 import src.db_helper as db_helper
 import src.chat_helper as chat_helper
-import src.redis_helper as redis_helper
+import src.cache_helper as cache_helper
 
 
 import psycopg2
@@ -21,8 +21,8 @@ import re
 logger = logging.get_logger()
 
 def get_default_chat(config_param=None):
-    redis_key = f"default_chat_config:{config_param}"
-    config_value = redis_helper.get_key(redis_key)
+    cache_key = f"default_chat_config:{config_param}"
+    config_value = cache_helper.get_key(cache_key)
 
     if config_value:
         return json.loads(config_value)  # Deserialize JSON string back into Python object
@@ -34,12 +34,12 @@ def get_default_chat(config_param=None):
             if chat is not None:
                 if config_param is not None:
                     if config_param in chat.config:
-                        redis_helper.set_key(redis_key, json.dumps(chat.config[config_param]), expire=86400)  # Cache result
+                        cache_helper.set_key(cache_key, json.dumps(chat.config[config_param]), expire=86400)  # Cache result
                         return chat.config[config_param]
                     else:
                         return None
                 else:
-                    redis_helper.set_key(redis_key, json.dumps(chat.config), expire=3600)  # Cache entire config
+                    cache_helper.set_key(cache_key, json.dumps(chat.config), expire=3600)  # Cache entire config
                     return chat.config
             else:
                 return None
@@ -49,7 +49,7 @@ def get_default_chat(config_param=None):
 
 def get_chat_config(chat_id=None, config_param=None):
     redis_key = f"chat_config:{chat_id}:{config_param}"
-    config_value = redis_helper.get_key(redis_key)
+    config_value = cache_helper.get_key(redis_key)
 
     if config_value:
         return json.loads(config_value)  # Deserialize JSON string back into Python object
@@ -61,17 +61,17 @@ def get_chat_config(chat_id=None, config_param=None):
             if chat is not None:
                 if config_param is not None:
                     if config_param in chat.config:
-                        redis_helper.set_key(redis_key, json.dumps(chat.config[config_param]), expire=3600)  # Cache result
+                        cache_helper.set_key(redis_key, json.dumps(chat.config[config_param]), expire=3600)  # Cache result
                         return chat.config[config_param]
                     else:
                         default_config_param_value = get_default_chat(config_param)
                         if default_config_param_value is not None:
                             chat.config[config_param] = default_config_param_value
                             db_session.commit()
-                            redis_helper.set_key(redis_key, json.dumps(default_config_param_value), expire=3600)  # Cache result
+                            cache_helper.set_key(redis_key, json.dumps(default_config_param_value), expire=3600)  # Cache result
                             return default_config_param_value
                 else:
-                    redis_helper.set_key(redis_key, json.dumps(chat.config), expire=3600)  # Cache entire config
+                    cache_helper.set_key(redis_key, json.dumps(chat.config), expire=3600)  # Cache entire config
                     return chat.config
             else:
                 # Logic for handling chat configuration when chat_id is not found in the database
