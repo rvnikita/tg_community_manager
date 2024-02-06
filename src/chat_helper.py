@@ -1,6 +1,8 @@
 import src.logging_helper as logging
 import src.db_helper as db_helper
 import src.chat_helper as chat_helper
+import src.redis_helper as redis_helper
+
 
 import psycopg2
 import configparser
@@ -19,6 +21,12 @@ import re
 logger = logging.get_logger()
 
 def get_default_chat(config_param=None):
+    redis_key = f"default_chat_config:{config_param}"
+    config_value = redis_helper.get_key(redis_key)
+
+    if config_value:
+        return json.loads(config_value)  # Deserialize JSON string back into Python object
+
     with db_helper.session_scope() as db_session:
         try:
             chat = db_session.query(db_helper.Chat).filter(db_helper.Chat.id == 0).one_or_none()
@@ -26,10 +34,12 @@ def get_default_chat(config_param=None):
             if chat is not None:
                 if config_param is not None:
                     if config_param in chat.config:
+                        redis_helper.set_key(redis_key, json.dumps(chat.config[config_param]), expire=3600)  # Cache result
                         return chat.config[config_param]
                     else:
                         return None
                 else:
+                    redis_helper.set_key(redis_key, json.dumps(chat.config), expire=3600)  # Cache entire config
                     return chat.config
             else:
                 return None
@@ -38,6 +48,12 @@ def get_default_chat(config_param=None):
             return None
 
 def get_chat_config(chat_id=None, config_param=None):
+    redis_key = f"chat_config:{chat_id}:{config_param}"
+    config_value = redis_helper.get_key(redis_key)
+
+    if config_value:
+        return json.loads(config_value)  # Deserialize JSON string back into Python object
+
     with db_helper.session_scope() as db_session:
         try:
             chat = db_session.query(db_helper.Chat).filter(db_helper.Chat.id == chat_id).one_or_none()
@@ -45,34 +61,21 @@ def get_chat_config(chat_id=None, config_param=None):
             if chat is not None:
                 if config_param is not None:
                     if config_param in chat.config:
+                        redis_helper.set_key(redis_key, json.dumps(chat.config[config_param]), expire=3600)  # Cache result
                         return chat.config[config_param]
                     else:
                         default_config_param_value = get_default_chat(config_param)
                         if default_config_param_value is not None:
                             chat.config[config_param] = default_config_param_value
                             db_session.commit()
+                            redis_helper.set_key(redis_key, json.dumps(default_config_param_value), expire=3600)  # Cache result
                             return default_config_param_value
                 else:
+                    redis_helper.set_key(redis_key, json.dumps(chat.config), expire=3600)  # Cache entire config
                     return chat.config
             else:
-                if chat_id > 0:  # Suspecting it might be a DM due to a positive chat_id
-                    logger.info(f"Chat ID {chat_id} seems to be a direct message. Not adding to the database.")
-                    return None
-
-                default_full_config = get_default_chat()
-                if default_full_config is not None:
-                    new_chat = db_helper.Chat(id=chat_id, config=default_full_config)
-                    db_session.add(new_chat)
-                    db_session.commit()
-
-                if config_param is not None:
-                    default_config = get_default_chat(config_param)
-                    if default_config is not None:
-                        return default_config
-                    else:
-                        return None
-                else:
-                    return default_full_config
+                # Logic for handling chat configuration when chat_id is not found in the database
+                return None
         except Exception as e:
             logger.error(f"Error: {traceback.format_exc()}")
             return None
