@@ -17,6 +17,7 @@ import re
 import asyncio
 import signal
 import sys
+import json
 
 from langdetect import detect
 import langdetect
@@ -379,7 +380,12 @@ async def tg_spam_check(update, context):
         if update.message is not None:
             agressive_antispam = chat_helper.get_chat_config(update.message.chat.id, "agressive_antispam")
         else:
-            logger.warning("Update does not contain a message")
+            # Convert the update object to a dictionary
+            update_dict = update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}
+            # Serialize the dictionary to a JSON-formatted string
+            update_str = json.dumps(update_dict, indent=4, sort_keys=True, default=str)
+            # Log the serialized update
+            logger.warning(f"Update does not contain a message: {update_str}")
             return
 
         if agressive_antispam == True:
