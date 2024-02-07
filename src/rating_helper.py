@@ -17,7 +17,7 @@ bot = Bot(config['BOT']['KEY'],
           request=HTTPXRequest(http_version="1.1"), #we need this to fix bug https://github.com/python-telegram-bot/python-telegram-bot/issues/3556
           get_updates_request=HTTPXRequest(http_version="1.1")) #we need this to fix bug https://github.com/python-telegram-bot/python-telegram-bot/issues/3556)
 
-async def change_rating(user_id_or_ids, judge_id, chat_id, change_value, message_id=None, announce=True):
+async def change_rating(user_id_or_ids, judge_id, chat_id, change_value, message_id=None, announce=True, delete_message_delay=0):
     # If we receive a single user_id, convert it to a list
     user_ids = user_id_or_ids if isinstance(user_id_or_ids, list) else [user_id_or_ids]
 
@@ -75,10 +75,10 @@ async def change_rating(user_id_or_ids, judge_id, chat_id, change_value, message
 
         if announce:
             if message_id is None:
-                await chat_helper.send_message(bot, chat_id, text_to_send, delete_after = 120)
+                await chat_helper.send_message(bot, chat_id, text_to_send, delete_after = delete_message_delay)
             else:
                 #TODO:MED: Maybe we need to wrap bot.send_message to add delete_delay parameter and not copy the same code again and again
-                await chat_helper.send_message(bot, chat_id, text_to_send, reply_to_message_id=message_id, delete_after=120)
+                await chat_helper.send_message(bot, chat_id, text_to_send, reply_to_message_id=message_id, delete_after = delete_message_delay)
 
         logger.info(text_to_send + f" in chat {await chat_helper.get_chat_mention(bot, chat_id)}")
 

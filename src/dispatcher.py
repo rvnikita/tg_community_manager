@@ -173,7 +173,7 @@ async def tg_report(update, context):
                     bot_info = await bot.get_me()
 
                     # Instead of looping here, just call the function once with the entire list
-                    await rating_helper.change_rating(reporting_user_ids, bot_info.id, chat_id, 1)
+                    await rating_helper.change_rating(reporting_user_ids, bot_info.id, chat_id, 1, delete_message_delay=120)
 
                     return # we don't need to warn and mute user if he is banned
 
@@ -240,7 +240,7 @@ async def tg_warn(update, context):
 
                 bot_info = await bot.get_me()
                 for user_id in reporting_user_ids:
-                    await rating_helper.change_rating(user_id, bot_info.id, chat_id, 1)
+                    await rating_helper.change_rating(user_id, bot_info.id, chat_id, 1, delete_message_delay = 120)
 
                 return
 
