@@ -414,7 +414,7 @@ async def tg_spam_check(update, context):
 
             # Check for APK files
             if message and message.document:
-                if message.document.file_name.endswith('.apk'):
+                if message.document.file_name and message.document.file_name.endswith('.apk'):
                     # Ban the user for sending an APK file
                     await chat_helper.delete_message(bot, message.chat.id, message.message_id)
                     await chat_helper.ban_user(bot, message.chat.id, message.from_user.id, reason=f"APK file uploaded. Chat: {await chat_helper.get_chat_mention(bot, message.chat.id)}", global_ban=True)
