@@ -377,8 +377,9 @@ async def tg_gban(update, context):
 
 async def tg_spam_check(update, context):
     try:
-        if update.message is not None:
-            agressive_antispam = chat_helper.get_chat_config(update.message.chat.id, "agressive_antispam")
+        message = update.message if update.message else update.edited_message
+        if message:
+            agressive_antispam = chat_helper.get_chat_config(message.chat.id, "agressive_antispam")
         else:
             # Convert the update object to a dictionary
             update_dict = update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}
@@ -396,10 +397,10 @@ async def tg_spam_check(update, context):
                     try:
                         lang = detect(text)
                         if lang in ['ar', 'fa', 'ur', 'he', 'ps', 'sd', 'ku', 'ug', 'fa', 'zh']:
-                            # Ban the user for using Arabic or Persian language
-                            await chat_helper.delete_message(bot, update.message.chat.id, update.message.message_id)
-                            await chat_helper.ban_user(bot, update.message.chat.id, update.message.from_user.id, reason=f"Filtered language used. Message {update.message.text}. Chat: {await chat_helper.get_chat_mention(bot, update.message.chat.id)}", global_ban=True)
-                            await chat_helper.send_message(bot, update.message.chat.id, f"User {user_helper.get_user_mention(update.message.from_user.id)} has been banned based on language filter. - {lang}", delete_after=120)
+                            # Ban the user for using a filtered language
+                            await chat_helper.delete_message(bot, message.chat.id, message.message_id)
+                            await chat_helper.ban_user(bot, message.chat.id, message.from_user.id, reason=f"Filtered language used. Message {message.text}. Chat: {await chat_helper.get_chat_mention(bot, message.chat.id)}", global_ban=True)
+                            await chat_helper.send_message(bot, message.chat.id, f"User {user_helper.get_user_mention(message.from_user.id)} has been banned based on language filter. - {lang}", delete_after=120)
                             return  # exit the function as the user has already been banned
                     except langdetect.lang_detect_exception.LangDetectException as e:
                         if "No features in text." in str(e):
@@ -407,14 +408,13 @@ async def tg_spam_check(update, context):
                             pass
 
             # Check for APK files
-            if update.message and update.message.document:
-                if update.message.document.file_name.endswith('.apk'):
+            if message and message.document:
+                if message.document.file_name.endswith('.apk'):
                     # Ban the user for sending an APK file
-                    await chat_helper.delete_message(bot, update.message.chat.id, update.message.message_id)
-                    await chat_helper.ban_user(bot, update.message.chat.id, update.message.from_user.id, reason=f"APK file uploaded. Chat: {await chat_helper.get_chat_mention(bot, update.message.chat.id)}", global_ban=True)
-                    await chat_helper.send_message(bot, update.message.chat.id, f"User {user_helper.get_user_mention(update.message.from_user.id)} has been banned for uploading an APK file.", delete_after=120)
+                    await chat_helper.delete_message(bot, message.chat.id, message.message_id)
+                    await chat_helper.ban_user(bot, message.chat.id, message.from_user.id, reason=f"APK file uploaded. Chat: {await chat_helper.get_chat_mention(bot, message.chat.id)}", global_ban=True)
+                    await chat_helper.send_message(bot, message.chat.id, f"User {user_helper.get_user_mention(message.from_user.id)} has been banned for uploading an APK file.", delete_after=120)
                     return  # exit the function as the user has already been banned
-
 
     except Exception as error:
         logger.error(f"Error: {traceback.format_exc()}")
