@@ -91,7 +91,8 @@ async def tg_report_reset(update, context):
 
             await chat_helper.send_message(bot, chat_id, "Reports for this user were reset.")
     except Exception as error:
-        logger.error(f"Error: {traceback.format_exc()}")
+        update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
+        logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
 
 
 async def tg_report(update, context):
@@ -184,7 +185,8 @@ async def tg_report(update, context):
                     await chat_helper.send_message(bot, chat_id, f"User {reported_user_mention} has been warned and muted due to {report_count} reports.", reply_to_message_id=reported_message_id, delete_after=120)
                     await send_message_to_admin(bot, chat_id, f"User {reported_user_mention} has been warned and muted in chat {await chat_helper.get_chat_mention(bot, chat_id)} due to {report_count} reports.")
     except Exception as error:
-        logger.error(f"Error: {traceback.format_exc()}")
+        update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
+        logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
 
 async def tg_warn(update, context):
     try:
@@ -252,7 +254,8 @@ async def tg_warn(update, context):
             await send_message_to_admin(bot, chat_id, f"{warning_admin_mention} warned {warned_user_mention} in chat {await chat_helper.get_chat_mention(bot, chat_id)}. Reason: {reason}. Total Warnings: {warn_count}/{number_of_reports_to_ban}")
 
     except Exception as error:
-        logger.error(f"Error in warn: {traceback.format_exc()}")
+        update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
+        logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
 
 
 async def tg_ban(update, context):
@@ -303,7 +306,8 @@ async def tg_ban(update, context):
             await chat_helper.send_message(bot, chat_id, f"User {user_helper.get_user_mention(ban_user_id)} has been banned.", delete_after=120)
 
     except Exception as error:
-        logger.error(f"Error: {traceback.format_exc()}")
+        update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
+        logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
 
 async def tg_gban(update, context):
     try:
@@ -370,7 +374,8 @@ async def tg_gban(update, context):
             # Ban the user and add them to the banned_users table
             await chat_helper.ban_user(bot, ban_chat_id, ban_user_id, True, reason=ban_reason)
     except Exception as error:
-        logger.error(f"Error: {traceback.format_exc()}")
+        update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
+        logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
 
 
 
@@ -417,7 +422,8 @@ async def tg_spam_check(update, context):
                     return  # exit the function as the user has already been banned
 
     except Exception as error:
-        logger.error(f"Error: {traceback.format_exc()}")
+        update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
+        logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
 
 
 async def tg_thankyou(update, context):
@@ -470,7 +476,8 @@ async def tg_thankyou(update, context):
             else:
                 pass
     except Exception as error:
-        logger.error(f"Error: {traceback.format_exc()}")
+        update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
+        logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
 
 async def tg_join_request(update, context):
     try:
@@ -531,7 +538,8 @@ async def tg_new_member(update, context):
             await chat_helper.send_message(bot, update.effective_chat.id, welcome_message, disable_web_page_preview=True)
 
     except Exception as e:
-        logger.error(f"Error: {traceback.format_exc()}")
+        update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
+        logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
 
 async def tg_update_user_status(update, context):
     try:
@@ -628,7 +636,8 @@ async def tg_update_user_status(update, context):
             #             await bot.forward_message(config['BOT']['ADMIN_ID'], update.message.chat.id, update.message.message_id)
             #             await chat_helper.send_message(bot, config['BOT']['ADMIN_ID'], response.choices[0].message.content + f" ({rows[0]['similarity']:.2f})", disable_web_page_preview=True)
     except Exception as e:
-        logger.error(f"Error: {traceback.format_exc()}")
+        update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
+        logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
 
 class BotManager:
     def __init__(self):
