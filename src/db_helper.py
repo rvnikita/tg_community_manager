@@ -227,7 +227,7 @@ class Report(Base):
 db_engine = create_engine(f"postgresql://{config['DB']['DB_USER']}:{config['DB']['DB_PASSWORD']}@{config['DB']['DB_HOST']}:{config['DB']['DB_PORT']}/{config['DB']['DB_DATABASE']}",
                           pool_size = 10,
                           max_overflow = 20)
-
+Session = sessionmaker(bind=db_engine)
 
 # Global counter for open sessions
 open_session_count = 0
@@ -236,8 +236,6 @@ session_count_lock = threading.Lock()
 
 @contextmanager
 def session_scope():
-    Session = sessionmaker(bind=db_engine)
-
     global open_session_count
 
     session_id = uuid.uuid4()  # Generate a unique session identifier for logging purposes
