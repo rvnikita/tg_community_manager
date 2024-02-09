@@ -4,12 +4,15 @@ import src.config_helper as config_helper
 from sqlalchemy import create_engine, BigInteger, Boolean, Column, DateTime, Identity, Integer, JSON, PrimaryKeyConstraint, String, Text, UniqueConstraint, text, ForeignKey, Index
 from sqlalchemy.orm import Session, DeclarativeBase, declared_attr, relationship
 from sqlalchemy.sql.sqltypes import NullType
+from sqlalchemy.orm import sessionmaker
 
 import psycopg2
 import psycopg2.extras
 import os
 import inspect #we need this to get current file name path
 import traceback
+import uuid
+import threading
 from contextlib import contextmanager
 
 config = config_helper.get_config()
@@ -223,22 +226,37 @@ class Report(Base):
 
 session = None
 
+db_engine = create_engine(f"postgresql://{config['DB']['DB_USER']}:{config['DB']['DB_PASSWORD']}@{config['DB']['DB_HOST']}:{config['DB']['DB_PORT']}/{config['DB']['DB_DATABASE']}",
+                          pool_size = 10,
+                          max_overflow = 20)
+Session = sessionmaker(bind=db_engine)
+
+# Global counter for open sessions
+open_session_count = 0
+session_count_lock = threading.Lock()
+
+
 @contextmanager
 def session_scope():
-    #[DB]
-# DB_DATABASE=%(ENV_DB_NAME)s
-# DB_HOST=%(ENV_DB_HOST)s
-# DB_PASSWORD=%(ENV_DB_PASSWORD)s
-# DB_PORT=%(ENV_DB_PORT)s
-# DB_USER=%(ENV_DB_USER)s
-    db_engine = create_engine(f"postgresql://{config['DB']['DB_USER']}:{config['DB']['DB_PASSWORD']}@{config['DB']['DB_HOST']}:{config['DB']['DB_PORT']}/{config['DB']['DB_DATABASE']}")
-    session = Session(db_engine)
+    global open_session_count
+
+    session_id = uuid.uuid4()  # Generate a unique session identifier for logging purposes
+    with session_count_lock:
+        open_session_count += 1
+    logger.info(f"Starting a new database session {session_id}. Open sessions: {open_session_count}")
+
+    session = Session()
 
     try:
         yield session
         session.commit()
-    except:
+        logger.info(f"Session {session_id} committed successfully.")
+    except Exception as error:
         session.rollback()
+        logger.error(f"Session {session_id} rollback due to error: {error}", exc_info=True)
         raise
     finally:
         session.close()
+        with session_count_lock:
+            open_session_count -= 1
+        logger.info(f"Database session {session_id} closed. Open sessions: {open_session_count}")
