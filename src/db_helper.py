@@ -250,7 +250,7 @@ def session_scope():
     try:
         yield session
         session.commit()
-        logger.info(f"Session {session_id} committed successfully.")
+        # logger.info(f"Session {session_id} committed successfully.")
     except Exception as error:
         session.rollback()
         logger.error(f"Session {session_id} rollback due to error: {error}", exc_info=True)
@@ -259,4 +259,4 @@ def session_scope():
         session.close()
         with session_count_lock:
             open_session_count -= 1
-        logger.info(f"Database session {session_id} closed. Open sessions: {open_session_count}")
+        # logger.info(f"Database session {session_id} closed. Open sessions: {open_session_count}")
