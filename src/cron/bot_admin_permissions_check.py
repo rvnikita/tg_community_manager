@@ -40,7 +40,7 @@ async def admin_permissions_check():
                 chat_id = chat_row['id']
                 chat_name = chat_row['chat_name']
                 try:
-                    logger.info(f"Checking admin permissions for chat_id {chat_name} ({chat_id})")
+                    logger.info(f"Checking admin permissions for {chat_name} ({chat_id})")
                     # Perform the admin permissions check as before
                     last_notified = await chat_helper.get_last_admin_permissions_check(chat_id)
                     now = datetime.now()
@@ -55,10 +55,14 @@ async def admin_permissions_check():
                             logger.info(f"Notification sent to chat ID: {chat_id}, Message: {message_text}")
                             await chat_helper.set_last_admin_permissions_check(chat_id, now)
                 except BadRequest as e:
-                    # Correct handling of BadRequest exception
-                    logger.error(f"Error checking admin permissions for chat_id {chat_name} ({chat_id}): {e.message}")
+                    if "Chat not found" in str(e):
+                        # Log as info if the chat is not found
+                        logger.info(f"Chat not found for {chat_name} ({chat_id}).")
+                    else:
+                        # Otherwise, log as error
+                        logger.error(f"Error checking admin permissions for {chat_name} ({chat_id}): {e.message}")
                 except Exception as e:
-                    logger.error(f"Unexpected error for chat_id {chat_name} ({chat_id}): {traceback.format_exc()}")
+                    logger.error(f"Unexpected error for {chat_name} ({chat_id}): {traceback.format_exc()}")
             conn.commit()
 
 async def main():
