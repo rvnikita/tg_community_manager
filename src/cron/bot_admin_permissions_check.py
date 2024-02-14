@@ -3,22 +3,33 @@ sys.path.insert(0, '../')  # add parent directory to the path
 
 import asyncio
 from datetime import datetime, timedelta
+import telegram
+import traceback
+import psycopg2
+import psycopg2.extras
 import src.db_helper as db_helper
 import src.chat_helper as chat_helper
 import src.config_helper as config_helper
 import src.logging_helper as logging_helper
-import telegram
-import traceback
-import psycopg2
-from telegram.error import BadRequest
 
 # Setup configuration and logger as before
 config = config_helper.get_config()
 logger = logging_helper.get_logger()
+
+# Initialize the bot with the token from your configuration
 bot = telegram.Bot(token=config['BOT']['KEY'])
+
+
+# Properly initialize the bot before using it
+async def initialize_bot():
+    await bot.initialize()
+
 
 async def admin_permissions_check():
     logger.info("Starting admin permissions check cron script")
+
+    # Ensure the bot is initialized before proceeding
+    await initialize_bot()
 
     with db_helper.connect() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
@@ -30,7 +41,6 @@ async def admin_permissions_check():
             for chat_row in chat_rows:
                 chat_id = chat_row['id']
                 try:
-                    # Perform the admin permissions check as before
                     last_notified = await chat_helper.get_last_admin_permissions_check(chat_id)
                     now = datetime.now()
 
@@ -49,11 +59,13 @@ async def admin_permissions_check():
                     logger.error(f"Unexpected error for chat_id {chat_id}: {traceback.format_exc()}")
             conn.commit()
 
+
 async def main():
     try:
         await admin_permissions_check()
     except Exception as e:
         logger.error(f"Error during admin permissions check: {traceback.format_exc()}")
+
 
 if __name__ == "__main__":
     asyncio.run(main())
