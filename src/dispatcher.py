@@ -104,7 +104,7 @@ async def tg_report(update, context):
         if not any(admin.user.id == reporting_user_id for admin in chat_administrators):
             # If the reported user has already been reported by the reporting user, send a message and return
             if await reporting_helper.check_existing_report(chat_id, reported_user_id, reporting_user_id):
-                await chat_helper.send_message(context.bot, chat_id, "This user has already been reported by you.", delete_after=120)
+                await chat_helper.send_message(context.bot, chat_id, "This user has already been reported by you.", reply_to_message_id=message.message_id, delete_after=120)
                 return
 
         success = await reporting_helper.add_report(reported_user_id, reporting_user_id, reported_message_id, chat_id, report_power)
