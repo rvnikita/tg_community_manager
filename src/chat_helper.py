@@ -116,7 +116,7 @@ async def set_last_admin_permissions_check(chat_id, timestamp):
             chat = db_session.query(db_helper.Chat).filter(db_helper.Chat.id == chat_id).one_or_none()
             if chat:
                 chat.last_admin_permission_check = timestamp
-                await db_session.commit()  # Assuming commit can be awaited
+                db_session.commit()  # Assuming commit can be awaited
                 return True
             else:
                 logger.error(f"Chat {chat_id} not found for updating last admin permissions check.")
