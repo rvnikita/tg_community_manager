@@ -241,12 +241,12 @@ session_count_lock = threading.Lock()
 
 @contextmanager
 def session_scope():
-    global open_session_count
+    # global open_session_count
 
-    session_id = uuid.uuid4()  # Generate a unique session identifier for logging purposes
-    with session_count_lock:
-        open_session_count += 1
-    logger.info(f"Starting a new database session {session_id}. Open sessions: {open_session_count}")
+    # session_id = uuid.uuid4()  # Generate a unique session identifier for logging purposes
+    # with session_count_lock:
+    #     open_session_count += 1
+    # logger.info(f"Starting a new database session {session_id}. Open sessions: {open_session_count}")
 
     session = Session()
 
@@ -256,10 +256,10 @@ def session_scope():
         # logger.info(f"Session {session_id} committed successfully.")
     except Exception as error:
         session.rollback()
-        logger.error(f"Session {session_id} rollback due to error: {error}", exc_info=True)
+        # logger.error(f"Session {session_id} rollback due to error: {error}", exc_info=True)
         raise
     finally:
         session.close()
-        with session_count_lock:
-            open_session_count -= 1
+        # with session_count_lock:
+            # open_session_count -= 1
         # logger.info(f"Database session {session_id} closed. Open sessions: {open_session_count}")
