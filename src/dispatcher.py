@@ -124,6 +124,11 @@ async def tg_report(update, context):
         chat_mention = await chat_helper.get_chat_mention(context.bot, chat_id)
 
         if report_sum >= number_of_reports_to_ban:
+            # let's now increase rating for all users who reported this user
+            reporting_user_ids = await reporting_helper.get_reporting_users(chat_id, reported_user_id)
+            bot_info = await bot.get_me()
+            await rating_helper.change_rating(reporting_user_ids, bot_info.id, chat_id, 1, delete_message_delay=120)
+
             await chat_helper.ban_user(context.bot, chat_id, reported_user_id)
             await chat_helper.delete_message(context.bot, chat_id, reported_message_id)
             await chat_helper.send_message(context.bot, chat_id, f"User {reported_user_mention} has been banned due to {report_sum}/{number_of_reports_to_ban} reports.", delete_after=120)
@@ -131,7 +136,7 @@ async def tg_report(update, context):
         elif report_sum >= number_of_reports_to_warn:
             await chat_helper.warn_user(context.bot, chat_id, reported_user_id)
             await chat_helper.mute_user(context.bot, chat_id, reported_user_id)
-            await chat_helper.send_message(context.bot, chat_id, f"User {reported_user_mention} has been warned and muted due to{report_sum}/{number_of_reports_to_ban} reports.", reply_to_message_id=reported_message_id, delete_after=120)
+            await chat_helper.send_message(context.bot, chat_id, f"User {reported_user_mention} has been warned and muted due to {report_sum}/{number_of_reports_to_ban} reports.", reply_to_message_id=reported_message_id, delete_after=120)
             await chat_helper.send_message_to_admin(context.bot, chat_id, f"User {reported_user_mention} has been warned and muted in chat {chat_mention} due to {report_sum}/{number_of_reports_to_ban} reports. \nReported message: {message.reply_to_message.text}")
         else:
             await chat_helper.send_message(context.bot, chat_id, f"User {reported_user_mention} has been reported {report_sum}/{number_of_reports_to_warn} times.", delete_after=120)

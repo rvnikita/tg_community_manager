@@ -47,3 +47,15 @@ async def check_existing_report(chat_id, reported_user_id, reporting_user_id):
     except Exception as e:
         logger.error(f"Error calculating cumulative report power: {e}")
         return None
+
+async def get_reporting_users(chat_id, reported_user_id):
+    try:
+        with db_helper.session_scope() as db_session:
+            reporting_user_ids = db_session.query(db_helper.Report.reporting_user_id).filter(
+                db_helper.Report.reported_user_id == reported_user_id,
+                db_helper.Report.chat_id == chat_id
+            ).distinct().all()
+            return [user_id[0] for user_id in reporting_user_ids]
+    except Exception as e:
+        logger.error(f"Error getting reporting users: {e}")
+        return []
