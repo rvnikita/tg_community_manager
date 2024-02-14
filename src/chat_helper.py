@@ -67,7 +67,7 @@ def get_default_chat(config_param=None):
             logger.error(f"Error: {traceback.format_exc()}")
             return None
 
-def get_chat_config(chat_id=None, config_param=None):
+def get_chat_config(chat_id=None, config_param=None, default=None):
     cache_key = f"chat_config:{chat_id}:{config_param}"
     config_value = cache_helper.get_key(cache_key)
 
@@ -95,10 +95,11 @@ def get_chat_config(chat_id=None, config_param=None):
                     return chat.config
             else:
                 # Logic for handling chat configuration when chat_id is not found in the database
-                return None
+                return default  # Return the default value when chat_id is not found
         except Exception as e:
             logger.error(f"Error: {traceback.format_exc()}")
-            return None
+            return default  # Return the default value in case of any error
+
 
 
 async def send_message(bot, chat_id, text, reply_to_message_id = None, delete_after = None, disable_web_page_preview = True):
