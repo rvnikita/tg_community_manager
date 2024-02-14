@@ -12,6 +12,7 @@ from telegram import Bot
 from telegram.ext import Application, MessageHandler, CommandHandler, filters, ChatJoinRequestHandler
 from telegram.request import HTTPXRequest
 from telegram.error import TelegramError
+from datetime import datetime, timedelta
 import openai
 import traceback
 import re
@@ -383,6 +384,40 @@ async def tg_spam_check(update, context):
         logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
 
 
+async def tg_bot_admin_permissions_check(update, context):
+    chat_id = update.effective_chat.id
+    now = datetime.now()
+
+    try:
+        # First, check if it's necessary to perform an admin check based on the last check time
+        last_notified = await chat_helper.get_last_admin_permissions_check(chat_id)
+        if last_notified is not None and (now - last_notified) < timedelta(days=1):
+            # It's not yet time to perform another check
+            return
+
+        # Proceed with checking for admin permissions only if necessary
+        chat_administrators = await context.bot.get_chat_administrators(chat_id)
+        bot_is_admin = any(admin.user.id == context.bot.id for admin in chat_administrators)
+
+        if not bot_is_admin:
+            # Bot is not an admin, proceed to notify the chat if not done recently
+            message_text = "Bot is not an admin in this chat. Please make me an admin to operate fully."
+            await chat_helper.send_message(context.bot, chat_id, message_text)
+
+            # Log the information with chat ID and chat name
+            chat_name = update.effective_chat.title or "Unknown Chat Name"
+            logger.info(f"Notification sent to chat ID: {chat_id}, Chat Name: {chat_name}, Message: {message_text}")
+
+            # Update the last notification time in the database
+            await chat_helper.set_last_admin_permissions_check(chat_id, now)
+
+    except Exception as error:
+        logger.error(f"Error in tg_bot_admin_permissions_check: {error}")
+        if hasattr(update, 'to_dict'):
+            update_str = json.dumps(update.to_dict(), indent=4, sort_keys=True, default=str)
+            logger.error(f"Update: {update_str}")
+
+
 async def tg_thankyou(update, context):
     try:
         with db_helper.session_scope() as db_session:
@@ -634,6 +669,10 @@ class BotManager:
             self.application.add_handler(CommandHandler(['gban', 'g'], tg_gban), group=6)
 
             self.application.add_handler(MessageHandler(filters.TEXT | filters.Document.ALL, tg_spam_check), group=7)
+
+            # Add handler to check if bot has admin permissions
+            self.application.add_handler(MessageHandler(filters.TEXT | filters.Document.ALL, tg_bot_admin_permissions_check), group=8)
+
 
             # Set up the graceful shutdown mechanism
             signal.signal(signal.SIGTERM, self.signal_handler)

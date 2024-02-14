@@ -152,6 +152,7 @@ class Chat(Base):
     created_at = Column(DateTime(True), server_default=text('now()'))
     chat_name = Column(String, server_default=text("''::character varying"))
     invite_link = Column(String, server_default=text("''::character varying"))
+    last_admin_permission_check = Column(DateTime(True), nullable=True)  # New column for tracking the last admin permission check
 
     chat_group = relationship('Chat_Group', back_populates='chats')
     user_statuses = relationship('User_Status', back_populates='chat')

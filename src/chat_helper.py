@@ -100,6 +100,34 @@ def get_chat_config(chat_id=None, config_param=None, default=None):
             logger.error(f"Error: {traceback.format_exc()}")
             return default  # Return the default value in case of any error
 
+def get_last_admin_permissions_check(chat_id):
+    try:
+        with db_helper.session_scope() as db_session:
+            chat = db_session.query(db_helper.Chat).filter(db_helper.Chat.id == chat_id).one_or_none()
+            if chat and chat.last_admin_permission_check:
+                return chat.last_admin_permission_check
+            else:
+                return None
+    except Exception as error:
+        logger.error(f"Error retrieving last admin permissions check for chat_id {chat_id}: {traceback.format_exc()}")
+        return None
+
+def set_last_admin_permissions_check(chat_id, timestamp):
+    try:
+        with db_helper.session_scope() as db_session:
+            chat = db_session.query(db_helper.Chat).filter(db_helper.Chat.id == chat_id).one_or_none()
+            if chat:
+                chat.last_admin_permission_check = timestamp
+                db_session.commit()
+                return True
+            else:
+                logger.error(f"Chat {chat_id} not found for updating last admin permissions check.")
+                return False
+    except Exception as e:
+        logger.error(f"Error updating last admin permissions check for chat_id {chat_id}: {traceback.format_exc()}")
+        return False
+
+
 
 
 async def send_message(bot, chat_id, text, reply_to_message_id = None, delete_after = None, disable_web_page_preview = True):
