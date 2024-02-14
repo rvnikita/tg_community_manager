@@ -8,7 +8,7 @@ import src.chat_helper as chat_helper
 import src.config_helper as config_helper
 import src.logging_helper as logging_helper
 import telegram
-from telegram.error import BadRequest  # Corrected import
+from telegram.error import BadRequest, Forbidden
 import traceback
 import psycopg2
 import psycopg2.extras
@@ -54,6 +54,8 @@ async def admin_permissions_check():
                             await chat_helper.send_message(bot, chat_id, message_text)
                             logger.info(f"Notification sent to chat ID: {chat_id}, Message: {message_text}")
                             await chat_helper.set_last_admin_permissions_check(chat_id, now)
+                        else:
+                            logger.info(f"Bot is an admin in chat {chat_name} ({chat_id})")
                 except BadRequest as e:
                     if "Chat not found" in str(e):
                         # Log as info if the chat is not found
@@ -61,6 +63,8 @@ async def admin_permissions_check():
                     else:
                         # Otherwise, log as error
                         logger.error(f"Error checking admin permissions for {chat_name} ({chat_id}): {e.message}")
+                except Forbidden as e:
+                    logger.info(f"Forbidden: Bot is not a member of the group chat {chat_name} ({chat_id}).")
                 except Exception as e:
                     logger.error(f"Unexpected error for {chat_name} ({chat_id}): {traceback.format_exc()}")
             conn.commit()
