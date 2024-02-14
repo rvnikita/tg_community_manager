@@ -20,6 +20,26 @@ import re
 
 logger = logging.get_logger()
 
+async def send_message_to_admin(bot, chat_id, text: str, disable_web_page_preview: bool = True):
+    chat_administrators = await bot.get_chat_administrators(chat_id)
+
+    for admin in chat_administrators:
+        if admin.user.is_bot == True: #don't send to bots
+            continue
+        try:
+            await chat_helper.send_message(bot, admin.user.id, text, disable_web_page_preview = True)
+        except TelegramError as error:
+            if error.message == "Forbidden: bot was blocked by the user":
+                logger.info(f"Bot was blocked by the user {admin.user.id}.")
+            elif error.message == "Forbidden: user is deactivated":
+                logger.info(f"User {admin.user.id} is deactivated.")
+            elif error.message == "Forbidden: bot can't initiate conversation with a user":
+                logger.info(f"Bot can't initiate conversation with a user {admin.user.id}.")
+            else:
+                logger.error(f"Telegram error: {error.message}. Traceback: {traceback.format_exc()}")
+        except Exception as error:
+            logger.error(f"Error: {traceback.format_exc()}")
+
 def get_default_chat(config_param=None):
     cache_key = f"default_chat_config:{config_param}"
     config_value = cache_helper.get_key(cache_key)

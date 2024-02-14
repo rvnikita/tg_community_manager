@@ -1,0 +1,49 @@
+import src.db_helper as db_helper
+from sqlalchemy import func
+import src.logging_helper as logging
+
+logger = logging.get_logger()
+
+async def add_report(reported_user_id, reporting_user_id, reported_message_id, chat_id, report_power):
+    try:
+        with db_helper.session_scope() as db_session:
+            report = db_helper.Report(
+                reported_user_id=reported_user_id,
+                reporting_user_id=reporting_user_id,
+                reported_message_id=reported_message_id,
+                chat_id=chat_id,
+                report_power=report_power
+            )
+            db_session.add(report)
+            db_session.commit()
+            return True
+    except Exception as e:
+        logger.error(f"Error adding report: {e}")
+        return False
+
+async def calculate_cumulative_report_power(chat_id, reported_user_id):
+    try:
+        with db_helper.session_scope() as db_session:
+            cumulative_report_power = db_session.query(
+                func.sum(db_helper.Report.report_power)
+            ).filter(
+                db_helper.Report.chat_id == chat_id,
+                db_helper.Report.reported_user_id == reported_user_id
+            ).scalar() or 0
+            return cumulative_report_power
+    except Exception as e:
+        logger.error(f"Error calculating cumulative report power: {e}")
+        return None
+
+async def check_existing_report(chat_id, reported_user_id, reporting_user_id):
+    try:
+        with db_helper.session_scope() as db_session:
+            existing_report = db_session.query(db_helper.Report).filter(
+                db_helper.Report.chat_id == chat_id,
+                db_helper.Report.reported_user_id == reported_user_id,
+                db_helper.Report.reporting_user_id == reporting_user_id
+            ).first()
+            return existing_report is not None
+    except Exception as e:
+        logger.error(f"Error calculating cumulative report power: {e}")
+        return None

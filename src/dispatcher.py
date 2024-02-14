@@ -5,6 +5,7 @@ import src.db_helper as db_helper
 import src.config_helper as config_helper
 import src.user_helper as user_helper
 import src.rating_helper as rating_helper
+import src.reporting_helper as reporting_helper
 
 import os
 from telegram import Bot
@@ -36,26 +37,6 @@ bot = Bot(config['BOT']['KEY'],
           get_updates_request=HTTPXRequest(http_version="1.1")) #we need this to fix bug https://github.com/python-telegram-bot/python-telegram-bot/issues/3556)
 
 ########################
-
-async def send_message_to_admin(bot, chat_id, text: str, disable_web_page_preview: bool = True):
-    chat_administrators = await bot.get_chat_administrators(chat_id)
-
-    for admin in chat_administrators:
-        if admin.user.is_bot == True: #don't send to bots
-            continue
-        try:
-            await chat_helper.send_message(bot, admin.user.id, text, disable_web_page_preview = True)
-        except TelegramError as error:
-            if error.message == "Forbidden: bot was blocked by the user":
-                logger.info(f"Bot was blocked by the user {admin.user.id}.")
-            elif error.message == "Forbidden: user is deactivated":
-                logger.info(f"User {admin.user.id} is deactivated.")
-            elif error.message == "Forbidden: bot can't initiate conversation with a user":
-                logger.info(f"Bot can't initiate conversation with a user {admin.user.id}.")
-            else:
-                logger.error(f"Telegram error: {error.message}. Traceback: {traceback.format_exc()}")
-        except Exception as error:
-            logger.error(f"Error: {traceback.format_exc()}")
 
 async def tg_report_reset(update, context):
     try:
@@ -97,93 +78,59 @@ async def tg_report_reset(update, context):
 
 async def tg_report(update, context):
     try:
-        with db_helper.session_scope() as db_session:
-            chat_id = update.effective_chat.id
+        chat_id = update.effective_chat.id
+        message = update.message
 
-            message = update.message
+        asyncio.create_task(chat_helper.delete_message(context.bot, chat_id, message.message_id, delay_seconds=120))
 
-            asyncio.create_task(chat_helper.delete_message(bot, chat_id, message.message_id, delay_seconds = 120)) #delete report in 2 minutes
+        if not message or not message.reply_to_message:
+            logger.info("Report command without a message to reply to.")
+            return
 
-            if not message:
-                logger.info(f"Could not get message from update {update}. Traceback: {traceback.format_exc()}. Update: {update}")
-                return
+        reported_message_id = message.reply_to_message.message_id
+        reported_user_id = message.reply_to_message.from_user.id
+        reporting_user_id = message.from_user.id
 
+        chat_administrators = await context.bot.get_chat_administrators(chat_id)
+        if any(admin.user.id == reported_user_id for admin in chat_administrators):
+            await chat_helper.send_message(context.bot, chat_id, "You cannot report an admin.")
+            return
 
-            if message and message.reply_to_message:
-                number_of_reports_to_warn = int(chat_helper.get_chat_config(chat_id, 'number_of_reports_to_warn'))
-                number_of_reports_to_ban = int(chat_helper.get_chat_config(chat_id, 'number_of_reports_to_ban'))
+        reporting_user_rating = await rating_helper.get_rating(reporting_user_id, chat_id)
+        user_rating_to_power_ratio = int(chat_helper.get_chat_config(chat_id, 'user_rating_to_power_ratio', default=0))
+        report_power = 1 if user_rating_to_power_ratio == 0 else max(1, reporting_user_rating // user_rating_to_power_ratio)
 
-                reported_message_id = message.reply_to_message.message_id
-                reported_user_id = message.reply_to_message.from_user.id
-                reporting_user_id = message.from_user.id
+        if await reporting_helper.check_existing_report(chat_id, reported_user_id, reporting_user_id):
+            await chat_helper.send_message(context.bot, chat_id, "This user has already been reported by you.")
+            return
 
-                # Check if the reported user is an admin of the chat
-                chat_administrators = await bot.get_chat_administrators(chat_id)
-                for admin in chat_administrators:
-                    if admin.user.id == reported_user_id:
-                        await chat_helper.send_message(bot, chat_id, "You cannot report an admin.")
-                        return
+        success = await reporting_helper.add_report(reported_user_id, reporting_user_id, reported_message_id, chat_id, report_power)
+        if not success:
+            logger.error("Failed to add report.")
+            return
 
-                # Check if the user has already been warned by the same reporter
-                existing_report = db_session.query(db_helper.Report).filter(
-                    db_helper.Report.chat_id == chat_id,
-                    db_helper.Report.reported_user_id == reported_user_id,
-                    db_helper.Report.reporting_user_id == reporting_user_id
-                ).first()
+        report_sum = await reporting_helper.calculate_cumulative_report_power(chat_id, reported_user_id)
+        if report_sum is None:
+            logger.error("Failed to calculate cumulative report power.")
+            return
 
-                if not existing_report or reporting_user_id in [admin.user.id for admin in chat_administrators]:
-                    # Add report to the database
-                    report = db_helper.Report(
-                        reported_user_id=reported_user_id,
-                        reporting_user_id=reporting_user_id,
-                        reported_message_id=reported_message_id,
-                        chat_id=chat_id
-                    )
-                    db_session.add(report)
-                    db_session.commit()
-                else:
-                    await chat_helper.send_message(bot, chat_id, "You have already reported this user.")
-                    return
+        number_of_reports_to_warn = int(chat_helper.get_chat_config(chat_id, 'number_of_reports_to_warn'))
+        number_of_reports_to_ban = int(chat_helper.get_chat_config(chat_id, 'number_of_reports_to_ban'))
 
-                # Count unique reports for the reported user in the chat
-                report_count = db_session.query(db_helper.Report).filter(
-                    db_helper.Report.chat_id == chat_id,
-                    db_helper.Report.reported_user_id == reported_user_id
-                ).count()
+        reported_user_mention = user_helper.get_user_mention(reported_user_id)
+        chat_mention = await chat_helper.get_chat_mention(context.bot, chat_id)
 
-                reported_user_mention = user_helper.get_user_mention(reported_user_id)
-                reporting_user_mention = user_helper.get_user_mention(reporting_user_id)
+        await chat_helper.send_message_to_admin(context.bot, chat_id, f"User {reported_user_mention} reported in chat {chat_mention}. Total reports: {report_sum}. \nReported message: {message.reply_to_message.text}")
 
-                await send_message_to_admin(bot, chat_id, f"User {reporting_user_mention} reported {reported_user_mention} in chat {await chat_helper.get_chat_mention(bot, chat_id)}. Total reports: {report_count}. \nReported message: {message.reply_to_message.text}")
-
-                await chat_helper.send_message(bot, chat_id, f"User {reported_user_mention} has been reported {report_count}/{number_of_reports_to_ban} times.", reply_to_message_id=reported_message_id, delete_after=120)
-
-                if report_count >= number_of_reports_to_ban:
-                    await chat_helper.delete_message(bot, chat_id, reported_message_id)
-                    await chat_helper.ban_user(bot, chat_id, reported_user_id)
-
-                    await chat_helper.send_message(bot, chat_id, f"User {reported_user_mention} has been banned due to {report_count} reports.", delete_after=120)
-
-                    await send_message_to_admin(bot, chat_id, f"User {reported_user_mention} has been banned in chat {await chat_helper.get_chat_mention(bot, chat_id)} due to {report_count}/{number_of_reports_to_ban} reports.")
-
-                    # let's now increase rating for all users who reported this user
-                    # first let's get all users who reported this user
-                    reporting_user_ids = db_session.query(db_helper.Report.reporting_user_id).filter(db_helper.Report.reported_user_id == reported_user_id, db_helper.Report.chat_id == chat_id).distinct().all()
-                    reporting_user_ids = [item[0] for item in reporting_user_ids]
-
-                    bot_info = await bot.get_me()
-
-                    # Instead of looping here, just call the function once with the entire list
-                    await rating_helper.change_rating(reporting_user_ids, bot_info.id, chat_id, 1, delete_message_delay=120)
-
-                    return # we don't need to warn and mute user if he is banned
-
-                if report_count >= number_of_reports_to_warn:
-                    await chat_helper.warn_user(bot, chat_id, reported_user_id)
-                    await chat_helper.mute_user(bot, chat_id, reported_user_id)
-
-                    await chat_helper.send_message(bot, chat_id, f"User {reported_user_mention} has been warned and muted due to {report_count} reports.", reply_to_message_id=reported_message_id, delete_after=120)
-                    await send_message_to_admin(bot, chat_id, f"User {reported_user_mention} has been warned and muted in chat {await chat_helper.get_chat_mention(bot, chat_id)} due to {report_count} reports.")
+        if report_sum >= number_of_reports_to_ban:
+            await chat_helper.ban_user(context.bot, chat_id, reported_user_id)
+            await chat_helper.send_message(context.bot, chat_id, f"User {reported_user_mention} has been banned due to {report_sum}/{number_of_reports_to_ban} reports.", delete_after=120)
+            await chat_helper.send_message_to_admin(context.bot, chat_id, f"User {reported_user_mention} has been banned in chat {chat_mention} due to {report_sum}/{number_of_reports_to_ban} reports.")
+        elif report_sum >= number_of_reports_to_warn:
+            await chat_helper.warn_user(context.bot, chat_id, reported_user_id)
+            await chat_helper.mute_user(context.bot, chat_id, reported_user_id)
+            await chat_helper.send_message(context.bot, chat_id, f"User {reported_user_mention} has been warned and muted due to{report_sum}/{number_of_reports_to_warn} reports.", reply_to_message_id=reported_message_id, delete_after=120)
+            await chat_helper.send_message_to_admin(context.bot, chat_id, f"User {reported_user_mention} has been warned and muted in chat {chat_mention} due to {report_sum}/{number_of_reports_to_warn} reports.")
     except Exception as error:
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
         logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
@@ -232,7 +179,7 @@ async def tg_warn(update, context):
                 await chat_helper.ban_user(bot, chat_id, warned_user_id)
                 warned_user_mention = user_helper.get_user_mention(warned_user_id)
                 await chat_helper.send_message(bot, chat_id, f"User {warned_user_mention} has been banned due to {warn_count} warnings.", delete_after=120)
-                await send_message_to_admin(bot, chat_id, f"User {warned_user_mention} has been banned in chat {await chat_helper.get_chat_mention(bot, chat_id)} due to {warn_count}/{number_of_reports_to_ban} warnings.")
+                await chat_helper.send_message_to_admin(bot, chat_id, f"User {warned_user_mention} has been banned in chat {await chat_helper.get_chat_mention(bot, chat_id)} due to {warn_count}/{number_of_reports_to_ban} warnings.")
 
                 reporting_user_ids = db_session.query(db_helper.Report.reporting_user_id).filter(
                     db_helper.Report.reported_user_id == warned_user_id,
@@ -251,7 +198,7 @@ async def tg_warn(update, context):
 
             await chat_helper.send_message(bot, chat_id, f"{warned_user_mention}, you've been warned {warn_count}/{number_of_reports_to_ban} times. Reason: {reason}", reply_to_message_id=warned_message_id)
             await chat_helper.delete_message(bot, chat_id, warned_message_id)
-            await send_message_to_admin(bot, chat_id, f"{warning_admin_mention} warned {warned_user_mention} in chat {await chat_helper.get_chat_mention(bot, chat_id)}. Reason: {reason}. Total Warnings: {warn_count}/{number_of_reports_to_ban}")
+            await chat_helper.send_message_to_admin(bot, chat_id, f"{warning_admin_mention} warned {warned_user_mention} in chat {await chat_helper.get_chat_mention(bot, chat_id)}. Reason: {reason}. Total Warnings: {warn_count}/{number_of_reports_to_ban}")
 
     except Exception as error:
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)

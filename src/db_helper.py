@@ -5,6 +5,7 @@ from sqlalchemy import create_engine, BigInteger, Boolean, Column, DateTime, Ide
 from sqlalchemy.orm import Session, DeclarativeBase, declared_attr, relationship
 from sqlalchemy.sql.sqltypes import NullType
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy import func
 
 import psycopg2
 import psycopg2.extras
@@ -140,6 +141,9 @@ class Chat(Base):
 
       // A boolean value that determines if bot should auto approve join requests or not
       "auto_approve_join_request":false
+      
+      // An integer value that determines the power multiplier for the user. For each X ratings the user gets 1 power point (e.g. in reporting system)
+      "user_rating_to_power_ratio": 15
 
     }
     """
@@ -221,6 +225,7 @@ class Report(Base):
     reporting_user_id = Column(BigInteger, nullable=False, index=True)
     reported_message_id = Column(BigInteger, nullable=False, index=True)
     chat_id = Column(BigInteger, nullable=False, index=True)
+    report_power = Column(Integer, nullable=False, default=1)  # New attribute to store report power
     created_at = Column(DateTime(True), server_default=text('now()'))
     reason = Column(String, nullable=True)
 
