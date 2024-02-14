@@ -18,21 +18,20 @@ config = config_helper.get_config()
 logger = logging_helper.get_logger()
 bot = telegram.Bot(token=config['BOT']['KEY'])
 
-async def initialize_bot():
-    """Initialize the bot before use."""
-    await bot.initialize()
-
 async def admin_permissions_check():
     logger.info("Starting admin permissions check cron script")
 
-    # Initialize the bot before starting the checks
-    await initialize_bot()
+    await bot.initialize()
 
     with db_helper.connect() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
-            # Retrieve all chats from your database
-            sql = "SELECT id, chat_name FROM tg_chat"
-            cur.execute(sql)
+            # Retrieve chats that haven't been checked in the last day
+            sql = """
+            SELECT id, chat_name FROM tg_chat
+            WHERE last_admin_permission_check IS NULL OR last_admin_permission_check < %s
+            """
+            one_day_ago = datetime.now(timezone.utc) - timedelta(days=1)
+            cur.execute(sql, (one_day_ago,))
             chat_rows = cur.fetchall()
 
             for chat_row in chat_rows:
@@ -40,25 +39,19 @@ async def admin_permissions_check():
                 chat_name = chat_row['chat_name']
                 try:
                     logger.info(f"Checking admin permissions for {chat_name} ({chat_id})")
-                    last_notified = await chat_helper.get_last_admin_permissions_check(chat_id)
-                    now = datetime.now(timezone.utc)  # Ensure 'now' is timezone-aware
+                    # Now only chats that were not checked in the last day are processed
+                    chat_administrators = await bot.get_chat_administrators(chat_id)
+                    bot_is_admin = any(admin.user.id == bot.id for admin in chat_administrators)
 
-                    # Adjust 'last_notified' to be timezone-aware for comparison
-                    if last_notified and last_notified.tzinfo is None:
-                        last_notified = last_notified.replace(tzinfo=timezone.utc)
+                    now = datetime.now(timezone.utc)
+                    await chat_helper.set_last_admin_permissions_check(chat_id, now)
 
-                    if last_notified is None or (now - last_notified) >= timedelta(days=1):
-                        chat_administrators = await bot.get_chat_administrators(chat_id)
-                        bot_is_admin = any(admin.user.id == bot.id for admin in chat_administrators)
-
-                        await chat_helper.set_last_admin_permissions_check(chat_id, now)
-
-                        if not bot_is_admin:
-                            message_text = "Bot is not an admin in this chat. Please make me an admin to operate fully."
-                            await chat_helper.send_message(bot, chat_id, message_text)
-                            logger.info(f"Notification sent to chat {chat_name} ({chat_id}): {message_text}")
-                        else:
-                            logger.info(f"Bot is an admin in chat {chat_name} ({chat_id})")
+                    if not bot_is_admin:
+                        message_text = "Bot is not an admin in this chat. Please make me an admin to operate fully."
+                        await chat_helper.send_message(bot, chat_id, message_text)
+                        logger.info(f"Notification sent to chat {chat_name} ({chat_id}): {message_text}")
+                    else:
+                        logger.info(f"Bot is an admin in chat {chat_name} ({chat_id})")
                 except BadRequest as e:
                     if "Chat not found" in str(e):
                         logger.info(f"Chat not found for {chat_name} ({chat_id}).")
