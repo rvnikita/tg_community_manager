@@ -93,7 +93,7 @@ async def tg_report(update, context):
 
         chat_administrators = await context.bot.get_chat_administrators(chat_id)
         if any(admin.user.id == reported_user_id for admin in chat_administrators):
-Del            await chat_helper.send_message(context.bot, chat_id, "You cannot report an admin.", delete_after=120)
+            await chat_helper.send_message(context.bot, chat_id, "You cannot report an admin.", delete_after=120)
             return
 
         reporting_user_rating = await rating_helper.get_rating(reporting_user_id, chat_id)
