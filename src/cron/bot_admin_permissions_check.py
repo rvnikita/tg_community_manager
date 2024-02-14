@@ -1,3 +1,6 @@
+import sys
+sys.path.insert(0, '../')  # add parent directory to the path
+
 import asyncio
 from datetime import datetime, timedelta
 import src.db_helper as db_helper
