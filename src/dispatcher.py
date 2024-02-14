@@ -385,6 +385,8 @@ async def tg_spam_check(update, context):
 
 
 async def tg_bot_admin_permissions_check(update, context):
+    logger.info(f"Checking bot admin permissions in chat {update.effective_chat.id}. Chat name: {update.effective_chat.title}")
+
     chat_id = update.effective_chat.id
     now = datetime.now()
 
