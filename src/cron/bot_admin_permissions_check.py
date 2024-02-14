@@ -39,12 +39,13 @@ async def admin_permissions_check():
                 chat_name = chat_row['chat_name']
                 try:
                     logger.info(f"Checking admin permissions for {chat_name} ({chat_id})")
-                    # Now only chats that were not checked in the last day are processed
-                    chat_administrators = await bot.get_chat_administrators(chat_id)
-                    bot_is_admin = any(admin.user.id == bot.id for admin in chat_administrators)
 
                     now = datetime.now(timezone.utc)
                     await chat_helper.set_last_admin_permissions_check(chat_id, now)
+
+                    # Now only chats that were not checked in the last day are processed
+                    chat_administrators = await bot.get_chat_administrators(chat_id)
+                    bot_is_admin = any(admin.user.id == bot.id for admin in chat_administrators)
 
                     if not bot_is_admin:
                         message_text = "Bot is not an admin in this chat. Please make me an admin to operate fully."
