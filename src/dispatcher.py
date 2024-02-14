@@ -131,8 +131,8 @@ async def tg_report(update, context):
         elif report_sum >= number_of_reports_to_warn:
             await chat_helper.warn_user(context.bot, chat_id, reported_user_id)
             await chat_helper.mute_user(context.bot, chat_id, reported_user_id)
-            await chat_helper.send_message(context.bot, chat_id, f"User {reported_user_mention} has been warned and muted due to{report_sum}/{number_of_reports_to_warn} reports.", reply_to_message_id=reported_message_id, delete_after=120)
-            await chat_helper.send_message_to_admin(context.bot, chat_id, f"User {reported_user_mention} has been warned and muted in chat {chat_mention} due to {report_sum}/{number_of_reports_to_warn} reports. \nReported message: {message.reply_to_message.text}")
+            await chat_helper.send_message(context.bot, chat_id, f"User {reported_user_mention} has been warned and muted due to{report_sum}/{number_of_reports_to_ban} reports.", reply_to_message_id=reported_message_id, delete_after=120)
+            await chat_helper.send_message_to_admin(context.bot, chat_id, f"User {reported_user_mention} has been warned and muted in chat {chat_mention} due to {report_sum}/{number_of_reports_to_ban} reports. \nReported message: {message.reply_to_message.text}")
         else:
             await chat_helper.send_message(context.bot, chat_id, f"User {reported_user_mention} has been reported {report_sum}/{number_of_reports_to_warn} times.", delete_after=120)
             await chat_helper.send_message_to_admin(context.bot, chat_id, f"User {reported_user_mention} has been reported in chat {chat_mention} {report_sum}/{number_of_reports_to_warn} times. \nReported message: {message.reply_to_message.text}")
