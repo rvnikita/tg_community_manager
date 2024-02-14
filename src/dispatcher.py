@@ -100,9 +100,12 @@ async def tg_report(update, context):
         user_rating_to_power_ratio = int(chat_helper.get_chat_config(chat_id, 'user_rating_to_power_ratio', default=0))
         report_power = 1 if user_rating_to_power_ratio == 0 else max(1, reporting_user_rating // user_rating_to_power_ratio)
 
-        if await reporting_helper.check_existing_report(chat_id, reported_user_id, reporting_user_id):
-            await chat_helper.send_message(context.bot, chat_id, "This user has already been reported by you.", delete_after=120)
-            return
+        # Check if the reporting user is not an admin (if he is an admin he can report several times)
+        if not any(admin.user.id == reporting_user_id for admin in chat_administrators):
+            # If the reported user has already been reported by the reporting user, send a message and return
+            if await reporting_helper.check_existing_report(chat_id, reported_user_id, reporting_user_id):
+                await chat_helper.send_message(context.bot, chat_id, "This user has already been reported by you.", delete_after=120)
+                return
 
         success = await reporting_helper.add_report(reported_user_id, reporting_user_id, reported_message_id, chat_id, report_power)
         if not success:
