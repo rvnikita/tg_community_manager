@@ -30,7 +30,7 @@ async def admin_permissions_check():
             SELECT id, chat_name FROM tg_chat
             WHERE last_admin_permission_check IS NULL OR last_admin_permission_check < %s
             """
-            one_day_ago = datetime.now(timezone.utc) - timedelta(days=1)
+            one_day_ago = datetime.now(timezone.utc) - timedelta(hours=20)
             cur.execute(sql, (one_day_ago,))
             chat_rows = cur.fetchall()
 
