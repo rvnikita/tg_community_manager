@@ -131,6 +131,8 @@ async def tg_report(update, context):
             await chat_helper.mute_user(context.bot, chat_id, reported_user_id)
             await chat_helper.send_message(context.bot, chat_id, f"User {reported_user_mention} has been warned and muted due to{report_sum}/{number_of_reports_to_warn} reports.", reply_to_message_id=reported_message_id, delete_after=120)
             await chat_helper.send_message_to_admin(context.bot, chat_id, f"User {reported_user_mention} has been warned and muted in chat {chat_mention} due to {report_sum}/{number_of_reports_to_warn} reports.")
+        else:
+            await chat_helper.send_message(context.bot, chat_id, f"User {reported_user_mention} has been reported {report_sum}/{number_of_reports_to_warn} times.", delete_after=120)
     except Exception as error:
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
         logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
