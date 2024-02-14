@@ -103,7 +103,7 @@ def get_chat_config(chat_id=None, config_param=None, default=None):
 async def get_last_admin_permissions_check(chat_id):
     try:
         with db_helper.session_scope() as db_session:
-            chat = await db_session.query(db_helper.Chat).filter(db_helper.Chat.id == chat_id).one_or_none()
+            chat = db_session.query(db_helper.Chat).filter(db_helper.Chat.id == chat_id).one_or_none()
             if chat and chat.last_admin_permission_check:
                 return chat.last_admin_permission_check
     except Exception as error:
@@ -113,7 +113,7 @@ async def get_last_admin_permissions_check(chat_id):
 async def set_last_admin_permissions_check(chat_id, timestamp):
     try:
         with db_helper.session_scope() as db_session:
-            chat = await db_session.query(db_helper.Chat).filter(db_helper.Chat.id == chat_id).one_or_none()
+            chat = db_session.query(db_helper.Chat).filter(db_helper.Chat.id == chat_id).one_or_none()
             if chat:
                 chat.last_admin_permission_check = timestamp
                 await db_session.commit()  # Assuming commit can be awaited
