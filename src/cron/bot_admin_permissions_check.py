@@ -51,11 +51,12 @@ async def admin_permissions_check():
                         chat_administrators = await bot.get_chat_administrators(chat_id)
                         bot_is_admin = any(admin.user.id == bot.id for admin in chat_administrators)
 
+                        await chat_helper.set_last_admin_permissions_check(chat_id, now)
+
                         if not bot_is_admin:
                             message_text = "Bot is not an admin in this chat. Please make me an admin to operate fully."
                             await chat_helper.send_message(bot, chat_id, message_text)
                             logger.info(f"Notification sent to chat {chat_name} ({chat_id}): {message_text}")
-                            await chat_helper.set_last_admin_permissions_check(chat_id, now)
                         else:
                             logger.info(f"Bot is an admin in chat {chat_name} ({chat_id})")
                 except BadRequest as e:
