@@ -142,8 +142,8 @@ class Chat(Base):
       // A boolean value that determines if bot should auto approve join requests or not
       "auto_approve_join_request":false
       
-      // An integer value that determines the power multiplier for the user. For each X ratings the user gets 1 power point (e.g. in reporting system)
-      "user_rating_to_power_ratio": 15
+      // An integer value that determines the power multiplier for the user. For each X ratings the user gets 1 power point (e.g. in reporting system). 0 means default power of 1. 15 means each 15 ratings the user gets 1 power point.
+      "user_rating_to_power_ratio": 0
 
     }
     """
