@@ -349,25 +349,21 @@ async def tg_ai_spam_check(update, context):
         if check_spam and message.text:
             text = message.text.strip()
             if text:
-                # Prepare the messages for OpenAI's Chat Completion API
-                messages = [
-                    {"role": "system", "content": config['ANTISPAM']['PROMPT']},
-                    {"role": "user", "content": text}
-                ]
+                # Call the completion_create function with the prepared prompt
+                response = await openai_helper.chat_completion_create([{"role": "system", "content": config['ANTISPAM']['PROMPT']}, {"role": "user", "content": text}])
 
-                # Call the chat_completions_create function with the prepared messages
-                response = await openai_helper.chat_completions_create(messages)
-
-                # Extract the spam rating from the response
-                # Assuming the response contains the spam rating in a specific format, you need to parse it accordingly
-                # For example, if the response includes a text-based spam rating, extract and convert it to an integer
-                spam_rating = int(response['choices'][0]['message']['content'])  # Adjust this according to the actual response format
+                # Assuming the response needs to be parsed to extract the spam rating
+                try:
+                    spam_rating = int(response.choices[0].message['content'].strip())
+                except (ValueError, AttributeError):
+                    logger.error("Failed to parse spam rating from OpenAI response.")
+                    return
 
                 logger.info(f"ANTISPAM. Chat name {message.chat.title} | Chat ID: {message.chat_id} | Message from: {message.from_user.username} | Message ID: {message.message_id} | Spam rating: {spam_rating}")
 
-                if spam_rating == 10:
-                    await chat_helper.send_message(bot, message.chat_id, "Looks like spam", reply_to_message_id=message.message_id)
-                    logger.info(f"❗ANTISPAM. Chat name {message.chat.title} | Chat ID: {message.chat_id} | Message from: {message.from_user.username} | Message ID: {message.message_id} | Spam rating: {spam_rating}")
+                if spam_rating >= 8:  # Assuming a rating of 10 or more is considered spam
+                    await chat_helper.send_message(context.bot, message.chat_id, "Looks like spam", reply_to_message_id=message.message_id)
+                    logger.info(f"❗ANTISPAM. Chat name {message.chat.title} | Chat ID: {message.chat_id} | Message from: {message.from_user.username} | Message ID: {message.message_id} | Detected spam.")
 
     except Exception as error:
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
