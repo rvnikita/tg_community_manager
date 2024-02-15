@@ -335,6 +335,44 @@ async def tg_gban(update, context):
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
         logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
 
+async def tg_ai_spam_check(update, context):
+    try:
+        message = update.message if update.message else update.edited_message
+        if not message:
+            update_dict = update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}
+            update_str = json.dumps(update_dict, indent=4, sort_keys=True, default=str)
+            logger.info(f"Update does not contain a message: {update_str}")
+            return
+
+        check_spam = chat_helper.get_chat_config(message.chat_id, 'ai_spam_check_enabled')
+
+        if check_spam and message.text:
+            text = message.text.strip()
+            if text:
+                # Prepare the messages for OpenAI's Chat Completion API
+                messages = [
+                    {"role": "system", "content": config['ANTISPAM']['PROMPT']},
+                    {"role": "user", "content": text}
+                ]
+
+                # Call the chat_completions_create function with the prepared messages
+                response = await openai_helper.chat_completions_create(messages)
+
+                # Extract the spam rating from the response
+                # Assuming the response contains the spam rating in a specific format, you need to parse it accordingly
+                # For example, if the response includes a text-based spam rating, extract and convert it to an integer
+                spam_rating = int(response['choices'][0]['message']['content'])  # Adjust this according to the actual response format
+
+                logger.info(f"ANTISPAM. Chat name {message.chat.title} | Chat ID: {message.chat_id} | Message from: {message.from_user.username} | Message ID: {message.message_id} | Spam rating: {spam_rating}")
+
+                if spam_rating == 10:
+                    await chat_helper.send_message(bot, message.chat_id, "Looks like spam", reply_to_message_id=message.message_id)
+                    logger.info(f"❗ANTISPAM. Chat name {message.chat.title} | Chat ID: {message.chat_id} | Message from: {message.from_user.username} | Message ID: {message.message_id} | Spam rating: {spam_rating}")
+
+    except Exception as error:
+        update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
+        logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
+
 
 
 
@@ -635,6 +673,8 @@ class BotManager:
             self.application.add_handler(CommandHandler(['gban', 'g'], tg_gban), group=6)
 
             self.application.add_handler(MessageHandler(filters.TEXT | filters.Document.ALL, tg_spam_check), group=7)
+
+            self.application.add_handler(MessageHandler(filters.TEXT, tg_ai_spam_check), group=8)
 
             # Set up the graceful shutdown mechanism
             signal.signal(signal.SIGTERM, self.signal_handler)

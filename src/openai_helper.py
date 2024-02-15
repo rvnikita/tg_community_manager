@@ -13,6 +13,32 @@ logger = logging_helper.get_logger()
 
 openai.api_key = config['OPENAI']['KEY']
 
+
+async def chat_completions_create(messages, model = None):
+    """
+    Sends a request to OpenAI's Chat Completion API with a series of chat messages,
+    using a specified or default model.
+
+    Args:
+    - messages (list of dict): A list of message dictionaries for chat interaction,
+                               each with 'role' and 'content' keys.
+    - model (str, optional): The model to use for the chat completion. If not specified,
+                             the default model from the configuration is used.
+
+    Returns:
+    - OpenAI API response object.
+    """
+
+    try:
+        if model is None:
+            model = config['OPENAI']['DEFAULT_MODEL']
+
+        response = openai.ChatCompletion.create(model=model, messages=messages)
+        return response
+    except Exception as e:
+        logger.error(f"Error creating chat completion with OpenAI: {traceback.format_exc()}")
+        return None
+
 def generate_embedding(text):
     response = openai.Embedding.create(
         engine=config['OPENAI']['EMBEDDING_MODEL'],

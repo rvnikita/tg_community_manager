@@ -137,13 +137,16 @@ class Chat(Base):
       "delete_new_chat_members_message" : true,
 
       // A boolean value that determines if agressive antispam should be enabled or not
-      "agressive_antispam" : true
+      "agressive_antispam" : true,
 
       // A boolean value that determines if bot should auto approve join requests or not
-      "auto_approve_join_request":false
+      "auto_approve_join_request":false,
       
       // An integer value that determines the power multiplier for the user. For each X ratings the user gets 1 power point (e.g. in reporting system). 0 means default power of 1. 15 means each 15 ratings the user gets 1 power point.
-      "user_rating_to_power_ratio": 0
+      "user_rating_to_power_ratio": 0,
+      
+      // A boolean value that determines if spam check with AI should be enabled or not 
+      "ai_spam_check_enabled": true
 
     }
     """
