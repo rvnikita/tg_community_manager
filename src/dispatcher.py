@@ -124,6 +124,9 @@ async def tg_report(update, context):
         reported_user_mention = user_helper.get_user_mention(reported_user_id)
         chat_mention = await chat_helper.get_chat_mention(context.bot, chat_id)
 
+        await chat_helper.send_message_to_admin(context.bot, chat_id, f"User {reported_user_mention} has been reported by {reporting_user_id} in chat {chat_mention} {report_sum}/{number_of_reports_to_ban} times.\nReported message: {message.reply_to_message.text}")
+        logger.info(f"User {reported_user_id} has been reported by {reporting_user_id} in chat {chat_id} {report_sum}/{number_of_reports_to_ban} times. Reported message: {message.reply_to_message.text}")
+
         if report_sum >= number_of_reports_to_ban:
             # let's now increase rating for all users who reported this user
             reporting_user_ids = await reporting_helper.get_reporting_users(chat_id, reported_user_id)
@@ -141,7 +144,6 @@ async def tg_report(update, context):
             await chat_helper.send_message_to_admin(context.bot, chat_id, f"User {reported_user_mention} has been warned and muted in chat {chat_mention} due to {report_sum}/{number_of_reports_to_ban} reports. \nReported message: {message.reply_to_message.text}")
         else:
             await chat_helper.send_message(context.bot, chat_id, f"User {reported_user_mention} has been reported {report_sum}/{number_of_reports_to_ban} times.", delete_after=120)
-            await chat_helper.send_message_to_admin(context.bot, chat_id, f"User {reported_user_mention} has been reported in chat {chat_mention} {report_sum}/{number_of_reports_to_ban} times. \nReported message: {message.reply_to_message.text}")
     except Exception as error:
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
         logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
