@@ -359,7 +359,7 @@ async def tg_ai_spam_check(update, context):
                     logger.error("Failed to parse spam rating from OpenAI response.")
                     return
 
-                logger.info(f"ANTISPAM. Chat name {message.chat.title} | Chat ID: {message.chat_id} | Message from: {message.from_user.username} | Message ID: {message.message_id} | Spam rating: {spam_rating}")
+                logger.info(f"ANTISPAM. Chat name {message.chat.title} | Chat ID: {message.chat_id} | Message from: {message.from_user.username} | Message ID: {message.message_id} | Message text: {message.text} | Spam rating: {spam_rating}")
 
                 if spam_rating >= 8:  # Assuming a rating of 10 or more is considered spam
                     await chat_helper.send_message(context.bot, message.chat_id, "It appears to be spam. If that is the case, please respond to the original message with the command /report ", reply_to_message_id=message.message_id)
