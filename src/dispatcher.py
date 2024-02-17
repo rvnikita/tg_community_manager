@@ -124,8 +124,8 @@ async def tg_report(update, context):
         reported_user_mention = user_helper.get_user_mention(reported_user_id)
         chat_mention = await chat_helper.get_chat_mention(context.bot, chat_id)
 
-        await chat_helper.send_message_to_admin(context.bot, chat_id, f"User {reported_user_mention} has been reported by {reporting_user_id} in chat {chat_mention} {report_sum}/{number_of_reports_to_ban} times.\nReported message: {message.reply_to_message.text}")
-        logger.info(f"User {reported_user_id} has been reported by {reporting_user_id} in chat {chat_id} {report_sum}/{number_of_reports_to_ban} times. Reported message: {message.reply_to_message.text}")
+        await chat_helper.send_message_to_admin(context.bot, chat_id, f"User {reported_user_mention} has been reported by {user_helper.get_user_mention(reporting_user_id)} in chat {chat_mention} {report_sum}/{number_of_reports_to_ban} times.\nReported message: {message.reply_to_message.text}")
+        logger.info(f"User {reported_user_id} has been reported by {user_helper.get_user_mention(reporting_user_id)} in chat {chat_id} {report_sum}/{number_of_reports_to_ban} times. Reported message: {message.reply_to_message.text}")
 
         if report_sum >= number_of_reports_to_ban:
             # let's now increase rating for all users who reported this user
