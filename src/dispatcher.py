@@ -357,7 +357,10 @@ async def tg_ai_spam_check(update, context):
                 # Assuming the response needs to be parsed to extract the spam rating
                 try:
                     spam_rating = int(response.choices[0].message.content.strip())
-                except (ValueError, AttributeError):
+                except ValueError:
+                    logger.info(f"Failed to parse spam rating from OpenAI response. Chat name {message.chat.title} | Chat ID: {message.chat_id} | Message from: {message.from_user.username} | Message ID: {message.message_id} | Message text: {message.text} | Spam rating: {response.choices[0].message.content.strip()}")
+                    spam_rating = 1
+                except AttributeError:
                     logger.error(f"Failed to parse spam rating from OpenAI response. Chat name {message.chat.title} | Chat ID: {message.chat_id} | Message from: {message.from_user.username} | Message ID: {message.message_id} | Message text: {message.text} | Spam rating: {spam_rating}")
                     return
 
