@@ -463,9 +463,9 @@ async def tg_thankyou(update, context):
                                     db_session.commit()
 
                                 if category == "like_words":
-                                    await rating_helper.change_rating(update.message.reply_to_message.from_user.id, update.message.from_user.id, update.message.chat.id, 1, update.message.message_id)
+                                    await rating_helper.change_rating(update.message.reply_to_message.from_user.id, update.message.from_user.id, update.message.chat.id, 1, update.message.message_id, delete_message_delay=5*60)
                                 elif category == "dislike_words":
-                                    await rating_helper.change_rating(update.message.reply_to_message.from_user.id, update.message.from_user.id, update.message.chat.id, -1, update.message.message_id)
+                                    await rating_helper.change_rating(update.message.reply_to_message.from_user.id, update.message.from_user.id, update.message.chat.id, -1, update.message.message_id, delete_message_delay=5*60)
 
                                 db_session.close()
 
