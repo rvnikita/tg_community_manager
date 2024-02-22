@@ -355,8 +355,7 @@ async def tg_ai_spam_check(update, context):
             if text:
                 # Call the completion_create function with the prepared prompt
                 prompt = [
-                    {"role": "system", "content": "Act like a spam detecting machine."},
-                    {"role": "user", "content": f"{config['ANTISPAM']['PROMPT']}.\n\nText to test: '{text}'"}
+                    {"role": "user", "content": f"{config['ANTISPAM']['PROMPT']} '{text}'"}
                 ]
 
                 response = await openai_helper.chat_completion_create(prompt)
