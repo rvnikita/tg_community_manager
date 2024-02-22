@@ -265,6 +265,101 @@ async def delete_message(bot, chat_id: int, message_id: int, delay_seconds: int 
     except Exception as e:
         logger.error(f"Error: {traceback.format_exc()}")
 
+async def schedule_message_deletion(chat_id, user_id, message_id, reply_to_message_id=None, delay_hours=2):
+    try:
+        with db_helper.session_scope() as db_session:
+            from datetime import datetime, timedelta
+
+            scheduled_deletion_time = datetime.utcnow() + timedelta(hours=delay_hours)
+            new_deletion = db_helper.Message_Deletion(
+                chat_id=chat_id,
+                user_id=user_id,
+                message_id=message_id,
+                reply_to_message_id=reply_to_message_id,
+                status='scheduled',
+                scheduled_deletion_time=scheduled_deletion_time
+            )
+            db_session.add(new_deletion)
+            db_session.commit()
+            logger.info(f"Scheduled message {message_id} for deletion at {scheduled_deletion_time}")
+            return True
+    except Exception as e:
+        logger.error(f"Error scheduling message {message_id} for deletion: {traceback.format_exc()}")
+        return False
+
+
+async def delete_scheduled_messages(bot, chat_id=None, user_id=None, message_id=None):
+    """
+    Delete scheduled messages based on given criteria.
+
+    :param bot: Bot instance to perform message deletions.
+    :param chat_id: Chat ID from where messages should be deleted (can be None).
+    :param user_id: User ID whose messages should be deleted (can be None).
+    :param message_id: Specific message ID to delete (can be None).
+    """
+    try:
+        with db_helper.session_scope() as db_session:
+            # Build the query based on provided criteria
+            query = db_session.query(db_helper.Message_Deletion).filter(db_helper.Message_Deletion.status == 'scheduled')
+
+            if chat_id is not None:
+                query = query.filter(db_helper.Message_Deletion.chat_id == chat_id)
+            if user_id is not None:
+                query = query.filter(db_helper.Message_Deletion.user_id == user_id)
+            if message_id is not None:
+                query = query.filter(db_helper.Message_Deletion.message_id == message_id)
+
+            # Execute the query
+            messages = query.all()
+
+            for message in messages:
+                try:
+                    await bot.delete_message(message.chat_id, message.message_id)
+                    message.status = 'deleted'  # Update the status to 'deleted' after successful deletion
+                    logger.info(f"Deleted scheduled message {message.message_id} in chat {message.chat_id} for user {message.user_id}")
+                except Exception as e:
+                    logger.error(f"Failed to delete scheduled message {message.message_id} in chat {message.chat_id} for user {message.user_id}: {e}")
+
+            db_session.commit()
+            return True
+    except Exception as e:
+        logger.error(f"Error deleting scheduled messages based on criteria: {traceback.format_exc()}")
+        return False
+
+
+async def schedule_message_deletion(chat_id, user_id, message_id, reply_to_message_id=None, delay_seconds=None):
+    """
+    Schedule a message for deletion.
+
+    :param chat_id: Chat ID where the message exists.
+    :param user_id: User ID who sent the message.
+    :param message_id: ID of the message to be scheduled for deletion.
+    :param reply_to_message_id: ID of the message that this message is replying to.
+    :param delay_seconds: Seconds after which the message should be deleted. If None, no automatic deletion time is set.
+    """
+    try:
+        with db_helper.session_scope() as db_session:
+            from datetime import datetime, timedelta
+
+            scheduled_deletion_time = datetime.utcnow() + timedelta(seconds=delay_seconds) if delay_seconds is not None else None
+            new_deletion = db_helper.Message_Deletion(
+                chat_id=chat_id,
+                user_id=user_id,
+                message_id=message_id,
+                reply_to_message_id=reply_to_message_id,
+                status='scheduled',
+                scheduled_deletion_time=scheduled_deletion_time
+            )
+            db_session.add(new_deletion)
+            db_session.commit()
+            logger.info(f"Scheduled message {message_id} for deletion at {scheduled_deletion_time}" if delay_seconds is not None else f"Message {message_id} scheduled for deletion without a specific time")
+            return True
+    except Exception as e:
+        logger.error(f"Error scheduling message {message_id} for deletion: {traceback.format_exc()}")
+        return False
+
+
+
 async def get_chat_mention(bot, chat_id: int) -> str:
     try:
         # Fetch chat details from the Telegram API

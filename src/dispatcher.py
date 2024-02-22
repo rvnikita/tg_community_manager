@@ -82,7 +82,8 @@ async def tg_report(update, context):
         chat_id = update.effective_chat.id
         message = update.message
 
-        asyncio.create_task(chat_helper.delete_message(context.bot, chat_id, message.message_id, delay_seconds=120))
+        if message:
+            await chat_helper.schedule_message_deletion(chat_id, message.from_user.id, message.message_id, delay_seconds = 2*60*60)
 
         if not message or not message.reply_to_message:
             logger.info("Report command without a message to reply to.")
@@ -137,6 +138,7 @@ async def tg_report(update, context):
             await chat_helper.delete_message(context.bot, chat_id, reported_message_id)
             await chat_helper.send_message(context.bot, chat_id, f"User {reported_user_mention} has been banned due to {report_sum}/{number_of_reports_to_ban} reports.", delete_after=120)
             await chat_helper.send_message_to_admin(context.bot, chat_id, f"User {reported_user_mention} has been banned in chat {chat_mention} due to {report_sum}/{number_of_reports_to_ban} reports. \nReported message: {message.reply_to_message.text}")
+            await chat_helper.delete_scheduled_messages(chat_id, reply_to_user_id=reported_user_id) # delete all messages (reportings) from users who reported this user and this message
         elif report_sum >= number_of_reports_to_warn:
             await chat_helper.warn_user(context.bot, chat_id, reported_user_id)
             await chat_helper.mute_user(context.bot, chat_id, reported_user_id)

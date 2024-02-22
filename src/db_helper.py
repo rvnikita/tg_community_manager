@@ -161,6 +161,30 @@ class Chat(Base):
     user_statuses = relationship('User_Status', back_populates='chat')
     user_ratings = relationship('User_Rating', back_populates='chat')
 
+class Message_Deletion(Base):
+    __table_args__ = (
+        PrimaryKeyConstraint('id', name='message_deletion_pkey'),
+    )
+
+    id = Column(BigInteger, Identity(start=1, increment=1), primary_key=True)
+    chat_id = Column(BigInteger, ForeignKey('tg_chat.id'), nullable=False, index=True)
+    user_id = Column(BigInteger, ForeignKey('tg_user.id'), nullable=False, index=True)
+    message_id = Column(BigInteger, nullable=False, index=True)
+    reply_to_message_id = Column(BigInteger, nullable=True)  # This can be NULL if the message is not a reply
+    status = Column(String, nullable=False, server_default=text("'active'::character varying"))  # Default status is 'active', can be updated to 'resolved' or 'deleted'
+    added_at = Column(DateTime(True), server_default=text('now()'))  # Timestamp when the record is added to the database
+    message_posted_at = Column(DateTime(True), nullable=True)  # Timestamp when the message was originally posted
+    scheduled_deletion_time = Column(DateTime(True), nullable=True)  # Timestamp when the message is scheduled to be automatically deleted
+
+    # Relationships (optional, for easier ORM navigation)
+    chat = relationship('Chat', foreign_keys=[chat_id])
+    user = relationship('User', foreign_keys=[user_id])
+
+    def __repr__(self):
+        return f"<Message_Deletion(id={self.id}, chat_id={self.chat_id}, user_id={self.user_id}, message_id={self.message_id}, reply_to_message_id={self.reply_to_message_id}, status='{self.status}', added_at='{self.added_at}', message_posted_at='{self.message_posted_at}', scheduled_deletion_time='{self.scheduled_deletion_time}')>"
+
+
+
 class User_Rating(Base):
     __table_args__ = (
         PrimaryKeyConstraint('id', name='user_rating_pkey'),
