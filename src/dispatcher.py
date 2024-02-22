@@ -361,7 +361,7 @@ async def tg_ai_spam_check(update, context):
                 response = await openai_helper.chat_completion_create(prompt)
 
                 #let's log prompt for debugging
-                logger.info(f"Prompt: {prompt}")
+                #logger.info(f"Prompt: {prompt}")
 
                 # Assuming the response needs to be parsed to extract the spam rating
                 try:
