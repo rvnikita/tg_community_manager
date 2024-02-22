@@ -354,10 +354,15 @@ async def tg_ai_spam_check(update, context):
             text = message.text.strip()
             if text:
                 # Call the completion_create function with the prepared prompt
-                response = await openai_helper.chat_completion_create([
+                prompt = [
                     {"role": "system", "content": "Act like a spam detecting machine."},
                     {"role": "user", "content": f"{config['ANTISPAM']['PROMPT']}.\n\nText to test: '{text}'"}
-                ])
+                ]
+
+                response = await openai_helper.chat_completion_create(prompt)
+
+                #let's log prompt for debugging
+                logger.info(f"Prompt: {prompt}")
 
                 # Assuming the response needs to be parsed to extract the spam rating
                 try:
