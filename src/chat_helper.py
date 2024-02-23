@@ -144,6 +144,8 @@ async def send_message(bot, chat_id, text, reply_to_message_id = None, delete_af
     if delete_after is not None:
         asyncio.create_task(delete_message(bot, chat_id, message.message_id, delay_seconds=delete_after))
 
+    return message
+
 
 async def warn_user(bot, chat_id: int, user_id: int) -> None:
     # bot.send_message(chat_id, text=f"User {user_id} has been warned due to multiple reports.")
