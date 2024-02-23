@@ -140,7 +140,7 @@ async def tg_report(update, context):
             await chat_helper.send_message_to_admin(context.bot, chat_id, f"User {reported_user_mention} has been banned in chat {chat_mention} due to {report_sum}/{number_of_reports_to_ban} reports. \nReported message: {message.reply_to_message.text}")
 
             # now delete all messages from scheduled deletion with trigger_id = reported_message_id
-            await chat_helper.delete_scheduled_messages(chat_id, trigger_id = reported_message_id)
+            await chat_helper.delete_scheduled_messages(bot, chat_id, trigger_id = reported_message_id)
 
         elif report_sum >= number_of_reports_to_warn:
             await chat_helper.warn_user(context.bot, chat_id, reported_user_id)

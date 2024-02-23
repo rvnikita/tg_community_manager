@@ -290,7 +290,7 @@ async def schedule_message_deletion(chat_id, user_id, message_id, trigger_id=Non
         return False
 
 
-async def delete_scheduled_messages(bot, chat_id=None, user_id=None, message_id=None, trigger_id=None):
+async def delete_scheduled_messages(bot, chat_id=None, trigger_id=None, user_id=None, message_id=None):
     try:
         with db_helper.session_scope() as db_session:
             query = db_session.query(db_helper.Message_Deletion).filter(db_helper.Message_Deletion.status == 'scheduled')
