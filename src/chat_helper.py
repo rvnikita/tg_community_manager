@@ -290,7 +290,7 @@ async def schedule_message_deletion(chat_id, user_id, message_id, reply_to_messa
         return False
 
 
-async def delete_scheduled_messages(bot, chat_id=None, user_id=None, message_id=None):
+async def delete_scheduled_messages(bot, chat_id=None, user_id=None, message_id=None, reply_to_message_id=None):
     """
     Delete scheduled messages based on given criteria.
 
@@ -310,6 +310,8 @@ async def delete_scheduled_messages(bot, chat_id=None, user_id=None, message_id=
                 query = query.filter(db_helper.Message_Deletion.user_id == user_id)
             if message_id is not None:
                 query = query.filter(db_helper.Message_Deletion.message_id == message_id)
+            if reply_to_message_id is not None:
+                query = query.filter(db_helper.Message_Deletion.reply_to_message_id == reply_to_message_id)
 
             # Execute the query
             messages = query.all()
