@@ -168,7 +168,7 @@ class Message_Deletion(Base):
 
     id = Column(BigInteger, Identity(start=1, increment=1), primary_key=True)
     chat_id = Column(BigInteger, ForeignKey('tg_chat.id'), nullable=False, index=True)
-    user_id = Column(BigInteger, ForeignKey('tg_user.id'), nullable=False, index=True)
+    user_id = Column(BigInteger, ForeignKey('tg_user.id'), nullable=True, index=True)
     message_id = Column(BigInteger, nullable=False, index=True)
     trigger_id = Column(BigInteger, nullable=True)  # Associates the message with a specific event or trigger
     status = Column(String, nullable=False, server_default=text("'active'::character varying"))  # Default status is 'active', can be updated to 'resolved' or 'deleted'
