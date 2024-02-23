@@ -321,7 +321,7 @@ async def delete_scheduled_messages(bot, chat_id=None, user_id=None, message_id=
         return False
 
 
-async def schedule_message_deletion(chat_id, user_id, message_id, trigger_id = None, delay_seconds=None):
+async def schedule_message_deletion(chat_id, message_id, user_id = None, trigger_id = None, delay_seconds=None):
     """
     Schedule a message for deletion.
 

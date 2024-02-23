@@ -91,7 +91,7 @@ async def tg_report(update, context):
         reporting_user_id = message.from_user.id
 
         if message:
-            await chat_helper.schedule_message_deletion(chat_id, message.from_user.id, trigger_id = reported_message_id, delay_seconds = 2*60*60) #use reported_message_id as trigger_id
+            await chat_helper.schedule_message_deletion(chat_id,  message.message_id, message.from_user.id, trigger_id = reported_message_id, delay_seconds = 2*60*60) #use reported_message_id as trigger_id
 
         chat_administrators = await context.bot.get_chat_administrators(chat_id)
         if any(admin.user.id == reported_user_id for admin in chat_administrators):
@@ -148,8 +148,8 @@ async def tg_report(update, context):
             await chat_helper.send_message(context.bot, chat_id, f"User {reported_user_mention} has been warned and muted due to {report_sum}/{number_of_reports_to_ban} reports.", reply_to_message_id=reported_message_id, delete_after=120)
             await chat_helper.send_message_to_admin(context.bot, chat_id, f"User {reported_user_mention} has been warned and muted in chat {chat_mention} due to {report_sum}/{number_of_reports_to_ban} reports. \nReported message: {message.reply_to_message.text}")
         else:
-            await chat_helper.send_message(context.bot, chat_id, f"User {reported_user_mention} has been reported {report_sum}/{number_of_reports_to_ban} times.")
-            await chat_helper.schedule_message_deletion(chat_id, trigger_id = reported_message_id, delay_seconds = 2*60*60)
+            user_has_been_reported_message = await chat_helper.send_message(context.bot, chat_id, f"User {reported_user_mention} has been reported {report_sum}/{number_of_reports_to_ban} times.")
+            await chat_helper.schedule_message_deletion(chat_id, message_id = user_has_been_reported_message.message_id, user_id=reported_user_id, trigger_id=reported_message_id)
 
 
 
