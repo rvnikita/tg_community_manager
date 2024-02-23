@@ -170,7 +170,7 @@ class Message_Deletion(Base):
     chat_id = Column(BigInteger, ForeignKey('tg_chat.id'), nullable=False, index=True)
     user_id = Column(BigInteger, ForeignKey('tg_user.id'), nullable=False, index=True)
     message_id = Column(BigInteger, nullable=False, index=True)
-    reply_to_message_id = Column(BigInteger, nullable=True)  # This can be NULL if the message is not a reply
+    trigger_id = Column(BigInteger, nullable=True)  # Associates the message with a specific event or trigger
     status = Column(String, nullable=False, server_default=text("'active'::character varying"))  # Default status is 'active', can be updated to 'resolved' or 'deleted'
     added_at = Column(DateTime(True), server_default=text('now()'))  # Timestamp when the record is added to the database
     message_posted_at = Column(DateTime(True), nullable=True)  # Timestamp when the message was originally posted
