@@ -82,9 +82,6 @@ async def tg_report(update, context):
         chat_id = update.effective_chat.id
         message = update.message
 
-        if message:
-            await chat_helper.schedule_message_deletion(chat_id, message.from_user.id, message.message_id, delay_seconds = 2*60*60)
-
         if not message or not message.reply_to_message:
             logger.info("Report command without a message to reply to.")
             return
@@ -92,6 +89,9 @@ async def tg_report(update, context):
         reported_message_id = message.reply_to_message.message_id
         reported_user_id = message.reply_to_message.from_user.id
         reporting_user_id = message.from_user.id
+
+        if message:
+            await chat_helper.schedule_message_deletion(chat_id, message.from_user.id, trigger_id = reported_message_id, delay_seconds = 2*60*60) #use reported_message_id as trigger_id
 
         chat_administrators = await context.bot.get_chat_administrators(chat_id)
         if any(admin.user.id == reported_user_id for admin in chat_administrators):
@@ -138,14 +138,21 @@ async def tg_report(update, context):
             await chat_helper.delete_message(context.bot, chat_id, reported_message_id)
             await chat_helper.send_message(context.bot, chat_id, f"User {reported_user_mention} has been banned due to {report_sum}/{number_of_reports_to_ban} reports.", delete_after=120)
             await chat_helper.send_message_to_admin(context.bot, chat_id, f"User {reported_user_mention} has been banned in chat {chat_mention} due to {report_sum}/{number_of_reports_to_ban} reports. \nReported message: {message.reply_to_message.text}")
-            await chat_helper.delete_scheduled_messages(chat_id, reply_to_user_id=reported_user_id) # delete all messages (reportings) from users who reported this user and this message
+
+            # now delete all messages from scheduled deletion with trigger_id = reported_message_id
+            await chat_helper.delete_scheduled_messages(chat_id, trigger_id = reported_message_id)
+
         elif report_sum >= number_of_reports_to_warn:
             await chat_helper.warn_user(context.bot, chat_id, reported_user_id)
             await chat_helper.mute_user(context.bot, chat_id, reported_user_id)
             await chat_helper.send_message(context.bot, chat_id, f"User {reported_user_mention} has been warned and muted due to {report_sum}/{number_of_reports_to_ban} reports.", reply_to_message_id=reported_message_id, delete_after=120)
             await chat_helper.send_message_to_admin(context.bot, chat_id, f"User {reported_user_mention} has been warned and muted in chat {chat_mention} due to {report_sum}/{number_of_reports_to_ban} reports. \nReported message: {message.reply_to_message.text}")
         else:
-            await chat_helper.send_message(context.bot, chat_id, f"User {reported_user_mention} has been reported {report_sum}/{number_of_reports_to_ban} times.", delete_after=120)
+            await chat_helper.send_message(context.bot, chat_id, f"User {reported_user_mention} has been reported {report_sum}/{number_of_reports_to_ban} times.")
+            await chat_helper.schedule_message_deletion(chat_id, trigger_id = reported_message_id, delay_seconds = 2*60*60)
+
+
+
     except Exception as error:
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
         logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
