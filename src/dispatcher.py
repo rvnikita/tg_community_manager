@@ -39,6 +39,22 @@ bot = Bot(config['BOT']['KEY'],
 
 ########################
 
+async def tg_help(update, context):
+    try:
+        # just return all commands we support as a reply
+        chat_id = update.effective_chat.id
+        message = update.message
+
+        commands = [
+            "/report - report a message, should be used as a reply to a message",
+            "/pin - pin a message, should be used as a reply to a message",
+            "/unpin - unpin a message, should be used as a reply to a message",
+            "/help - show this message"
+        ]
+
+        await chat_helper.send_message(bot, chat_id, "Supported commands:\n" + "\n".join(commands), reply_to_message_id=message.message_id, delete_after=5 * 60)
+
+
 async def tg_report_reset(update, context):
     try:
         with db_helper.session_scope() as db_session:
@@ -420,6 +436,13 @@ async def tg_ai_spam_check(update, context):
                 if spam_rating >= 8:  # Assuming a rating of 10 or more is considered spam
                     await chat_helper.send_message(context.bot, message.chat_id, "It appears to be spam. If that is the case, please respond to the original message with the command /report ", reply_to_message_id=message.message_id, delete_after = 300)
                     logger.info(f"❗ANTISPAM. Chat name {message.chat.title} | Chat ID: {message.chat_id} | Message from: {message.from_user.username} | Message ID: {message.message_id} | Detected spam.")
+
+    except Exception as error:
+        update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
+        logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
+
+
+
 
     except Exception as error:
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
