@@ -363,9 +363,9 @@ async def pin_message(bot, chat_id, message_id):
     except Exception as e:
         logger.error(f"Error pinning message {message_id} in chat {chat_id}: {traceback.format_exc()}")
 
-async def unpin_message(bot, chat_id):
+async def unpin_message(bot, chat_id, message_id):
     try:
-        await bot.unpin_all_chat_messages(chat_id)
+        await bot.unpin_chat_message(chat_id, message_id)
     except BadRequest as e:
         if "message to unpin not found" in e.message:
             logger.info(f"Message to unpin not found in chat {chat_id}")

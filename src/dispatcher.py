@@ -204,7 +204,7 @@ async def tg_unpin(update, context):
         message = update.message
         user_mention = user_helper.get_user_mention(message.from_user.id)
 
-        await chat_helper.unpin_message(bot, chat_id)
+        await chat_helper.unpin_message(bot, chat_id, message.reply_to_message.message_id)
         await chat_helper.send_message(bot, chat_id, f"Message unpinned by {user_mention}.", delete_after = 120, reply_to_message_id=message.reply_to_message.message_id)
         logger.info(f"Message unpinned by {user_mention} in chat {chat_id}.")
 
