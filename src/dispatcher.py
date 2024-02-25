@@ -749,6 +749,8 @@ class BotManager:
             self.application.add_handler(CommandHandler(['pin', 'p'], tg_pin, filters.ChatType.SUPERGROUP), group=9)
             self.application.add_handler(CommandHandler(['unpin', 'up'], tg_unpin, filters.ChatType.SUPERGROUP), group=9)
 
+            self.application.add_handler(CommandHandler(['help', 'h'], tg_help), group=10)
+
             # Set up the graceful shutdown mechanism
             signal.signal(signal.SIGTERM, self.signal_handler)
 
