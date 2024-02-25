@@ -352,6 +352,28 @@ async def schedule_message_deletion(chat_id, message_id, user_id = None, trigger
         logger.error(f"Error scheduling message {message_id} for deletion: {traceback.format_exc()}")
         return False
 
+async def pin_message(bot, chat_id, message_id):
+    try:
+        await bot.pin_chat_message(chat_id, message_id)
+    except BadRequest as e:
+        if "message to pin not found" in e.message:
+            logger.info(f"Message with ID {message_id} in chat {chat_id} not found or already deleted.")
+        else:
+            logger.error(f"BadRequest Error: {e}. Traceback: {traceback.format_exc()}")
+    except Exception as e:
+        logger.error(f"Error pinning message {message_id} in chat {chat_id}: {traceback.format_exc()}")
+
+async def unpin_message(bot, chat_id):
+    try:
+        await bot.unpin_all_chat_messages(chat_id)
+    except BadRequest as e:
+        if "message to unpin not found" in e.message:
+            logger.info(f"Message to unpin not found in chat {chat_id}")
+        else:
+            logger.error(f"BadRequest Error: {e}. Traceback: {traceback.format_exc()}")
+    except Exception as e:
+        logger.error(f"Error unpinning messages in chat {chat_id}: {traceback.format_exc()}")
+
 
 
 async def get_chat_mention(bot, chat_id: int) -> str:

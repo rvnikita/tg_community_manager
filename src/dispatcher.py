@@ -157,6 +157,41 @@ async def tg_report(update, context):
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
         logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
 
+
+async def tg_pin(update, context):
+    try:
+        chat_id = update.effective_chat.id
+        message = update.message
+        user_mention = user_helper.get_user_mention(message.from_user.id)
+
+        if not message.reply_to_message:
+            await chat_helper.send_message(bot, chat_id, "Reply to a message to pin it.", reply_to_message_id=message.message_id, delete_after = 120)
+            return
+
+        await chat_helper.pin_message(bot, chat_id, message.reply_to_message.message_id)
+        await chat_helper.send_message(bot, chat_id, f"Message pinned by {user_mention}.", delete_after = 120, reply_to_message_id=message.reply_to_message.message_id)
+        logger.info(f"Message pinned by {user_mention} in chat {chat_id}.")
+
+
+
+    except Exception as error:
+        update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
+        logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
+
+async def tg_unpin(update, context):
+    try:
+        chat_id = update.effective_chat.id
+        message = update.message
+        user_mention = user_helper.get_user_mention(message.from_user.id)
+
+        await chat_helper.unpin_message(bot, chat_id)
+        await chat_helper.send_message(bot, chat_id, f"Message unpinned by {user_mention}.", delete_after = 120, reply_to_message_id=message.reply_to_message.message_id)
+        logger.info(f"Message unpinned by {user_mention} in chat {chat_id}.")
+
+    except Exception as error:
+        update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
+        logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
+
 async def tg_warn(update, context):
     try:
         chat_id = update.effective_chat.id
@@ -692,6 +727,9 @@ class BotManager:
             self.application.add_handler(MessageHandler(filters.TEXT | filters.Document.ALL, tg_spam_check), group=7)
 
             self.application.add_handler(MessageHandler(filters.TEXT, tg_ai_spam_check), group=8)
+
+            self.application.add_handler(CommandHandler(['pin', 'p'], tg_pin, filters.ChatType.SUPERGROUP), group=9)
+            self.application.add_handler(CommandHandler(['unpin', 'up'], tg_unpin, filters.ChatType.SUPERGROUP), group=9)
 
             # Set up the graceful shutdown mechanism
             signal.signal(signal.SIGTERM, self.signal_handler)
