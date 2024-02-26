@@ -71,9 +71,9 @@ async def change_rating(user_id_or_ids, judge_id, chat_id, change_value, message
 
             # Decide the message format based on the number of user_ids
             if len(user_ids) == 1:
-                text_to_send = f"{judge_mention} ({judge_total_rating}) {messages[0]}"
+                text_to_send = f"{judge_mention} {messages[0]}"
             else:
-                text_to_send = f"{judge_mention} ({judge_total_rating}) has:\n" + '\n'.join(messages)
+                text_to_send = f"{judge_mention} has:\n" + '\n'.join(messages)
 
             if announce:
                 if message_id is None:
