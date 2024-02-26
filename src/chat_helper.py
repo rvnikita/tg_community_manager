@@ -376,7 +376,7 @@ async def unpin_message(bot, chat_id, message_id):
 
 
 
-async def get_chat_mention(bot, chat_id: int) -> str:
+def get_chat_mention(bot, chat_id: int) -> str:
     try:
         # Fetch chat details from the Telegram API
         chat_details = await bot.get_chat(chat_id)
