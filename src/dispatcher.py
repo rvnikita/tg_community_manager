@@ -143,11 +143,11 @@ async def tg_report(update, context):
         number_of_reports_to_warn = int(chat_helper.get_chat_config(chat_id, 'number_of_reports_to_warn'))
         number_of_reports_to_ban = int(chat_helper.get_chat_config(chat_id, 'number_of_reports_to_ban'))
 
-        reported_user_mention = user_helper.get_user_mention(reported_user_id)
+        reported_user_mention = user_helper.get_user_mention(reported_user_id, chat_id)
         chat_mention = await chat_helper.get_chat_mention(context.bot, chat_id)
 
-        await chat_helper.send_message_to_admin(context.bot, chat_id, f"User {reported_user_mention} has been reported by {user_helper.get_user_mention(reporting_user_id)} in chat {chat_mention} {report_sum}/{number_of_reports_to_ban} times.\nReported message: {message.reply_to_message.text}")
-        logger.info(f"User {reported_user_id} has been reported by {user_helper.get_user_mention(reporting_user_id)} in chat {chat_id} {report_sum}/{number_of_reports_to_ban} times. Reported message: {message.reply_to_message.text}")
+        await chat_helper.send_message_to_admin(context.bot, chat_id, f"User {reported_user_mention} has been reported by {user_helper.get_user_mention(reporting_user_id, chat_id)} in chat {chat_mention} {report_sum}/{number_of_reports_to_ban} times.\nReported message: {message.reply_to_message.text}")
+        logger.info(f"User {reported_user_id} has been reported by {user_helper.get_user_mention(reporting_user_id, chat_id)} in chat {chat_id} {report_sum}/{number_of_reports_to_ban} times. Reported message: {message.reply_to_message.text}")
 
         if report_sum >= number_of_reports_to_ban:
             # let's now increase rating for all users who reported this user
@@ -183,7 +183,7 @@ async def tg_pin(update, context):
     try:
         chat_id = update.effective_chat.id
         message = update.message
-        user_mention = user_helper.get_user_mention(message.from_user.id)
+        user_mention = user_helper.get_user_mention(message.from_user.id, chat_id)
 
         if not message.reply_to_message:
             await chat_helper.send_message(bot, chat_id, "Reply to a message to pin it.", reply_to_message_id=message.message_id, delete_after = 120)
@@ -203,7 +203,7 @@ async def tg_unpin(update, context):
     try:
         chat_id = update.effective_chat.id
         message = update.message
-        user_mention = user_helper.get_user_mention(message.from_user.id)
+        user_mention = user_helper.get_user_mention(message.from_user.id, chat_id)
 
         await chat_helper.unpin_message(bot, chat_id, message.reply_to_message.message_id)
         await chat_helper.send_message(bot, chat_id, f"Message unpinned by {user_mention}.", delete_after = 120, reply_to_message_id=message.reply_to_message.message_id)
@@ -255,7 +255,7 @@ async def tg_warn(update, context):
             if warn_count >= number_of_reports_to_ban:
                 await chat_helper.delete_message(bot, chat_id, warned_message_id)
                 await chat_helper.ban_user(bot, chat_id, warned_user_id)
-                warned_user_mention = user_helper.get_user_mention(warned_user_id)
+                warned_user_mention = user_helper.get_user_mention(warned_user_id, chat_id)
                 await chat_helper.send_message(bot, chat_id, f"User {warned_user_mention} has been banned due to {warn_count} warnings.", delete_after=120)
                 await chat_helper.send_message_to_admin(bot, chat_id, f"User {warned_user_mention} has been banned in chat {await chat_helper.get_chat_mention(bot, chat_id)} due to {warn_count}/{number_of_reports_to_ban} warnings.")
 
@@ -271,8 +271,8 @@ async def tg_warn(update, context):
 
                 return
 
-            warned_user_mention = user_helper.get_user_mention(warned_user_id)
-            warning_admin_mention = user_helper.get_user_mention(message.from_user.id)
+            warned_user_mention = user_helper.get_user_mention(warned_user_id, chat_id)
+            warning_admin_mention = user_helper.get_user_mention(message.from_user.id, chat_id)
 
             await chat_helper.send_message(bot, chat_id, f"{warned_user_mention}, you've been warned {warn_count}/{number_of_reports_to_ban} times. Reason: {reason}", reply_to_message_id=warned_message_id)
             await chat_helper.delete_message(bot, chat_id, warned_message_id)
@@ -328,7 +328,7 @@ async def tg_ban(update, context):
             # Ban the user
             await chat_helper.ban_user(bot, chat_id, ban_user_id)
 
-            await chat_helper.send_message(bot, chat_id, f"User {user_helper.get_user_mention(ban_user_id)} has been banned.", delete_after=120)
+            await chat_helper.send_message(bot, chat_id, f"User {user_helper.get_user_mention(ban_user_id, chat_id)} has been banned.", delete_after=120)
 
     except Exception as error:
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
@@ -472,7 +472,7 @@ async def tg_spam_check(update, context):
                             # Ban the user for using a filtered language
                             await chat_helper.delete_message(bot, message.chat.id, message.message_id)
                             await chat_helper.ban_user(bot, message.chat.id, message.from_user.id, reason=f"Filtered language used. Message {message.text}. Chat: {await chat_helper.get_chat_mention(bot, message.chat.id)}", global_ban=True)
-                            await chat_helper.send_message(bot, message.chat.id, f"User {user_helper.get_user_mention(message.from_user.id)} has been banned based on language filter. - {lang}", delete_after=120)
+                            await chat_helper.send_message(bot, message.chat.id, f"User {user_helper.get_user_mention(message.from_user.id, message.chat.id)} has been banned based on language filter. - {lang}", delete_after=120)
                             return  # exit the function as the user has already been banned
                     except langdetect.lang_detect_exception.LangDetectException as e:
                         if "No features in text." in str(e):
@@ -485,7 +485,7 @@ async def tg_spam_check(update, context):
                     # Ban the user for sending an APK file
                     await chat_helper.delete_message(bot, message.chat.id, message.message_id)
                     await chat_helper.ban_user(bot, message.chat.id, message.from_user.id, reason=f"APK file uploaded. Chat: {await chat_helper.get_chat_mention(bot, message.chat.id)}", global_ban=True)
-                    await chat_helper.send_message(bot, message.chat.id, f"User {user_helper.get_user_mention(message.from_user.id)} has been banned for uploading an APK file.", delete_after=120)
+                    await chat_helper.send_message(bot, message.chat.id, f"User {user_helper.get_user_mention(message.from_user.id, message.chat.id)} has been banned for uploading an APK file.", delete_after=120)
                     return  # exit the function as the user has already been banned
 
     except Exception as error:

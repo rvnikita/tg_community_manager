@@ -1,35 +1,47 @@
 import src.db_helper as db_helper
 import src.logging_helper as logging
 import src.cache_helper as cache_helper
+import src.rating_helper as rating_helper
 
 from sqlalchemy.dialects.postgresql import insert
 import traceback
 
 logger = logging.get_logger()
 
-def get_user_mention(user_id: int) -> str:
-    with db_helper.session_scope() as db_session:
+def get_user_mention(user_id: int, chat_id: int = None) -> str:
+    try:
+        with db_helper.session_scope() as db_session:
+            user = db_session.query(db_helper.User).filter_by(id=user_id).first()
+            if user is None:
+                return str(user_id)
+            else:
+                # This part constructs the user mention string based on the available user information.
+                # Output table for different user input combinations:
+                #   First name | Last name | Username   | ID   | `user_mention`
+                # --------------|-----------|------------|------|------------------------------
+                #   "Nikita"    | "Rvachev" | "rvnikita" | 123  | "Nikita Rvachev - @rvnikita"
+                #   "Nikita"    | "Rvachev" | None       | 123  | "Nikita Rvachev"
+                #   None        | None      | "rvnikita" | 123  | "@rvnikita"
+                #   "Nikita"    | None      | "rvnikita" | 123  | "Nikita - @rvnikita"
+                #   None        | "Rvachev" | "rvnikita" | 123  | "Rvachev - @rvnikita"
+                #   "Nikita"    | None      | None       | 123  | "Nikita"
+                #   None        | "Rvachev" | None       | 123  | "Rvachev"
+                #   None        | None      | None       | 123  | "123"
+                name_parts = [user.first_name, user.last_name, "@" + user.username if user.username else None]
+                user_mention = ' - '.join(filter(None, name_parts)) or str(user_id)
 
-        user = db_session.query(db_helper.User).filter_by(id=user_id).first()
+                # If chat_id is provided, attempt to fetch and append the user's total rating
+                if chat_id is not None:
+                    user_total_rating = rating_helper.get_rating(user_id, chat_id)
+                    if user_total_rating is not None:
+                        user_mention += f" ({user_total_rating})"
 
-        if user is None:
-            return str(user_id)
-        else:
-            # This lines was written by GPT-4 to generate desirable output for different user input combinations:
-            # Output table for different user input combinations:
-            #   First name | Last name | Username   | ID   | `user_mention`
-            # --------------|-----------|------------|------|------------------------------
-            #   "Nikita"    | "Rvachev" | "rvnikita" | 123  | "Nikita Rvachev - @rvnikita"
-            #   "Nikita"    | "Rvachev" | None       | 123  | "Nikita Rvachev"
-            #   None        | None      | "rvnikita" | 123  | "@rvnikita"
-            #   "Nikita"    | None      | "rvnikita" | 123  | "Nikita - @rvnikita"
-            #   None        | "Rvachev" | "rvnikita" | 123  | "Rvachev - @rvnikita"
-            #   "Nikita"    | None      | None       | 123  | "Nikita"
-            #   None        | "Rvachev" | None       | 123  | "Rvachev"
-            #   None        | None      | None       | 123  | "123"
-            return ', '.join(filter(bool, [
-                f"{user.first_name} {user.last_name} - @{user.username}" if user.first_name and user.last_name and user.username else f"{user.first_name} {user.last_name}" if user.first_name and user.last_name else f"@{user.username}" if user.username else str(
-                    user.id)]))
+            return user_mention
+
+    except Exception as e:
+        logger.error(f"Error generating mention for user_id {user_id}: {traceback.format_exc()}")
+        return str(user_id)  # In case of error, return the user_id as the mention
+
 
 def db_upsert_user(user_id, chat_id, username, last_message_datetime, first_name=None, last_name=None):
     try:

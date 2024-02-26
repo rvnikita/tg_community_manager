@@ -54,7 +54,7 @@ async def change_rating(user_id_or_ids, judge_id, chat_id, change_value, message
                 else:
                     rating_action = "not changed"
 
-                user_mention = user_helper.get_user_mention(user_id)
+                user_mention = user_helper.get_user_mention(user_id, chat_id)
                 messages.append(f"{rating_action} reputation of {user_mention} ({user_total_rating + change_value})")
 
                 user_rating = db_helper.User_Rating(user_id=user_id, chat_id=chat_id, judge_id=judge_id, change_value=change_value)
@@ -67,7 +67,7 @@ async def change_rating(user_id_or_ids, judge_id, chat_id, change_value, message
                 db_helper.User_Rating.chat_id == chat_id)
             judge_total_rating = judge_total_rating_query.scalar() or 0
 
-            judge_mention = user_helper.get_user_mention(judge_id)
+            judge_mention = user_helper.get_user_mention(judge_id, chat_id)
 
             # Decide the message format based on the number of user_ids
             if len(user_ids) == 1:
