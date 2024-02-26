@@ -53,6 +53,7 @@ async def tg_help(update, context):
         ]
 
         await chat_helper.send_message(bot, chat_id, "Supported commands:\n" + "\n".join(commands), reply_to_message_id=message.message_id, delete_after=5 * 60)
+        await chat_helper.schedule_message_deletion(chat_id, message.message_id, message.from_user.id, delay_seconds=5*60)
 
     except Exception as error:
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
