@@ -86,6 +86,7 @@ async def change_rating(user_id_or_ids, judge_id, chat_id, change_value, message
     except Exception as e:
         logger.error(f"Error changing rating: {traceback.format_exc()}")
 
+
 def get_rating(user_id, chat_id):
     try:
         with db_helper.session_scope() as db_session:
@@ -94,17 +95,20 @@ def get_rating(user_id, chat_id):
                 logger.error(f"Chat {chat_id} not found.")
                 return None  # Handle error: chat not found
 
-            # Query to get the total rating for the user in the specified chat
-            user_total_rating_query = db_session.query(func.sum(db_helper.User_Rating.change_value)).filter(
-                db_helper.User_Rating.user_id == user_id,
-                db_helper.User_Rating.chat_id == chat_id)
+            # Check if there is a group_id associated with the chat
+            if chat.group_id is not None:
+                # Get ratings for all chats in the group
+                user_total_rating_query = db_session.query(func.sum(db_helper.User_Rating.change_value)).join(db_helper.Chat, db_helper.User_Rating.chat_id == db_helper.Chat.id).filter(db_helper.User_Rating.user_id == user_id, db_helper.Chat.group_id == chat.group_id)
+            else:
+                # Get the total rating for the user in the specified chat
+                user_total_rating_query = db_session.query(func.sum(db_helper.User_Rating.change_value)).filter(db_helper.User_Rating.user_id == user_id, db_helper.User_Rating.chat_id == chat_id)
 
             user_total_rating = user_total_rating_query.scalar() or 0
             return user_total_rating
 
     except Exception as e:
         logger.error(f"Error fetching rating for user_id {user_id}: {traceback.format_exc()}")
-        return None # Return None if there is an error
+        return None  # Return None if there is an error
 
 
 
