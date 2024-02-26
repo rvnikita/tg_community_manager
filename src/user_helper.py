@@ -13,6 +13,7 @@ def get_user_mention(user_id: int, chat_id: int = None) -> str:
         with db_helper.session_scope() as db_session:
             user = db_session.query(db_helper.User).filter_by(id=user_id).first()
             if user is None:
+                # If the user is not found, return the user ID as a string.
                 return str(user_id)
             else:
                 # This part constructs the user mention string based on the available user information.
@@ -27,20 +28,30 @@ def get_user_mention(user_id: int, chat_id: int = None) -> str:
                 #   "Nikita"    | None      | None       | 123  | "Nikita"
                 #   None        | "Rvachev" | None       | 123  | "Rvachev"
                 #   None        | None      | None       | 123  | "123"
-                name_parts = [user.first_name, user.last_name, "@" + user.username if user.username else None]
-                user_mention = ' - '.join(filter(None, name_parts)) or str(user_id)
+                parts = [user.first_name, user.last_name]  # Start with possible first and last name
+                full_name = ' '.join(filter(None, parts))  # Combine them with a space, filter out None values
+                if full_name and user.username:
+                    user_mention = f"{full_name} - @{user.username}"
+                elif user.username:
+                    user_mention = f"@{user.username}"
+                elif full_name:
+                    user_mention = full_name
+                else:
+                    user_mention = str(user.id)
 
                 # If chat_id is provided, attempt to fetch and append the user's total rating
                 if chat_id is not None:
                     user_total_rating = rating_helper.get_rating(user_id, chat_id)
                     if user_total_rating is not None:
+                        # Append the total rating to the user mention string if available.
                         user_mention += f" ({user_total_rating})"
 
             return user_mention
 
     except Exception as e:
+        # Log the error and return the user_id as the mention in case of an error.
         logger.error(f"Error generating mention for user_id {user_id}: {traceback.format_exc()}")
-        return str(user_id)  # In case of error, return the user_id as the mention
+        return str(user_id)
 
 
 def db_upsert_user(user_id, chat_id, username, last_message_datetime, first_name=None, last_name=None):
