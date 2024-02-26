@@ -86,7 +86,7 @@ async def change_rating(user_id_or_ids, judge_id, chat_id, change_value, message
     except Exception as e:
         logger.error(f"Error changing rating: {traceback.format_exc()}")
 
-async def get_rating(user_id, chat_id):
+def get_rating(user_id, chat_id):
     try:
         with db_helper.session_scope() as db_session:
             chat = db_session.query(db_helper.Chat).filter(db_helper.Chat.id == chat_id).first()

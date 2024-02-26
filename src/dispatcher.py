@@ -119,7 +119,7 @@ async def tg_report(update, context):
             await chat_helper.send_message(context.bot, chat_id, "You cannot report an admin.", delete_after=120)
             return
 
-        reporting_user_rating = await rating_helper.get_rating(reporting_user_id, chat_id)
+        reporting_user_rating = rating_helper.get_rating(reporting_user_id, chat_id)
         user_rating_to_power_ratio = int(chat_helper.get_chat_config(chat_id, 'user_rating_to_power_ratio', default=0))
         report_power = 1 if user_rating_to_power_ratio == 0 else max(1, reporting_user_rating // user_rating_to_power_ratio)
 
