@@ -32,7 +32,7 @@ def get_user_mention(user_id: int, chat_id: int = None) -> str:
 
                 # If chat_id is provided, attempt to fetch and append the user's total rating
                 if chat_id is not None:
-                    user_total_rating = rating_helper.get_rating(user_id, chat_id)
+                    user_total_rating = await rating_helper.get_rating(user_id, chat_id)
                     if user_total_rating is not None:
                         user_mention += f" ({user_total_rating})"
 
