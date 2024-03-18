@@ -407,8 +407,11 @@ async def tg_gban(update, context):
 #TODO: MEDIUM: May be we need to make it more complicated (e.g. with ai embeddings) and move big part of it to separate auto_deply_helper
 async def tg_auto_reply(update, context):
     try:
-        chat_id = update.effective_chat.id
-        message_text = update.message.text.lower()
+        if update.message and update.message.text:  # Check if the message and its text exist
+            chat_id = update.effective_chat.id
+            message_text = update.message.text.lower()  # Continue with the rest of your function...
+        else:
+            return  # Skip processing if there's no text message
 
         # Fetch auto replies that are not currently delayed
         auto_replies = await chat_helper.get_auto_replies(chat_id, filter_delayed=True)
