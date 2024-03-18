@@ -31,3 +31,12 @@ def set_key(key, value, expire=None):
         # logger.info(f"Set key {key} in cache with value {value} and expiration {expire_at}")
     except Exception as e:
         logger.error(f"Failed to set key {key} in cache: {e}")
+
+def delete_key(key):
+    try:
+        # Check if the key exists and remove it
+        if key in cache:
+            del cache[key]
+            logger.info(f"Deleted key {key} from cache.")
+    except Exception as e:
+        logger.error(f"Failed to delete key {key} from cache: {e}")
