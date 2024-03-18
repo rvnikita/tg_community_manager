@@ -11,10 +11,11 @@ import json
 import asyncio
 
 from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.sql import func, or_
 
 from telegram import ChatPermissions
 from telegram.error import BadRequest, TelegramError
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import traceback
 import re
 
@@ -418,3 +419,51 @@ async def get_chat_mention(bot, chat_id: int) -> str:
 
             return f"{chat.chat_name} - {chat.invite_link}"
 
+
+async def get_auto_replies(chat_id, filter_delayed=False):
+    """
+    Fetch auto-reply settings for a specific chat, optionally filtering out replies that are currently delayed.
+    """
+    try:
+        cache_key = f"auto_replies:{chat_id}:{filter_delayed}"
+        auto_replies = cache_helper.get_key(cache_key)
+
+        if auto_replies:
+            return json.loads(auto_replies)  # Deserialize JSON string back into Python object
+
+        with db_helper.session_scope() as db_session:
+            if filter_delayed:
+                current_time = datetime.now(timezone.utc)
+                auto_replies = db_session.query(db_helper.Auto_Reply).filter(db_helper.Auto_Reply.chat_id == chat_id, or_(db_helper.Auto_Reply.last_reply_time == None, func.extract('epoch', func.now() - db_helper.Auto_Reply.last_reply_time) > db_helper.Auto_Reply.reply_delay)).all()
+            else:
+                auto_replies = db_session.query(db_helper.Auto_Reply).filter(
+                    db_helper.Auto_Reply.chat_id == chat_id
+                ).all()
+
+            auto_replies_list = [{'id': ar.id, 'trigger': ar.trigger, 'reply': ar.reply, 'reply_delay': ar.reply_delay, 'last_reply_time': ar.last_reply_time.isoformat() if ar.last_reply_time else None} for ar in auto_replies]
+            cache_helper.set_key(cache_key, json.dumps(auto_replies_list), expire=3600)
+            return auto_replies_list
+    except Exception as e:
+        logger.error(f"Error fetching auto replies for chat_id {chat_id}: {traceback.format_exc()}")
+        return []
+
+async def update_last_reply_time(chat_id, auto_reply_id, new_time):
+    """
+    Update the timestamp of the last auto-reply sent for a specific trigger in a chat.
+    """
+    try:
+        with db_helper.session_scope() as db_session:
+            auto_reply = db_session.query(db_helper.Auto_Reply).filter(
+                db_helper.Auto_Reply.chat_id == chat_id,
+                db_helper.Auto_Reply.id == auto_reply_id
+            ).one_or_none()
+
+            if auto_reply:
+                auto_reply.last_reply_time = new_time
+                db_session.commit()
+                cache_helper.delete_key(f"auto_replies:{chat_id}:True")
+                cache_helper.delete_key(f"auto_replies:{chat_id}:False")
+                return True
+    except Exception as e:
+        logger.error(f"Error updating last reply time for chat_id {chat_id} and auto_reply_id {auto_reply_id}: {traceback.format_exc()}")
+        return False

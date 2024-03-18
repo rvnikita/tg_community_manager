@@ -257,6 +257,19 @@ class Report(Base):
     created_at = Column(DateTime(True), server_default=text('now()'))
     reason = Column(String, nullable=True)
 
+class Auto_Reply(Base):
+    __table_args__ = (
+        PrimaryKeyConstraint('id', name='auto_reply_pkey'),
+    )
+
+    id = Column(BigInteger, Identity(start=1, increment=1), primary_key=True)
+    chat_id = Column(BigInteger, ForeignKey('tg_chat.id'), nullable=False)
+    trigger = Column(Text, nullable=False)
+    reply = Column(Text, nullable=False)
+    last_reply_time = Column(DateTime(True), nullable=True)  # To ensure delay between replies
+    reply_delay = Column(Integer, nullable=True)  # Delay in seconds
+
+
 db_engine = create_engine(f"postgresql://{config['DB']['DB_USER']}:{config['DB']['DB_PASSWORD']}@{config['DB']['DB_HOST']}:{config['DB']['DB_PORT']}/{config['DB']['DB_DATABASE']}",
                           pool_size = 10,
                           max_overflow = 20)

@@ -12,7 +12,7 @@ from telegram import Bot
 from telegram.ext import Application, MessageHandler, CommandHandler, filters, ChatJoinRequestHandler
 from telegram.request import HTTPXRequest
 from telegram.error import TelegramError
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import openai
 import traceback
 import re
@@ -20,6 +20,7 @@ import asyncio
 import signal
 import sys
 import json
+from re import findall
 
 from langdetect import detect
 import langdetect
@@ -402,6 +403,33 @@ async def tg_gban(update, context):
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
         logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
 
+
+#TODO: MEDIUM: May be we need to make it more complicated (e.g. with ai embeddings) and move big part of it to separate auto_deply_helper
+async def tg_auto_reply(update, context):
+    try:
+        chat_id = update.effective_chat.id
+        message_text = update.message.text.lower()
+
+        # Fetch auto replies that are not currently delayed
+        auto_replies = await chat_helper.get_auto_replies(chat_id, filter_delayed=True)
+
+        # Extract whole words from the message using regular expression.
+        message_words = set(findall(r'\b\w+\b', message_text))
+
+        for auto_reply in auto_replies:
+            # Decode the JSON-encoded list of triggers
+            triggers = json.loads(auto_reply['trigger'].lower())
+
+            # Check if any of the triggers is a whole word in the message text
+            if any(findall(r'\b' + re.escape(trigger) + r'\b', message_text) for trigger in triggers):
+                # Send the auto-reply message and update the last reply time
+                await chat_helper.send_message(context.bot, chat_id, auto_reply['reply'], reply_to_message_id=update.message.message_id)
+                await chat_helper.update_last_reply_time(chat_id, auto_reply['id'], datetime.now(timezone.utc))
+                logger.info(f"Auto-reply sent in chat {chat_id} for triggers '{', '.join(triggers)}': {auto_reply['reply']}")  # If you still want multiple replies remove the break  # break
+
+    except Exception as error:
+        logger.error(f"tg_auto_reply error: {traceback.format_exc()}")
+
 async def tg_ai_spam_check(update, context):
     try:
         message = update.message if update.message else update.edited_message
@@ -751,6 +779,8 @@ class BotManager:
             self.application.add_handler(CommandHandler(['unpin', 'up'], tg_unpin, filters.ChatType.SUPERGROUP), group=9)
 
             self.application.add_handler(CommandHandler(['help', 'h'], tg_help), group=10)
+
+            self.application.add_handler(MessageHandler(filters.TEXT, tg_auto_reply), group=11)
 
             # Set up the graceful shutdown mechanism
             signal.signal(signal.SIGTERM, self.signal_handler)
