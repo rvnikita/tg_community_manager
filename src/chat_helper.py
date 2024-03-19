@@ -492,7 +492,10 @@ async def update_last_reply_time_and_increment_count(chat_id, auto_reply_id, new
 
             if auto_reply:
                 auto_reply.last_reply_time = new_time
-                auto_reply.usage_count += 1  # Increment the usage count
+                if auto_reply.usage_count is None:
+                    auto_reply.usage_count = 1  # Initialize it if it's null
+                else:
+                    auto_reply.usage_count += 1  # Otherwise, increment it
                 db_session.commit()
                 cache_helper.delete_key(f"auto_replies:{chat_id}:True")
                 cache_helper.delete_key(f"auto_replies:{chat_id}:False")
