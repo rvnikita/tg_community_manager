@@ -427,7 +427,7 @@ async def tg_auto_reply(update, context):
             if any(findall(r'\b' + re.escape(trigger) + r'\b', message_text) for trigger in triggers):
                 # Send the auto-reply message and update the last reply time
                 await chat_helper.send_message(context.bot, chat_id, auto_reply['reply'], reply_to_message_id=update.message.message_id)
-                await chat_helper.update_last_reply_time(chat_id, auto_reply['id'], datetime.now(timezone.utc))
+                await chat_helper.update_last_reply_time_and_increment_count(chat_id, auto_reply['id'], datetime.now(timezone.utc))
                 logger.info(f"Auto-reply sent in chat {chat_id} for triggers '{', '.join(triggers)}': {auto_reply['reply']}")  # If you still want multiple replies remove the break  # break
 
     except Exception as error:

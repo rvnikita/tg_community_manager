@@ -268,6 +268,7 @@ class Auto_Reply(Base):
     reply = Column(Text, nullable=False)
     last_reply_time = Column(DateTime(True), nullable=True)  # To ensure delay between replies
     reply_delay = Column(Integer, nullable=True)  # Delay in seconds
+    usage_count = Column(Integer, default=0)  # New column to track usage count
 
 class Scheduled_Message(Base):
     __table_args__ = (

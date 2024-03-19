@@ -480,10 +480,7 @@ async def get_auto_replies(chat_id, filter_delayed=False):
         logger.error(f"Error fetching auto replies for chat_id {chat_id}: {traceback.format_exc()}")
         return []
 
-async def update_last_reply_time(chat_id, auto_reply_id, new_time):
-    """
-    Update the timestamp of the last auto-reply sent for a specific trigger in a chat.
-    """
+async def update_last_reply_time_and_increment_count(chat_id, auto_reply_id, new_time):
     try:
         with db_helper.session_scope() as db_session:
             auto_reply = db_session.query(db_helper.Auto_Reply).filter(
@@ -493,10 +490,11 @@ async def update_last_reply_time(chat_id, auto_reply_id, new_time):
 
             if auto_reply:
                 auto_reply.last_reply_time = new_time
+                auto_reply.usage_count += 1  # Increment the usage count
                 db_session.commit()
                 cache_helper.delete_key(f"auto_replies:{chat_id}:True")
                 cache_helper.delete_key(f"auto_replies:{chat_id}:False")
                 return True
     except Exception as e:
-        logger.error(f"Error updating last reply time for chat_id {chat_id} and auto_reply_id {auto_reply_id}: {traceback.format_exc()}")
+        logger.error(f"Error updating last reply time for chat_id {chat_id}, auto_reply_id {auto_reply_id}, and incrementing usage count: {traceback.format_exc()}")
         return False
