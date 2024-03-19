@@ -154,6 +154,7 @@ async def send_scheduled_messages(bot):
 
             # TODO: MED: Better to rewrite so we don't have to fetch all messages, but only the ones that are due to be sent
             potential_messages_to_send = db_session.query(db_helper.Scheduled_Message).filter(
+                db_helper.Scheduled_Message.active == True,
                 or_(db_helper.Scheduled_Message.time_of_the_day == None, db_helper.Scheduled_Message.time_of_the_day <= current_time),
                 or_(db_helper.Scheduled_Message.day_of_the_week == None, db_helper.Scheduled_Message.day_of_the_week == current_day_of_week),
                 or_(db_helper.Scheduled_Message.day_of_the_month == None, db_helper.Scheduled_Message.day_of_the_month == current_day_of_month)

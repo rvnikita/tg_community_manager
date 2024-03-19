@@ -282,6 +282,7 @@ class Scheduled_Message(Base):
     time_of_the_day = Column(Time, nullable=True)  # Specific time of day to send the message
     day_of_the_week = Column(Integer, nullable=True)  # Day of the week to send the message (0=Sunday, 6=Saturday)
     day_of_the_month = Column(Integer, nullable=True)  # Day of the month to send the message (1-31)
+    active = Column(Boolean, default=True, nullable=False)  # Whether the scheduled message is active
 
     def __repr__(self):
         return f"<ScheduledMessage(id={self.id}, chat_id={self.chat_id}, message='{self.message[:20]}...', frequency_seconds={self.frequency_seconds}, time_of_the_day={self.time_of_the_day}, day_of_the_week={self.day_of_the_week}, day_of_the_month={self.day_of_the_month})>"
