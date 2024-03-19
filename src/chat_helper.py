@@ -163,9 +163,12 @@ async def send_scheduled_messages(bot):
             for message in potential_messages_to_send:
                 if message.last_sent is None or now >= message.last_sent + timedelta(seconds=message.frequency_seconds):
                     # Send the message
-                    await chat_helper.send_message(bot, message.chat_id, message.message)
-                    # Update 'last_sent' to now
-                    message.last_sent = now
+                    try:
+                        await chat_helper.send_message(bot, message.chat_id, message.message)
+                        # Update 'last_sent' to now
+                        message.last_sent = now
+                    except Exception as e:
+                        logger.error(f"Error sending scheduled message: {traceback.format_exc()}")
 
             db_session.commit()
 
