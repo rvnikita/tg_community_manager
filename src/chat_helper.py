@@ -9,6 +9,7 @@ import configparser
 import os
 import json
 import asyncio
+import pytz
 
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.sql import func, or_
@@ -147,7 +148,8 @@ async def send_message(bot, chat_id, text, reply_to_message_id = None, delete_af
 async def send_scheduled_messages(bot):
     try:
         with db_helper.session_scope() as db_session:
-            now = datetime.now()
+            # Ensure 'now' is timezone-aware, assuming UTC
+            now = datetime.now(pytz.utc)
             current_day_of_week = now.weekday()  # Monday is 0 and Sunday is 6
             current_day_of_month = now.day
             current_time = now.time()
@@ -165,13 +167,13 @@ async def send_scheduled_messages(bot):
             for message in potential_messages_to_send:
                 logger.info(f"send_scheduled_messages: Checking message: {message.id} - {message.message}")
 
-                if message.last_sent is None or now >= message.last_sent + timedelta(seconds=message.frequency_seconds):
+                # Ensure comparison between timezone-aware datetimes
+                if message.last_sent is None or now >= message.last_sent.replace(tzinfo=pytz.utc) + timedelta(seconds=message.frequency_seconds):
                     logger.info(f"send_scheduled_messages: Sending message: {message.id} - {message.message}")
-                    # Send the message
+                    # Send the message and update 'last_sent' to now
                     try:
                         await chat_helper.send_message(bot, message.chat_id, message.message)
-                        # Update 'last_sent' to now
-                        message.last_sent = now
+                        message.last_sent = now  # Assuming 'last_sent' should also be stored as UTC
                     except Exception as e:
                         logger.error(f"Error sending scheduled message: {traceback.format_exc()}")
 
