@@ -160,8 +160,13 @@ async def send_scheduled_messages(bot):
                 or_(db_helper.Scheduled_Message.day_of_the_month == None, db_helper.Scheduled_Message.day_of_the_month == current_day_of_month)
             ).all()
 
+            logger.info(f"send_scheduled_messages: Found {len(potential_messages_to_send)} potential messages to send.")
+
             for message in potential_messages_to_send:
+                logger.info(f"send_scheduled_messages: Checking message: {message.id} - {message.message}")
+
                 if message.last_sent is None or now >= message.last_sent + timedelta(seconds=message.frequency_seconds):
+                    logger.info(f"send_scheduled_messages: Sending message: {message.id} - {message.message}")
                     # Send the message
                     try:
                         await chat_helper.send_message(bot, message.chat_id, message.message)
