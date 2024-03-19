@@ -1,7 +1,7 @@
 import src.logging_helper as logging_helper
 import src.config_helper as config_helper
 
-from sqlalchemy import create_engine, BigInteger, Boolean, Column, DateTime, Identity, Integer, JSON, PrimaryKeyConstraint, String, Text, UniqueConstraint, text, ForeignKey, Index
+from sqlalchemy import create_engine, BigInteger, Boolean, Column, DateTime, Identity, Integer, JSON, PrimaryKeyConstraint, String, Text, UniqueConstraint, text, ForeignKey, Index, Time
 from sqlalchemy.orm import Session, DeclarativeBase, declared_attr, relationship
 from sqlalchemy.sql.sqltypes import NullType
 from sqlalchemy.orm import sessionmaker
@@ -268,6 +268,24 @@ class Auto_Reply(Base):
     reply = Column(Text, nullable=False)
     last_reply_time = Column(DateTime(True), nullable=True)  # To ensure delay between replies
     reply_delay = Column(Integer, nullable=True)  # Delay in seconds
+
+class Scheduled_Message(Base):
+    __table_args__ = (
+        PrimaryKeyConstraint('id', name='scheduled_message_pkey'),
+    )
+
+    id = Column(BigInteger, Identity(start=1, increment=1), primary_key=True)
+    chat_id = Column(BigInteger, ForeignKey('tg_chat.id'), nullable=False)
+    message = Column(Text, nullable=False)
+    frequency_seconds = Column(Integer, nullable=False)  # Base frequency for message sending, in seconds
+    last_sent = Column(DateTime(True), nullable=True)  # Timestamp of when the message was last sent
+    time_of_the_day = Column(Time, nullable=True)  # Specific time of day to send the message
+    day_of_the_week = Column(Integer, nullable=True)  # Day of the week to send the message (0=Sunday, 6=Saturday)
+    day_of_the_month = Column(Integer, nullable=True)  # Day of the month to send the message (1-31)
+
+    def __repr__(self):
+        return f"<ScheduledMessage(id={self.id}, chat_id={self.chat_id}, message='{self.message[:20]}...', frequency_seconds={self.frequency_seconds}, time_of_the_day={self.time_of_the_day}, day_of_the_week={self.day_of_the_week}, day_of_the_month={self.day_of_the_month})>"
+
 
 
 db_engine = create_engine(f"postgresql://{config['DB']['DB_USER']}:{config['DB']['DB_PASSWORD']}@{config['DB']['DB_HOST']}:{config['DB']['DB_PORT']}/{config['DB']['DB_DATABASE']}",

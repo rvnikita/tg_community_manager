@@ -126,10 +126,6 @@ async def set_last_admin_permissions_check(chat_id, timestamp):
         logger.error(f"Error updating last admin permissions check for chat_id {chat_id}: {traceback.format_exc()}")
         return False
 
-
-
-
-
 async def send_message(bot, chat_id, text, reply_to_message_id = None, delete_after = None, disable_web_page_preview = True):
     """
     Send a message and optionally delete it after a specified delay.
@@ -146,6 +142,34 @@ async def send_message(bot, chat_id, text, reply_to_message_id = None, delete_af
         asyncio.create_task(delete_message(bot, chat_id, message.message_id, delay_seconds=delete_after))
 
     return message
+
+
+async def send_scheduled_messages(bot):
+    try:
+        with db_helper.session_scope() as db_session:
+            now = datetime.now()
+            current_day_of_week = now.weekday()  # Monday is 0 and Sunday is 6
+            current_day_of_month = now.day
+            current_time = now.time()
+
+            # TODO: MED: Better to rewrite so we don't have to fetch all messages, but only the ones that are due to be sent
+            potential_messages_to_send = db_session.query(db_helper.Scheduled_Message).filter(
+                or_(db_helper.Scheduled_Message.time_of_the_day == None, db_helper.Scheduled_Message.time_of_the_day <= current_time),
+                or_(db_helper.Scheduled_Message.day_of_the_week == None, db_helper.Scheduled_Message.day_of_the_week == current_day_of_week),
+                or_(db_helper.Scheduled_Message.day_of_the_month == None, db_helper.Scheduled_Message.day_of_the_month == current_day_of_month)
+            ).all()
+
+            for message in potential_messages_to_send:
+                if message.last_sent is None or now >= message.last_sent + timedelta(seconds=message.frequency_seconds):
+                    # Send the message
+                    await chat_helper.send_message(bot, message.chat_id, message.message)
+                    # Update 'last_sent' to now
+                    message.last_sent = now
+
+            db_session.commit()
+
+    except Exception as error:
+        logger.error(f"Error while fetching and sending scheduled messages: {traceback.format_exc()}")
 
 
 async def warn_user(bot, chat_id: int, user_id: int) -> None:
