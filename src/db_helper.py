@@ -167,8 +167,8 @@ class Message_Deletion(Base):
     )
 
     id = Column(BigInteger, Identity(start=1, increment=1), primary_key=True)
-    chat_id = Column(BigInteger, ForeignKey('tg_chat.id'), nullable=False, index=True)
-    user_id = Column(BigInteger, ForeignKey('tg_user.id'), nullable=True, index=True)
+    chat_id = Column(BigInteger, ForeignKey(Chat.__table__.c.id, ondelete='CASCADE', onupdate='CASCADE'), nullable=False, index=True)
+    user_id = Column(BigInteger, ForeignKey(User.__table__.c.id, ondelete='CASCADE', onupdate='CASCADE'), nullable=True, index=True)
     message_id = Column(BigInteger, nullable=False, index=True)
     trigger_id = Column(BigInteger, nullable=True)  # Associates the message with a specific event or trigger
     status = Column(String, nullable=False, server_default=text("'active'::character varying"))  # Default status is 'active', can be updated to 'resolved' or 'deleted'
@@ -263,13 +263,13 @@ class SpamReportLog(Base):
 
     id = Column(BigInteger, autoincrement=True, primary_key=True)
     message_content = Column(Text)
-    user_id = Column(BigInteger, ForeignKey('tg_user.id'), nullable=False)
+    user_id = Column(BigInteger, ForeignKey(User.__table__.c.id), nullable=False)
     user_nickname = Column(Text)
     user_current_rating = Column(Integer)
-    chat_id = Column(BigInteger, ForeignKey('tg_chat.id'), nullable=False)
+    chat_id = Column(BigInteger, ForeignKey(Chat.__table__.c.id), nullable=False)
     message_timestamp = Column(DateTime(timezone=True), server_default=func.now())
     action_type = Column(Text)
-    admin_id = Column(BigInteger, ForeignKey('tg_user.id'), nullable=True)
+    admin_id = Column(BigInteger, ForeignKey(User.__table__.c.id), nullable=True)
     admin_nickname = Column(Text, nullable=True)
     reason_for_action = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -288,7 +288,7 @@ class Auto_Reply(Base):
     )
 
     id = Column(BigInteger, Identity(start=1, increment=1), primary_key=True)
-    chat_id = Column(BigInteger, ForeignKey('tg_chat.id'), nullable=False)
+    chat_id = Column(BigInteger, ForeignKey(Chat.__table__.c.id), nullable=False)
     trigger = Column(Text, nullable=False)
     reply = Column(Text, nullable=False)
     last_reply_time = Column(DateTime(True), nullable=True)  # To ensure delay between replies
@@ -301,7 +301,7 @@ class Scheduled_Message(Base):
     )
 
     id = Column(BigInteger, Identity(start=1, increment=1), primary_key=True)
-    chat_id = Column(BigInteger, ForeignKey('tg_chat.id'), nullable=False)
+    chat_id = Column(BigInteger, ForeignKey(Chat.__table__.c.id), nullable=False)
     message = Column(Text, nullable=False)
     frequency_seconds = Column(Integer, nullable=False)  # Base frequency for message sending, in seconds
     last_sent = Column(DateTime(True), nullable=True)  # Timestamp of when the message was last sent
