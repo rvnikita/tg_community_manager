@@ -2,7 +2,7 @@ import src.logging_helper as logging_helper
 import src.config_helper as config_helper
 
 from sqlalchemy import create_engine, BigInteger, Boolean, Column, DateTime, Identity, Integer, JSON, PrimaryKeyConstraint, String, Text, UniqueConstraint, text, ForeignKey, Index, Time
-from sqlalchemy.orm import Session, DeclarativeBase, declared_attr, relationship
+from sqlalchemy.orm import Session, DeclarativeBase, declared_attr, relationship, backref
 from sqlalchemy.sql.sqltypes import NullType
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import func
@@ -257,6 +257,31 @@ class Report(Base):
     created_at = Column(DateTime(True), server_default=text('now()'))
     reason = Column(String, nullable=True)
 
+
+class SpamReportLog(Base):
+    __table_args__ = (PrimaryKeyConstraint('id', name='spam_report_log_pkey'),)
+
+    id = Column(BigInteger, autoincrement=True, primary_key=True)
+    message_content = Column(Text)
+    user_id = Column(BigInteger, ForeignKey('tg_user.id'), nullable=False)
+    user_nickname = Column(Text)
+    user_current_rating = Column(Integer)
+    chat_id = Column(BigInteger, ForeignKey('tg_chat.id'), nullable=False)
+    message_timestamp = Column(DateTime(timezone=True), server_default=func.now())
+    action_type = Column(Text)
+    admin_id = Column(BigInteger, ForeignKey('tg_user.id'), nullable=True)
+    admin_nickname = Column(Text, nullable=True)
+    reason_for_action = Column(Text)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User", foreign_keys=[user_id], backref=backref("spam_report_logs", cascade="all, delete-orphan"))
+    chat = relationship("Chat", foreign_keys=[chat_id], backref=backref("spam_report_logs", cascade="all, delete-orphan"))
+    admin = relationship("User", foreign_keys=[admin_id], backref="admin_spam_reports")
+
+    def __repr__(self):
+        return f"<SpamReportLog(id={self.id}, user_id={self.user_id}, chat_id={self.chat_id}, action_type='{self.action_type}', created_at={self.created_at})>"
+
+
 class Auto_Reply(Base):
     __table_args__ = (
         PrimaryKeyConstraint('id', name='auto_reply_pkey'),
@@ -287,6 +312,8 @@ class Scheduled_Message(Base):
 
     def __repr__(self):
         return f"<ScheduledMessage(id={self.id}, chat_id={self.chat_id}, message='{self.message[:20]}...', frequency_seconds={self.frequency_seconds}, time_of_the_day={self.time_of_the_day}, day_of_the_week={self.day_of_the_week}, day_of_the_month={self.day_of_the_month})>"
+
+
 
 
 
