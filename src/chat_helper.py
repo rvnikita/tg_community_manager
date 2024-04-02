@@ -165,7 +165,7 @@ async def send_scheduled_messages(bot):
             logger.info(f"send_scheduled_messages: Found {len(potential_messages_to_send)} potential messages to send.")
 
             for message in potential_messages_to_send:
-                logger.info(f"send_scheduled_messages: Checking message: {message.id} - {message.message}")
+                # logger.info(f"send_scheduled_messages: Checking message: {message.id} - {message.message}")
 
                 # Ensure comparison between timezone-aware datetimes
                 if message.last_sent is None or now >= message.last_sent.replace(tzinfo=pytz.utc) + timedelta(seconds=message.frequency_seconds):
