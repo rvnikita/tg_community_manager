@@ -1,10 +1,10 @@
+from sqlalchemy.dialects.postgresql import insert
+import traceback
+
 import src.db_helper as db_helper
 import src.logging_helper as logging
 import src.cache_helper as cache_helper
 import src.rating_helper as rating_helper
-
-from sqlalchemy.dialects.postgresql import insert
-import traceback
 
 logger = logging.get_logger()
 

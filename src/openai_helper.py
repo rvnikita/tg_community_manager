@@ -1,14 +1,15 @@
 from openai import AsyncOpenAI
-
-import openai
-import src.logging_helper as logging_helper
-import src.config_helper as config_helper
-
 import psycopg2
 import psycopg2.extras
 import configparser
 import traceback
 import asyncio
+import openai
+
+import src.logging_helper as logging_helper
+import src.config_helper as config_helper
+
+
 
 config = config_helper.get_config()
 

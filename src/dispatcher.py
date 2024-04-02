@@ -1,12 +1,3 @@
-import src.logging_helper as logging
-import src.openai_helper as openai_helper
-import src.chat_helper as chat_helper
-import src.db_helper as db_helper
-import src.config_helper as config_helper
-import src.user_helper as user_helper
-import src.rating_helper as rating_helper
-import src.reporting_helper as reporting_helper
-
 import os
 from telegram import Bot
 from telegram.ext import Application, MessageHandler, CommandHandler, filters, ChatJoinRequestHandler
@@ -24,6 +15,17 @@ from re import findall
 
 from langdetect import detect
 import langdetect
+
+import src.logging_helper as logging
+import src.openai_helper as openai_helper
+import src.chat_helper as chat_helper
+import src.db_helper as db_helper
+import src.config_helper as config_helper
+import src.user_helper as user_helper
+import src.rating_helper as rating_helper
+import src.reporting_helper as reporting_helper
+
+
 
 
 from datetime import datetime

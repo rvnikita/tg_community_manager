@@ -1,6 +1,9 @@
-import src.db_helper as db_helper
 from sqlalchemy import func
+from datetime import datetime
+
+import src.db_helper as db_helper
 import src.logging_helper as logging
+
 
 logger = logging.get_logger()
 
@@ -19,6 +22,28 @@ async def add_report(reported_user_id, reporting_user_id, reported_message_id, c
             return True
     except Exception as e:
         logger.error(f"Error adding report: {e}")
+        return False
+
+async def log_spam_report(user_id, user_nickname, user_current_rating, chat_id, action_type, admin_id, admin_nickname, reason_for_action):
+    try:
+        with db_helper.session_scope() as db_session:
+            spam_report_log = db_helper.SpamReportLog(
+                message_content="",
+                user_id=user_id,
+                user_nickname=user_nickname,
+                user_current_rating=user_current_rating,
+                chat_id=chat_id,
+                message_timestamp=datetime.now(),
+                action_type=action_type,
+                admin_id=admin_id,
+                admin_nickname=admin_nickname,
+                reason_for_action=reason_for_action
+            )
+            db_session.add(spam_report_log)
+            db_session.commit()
+            return True
+    except Exception as e:
+        logger.error(f"Error logging spam report: {e}")
         return False
 
 async def calculate_cumulative_report_power(chat_id, reported_user_id):
