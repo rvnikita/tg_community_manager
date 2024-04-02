@@ -269,8 +269,8 @@ class SpamReportLog(Base):
     chat_id = Column(BigInteger, ForeignKey(Chat.__table__.c.id), nullable=False)
     message_timestamp = Column(DateTime(timezone=True), server_default=func.now())
     action_type = Column(Text)
-    admin_id = Column(BigInteger, ForeignKey(User.__table__.c.id), nullable=True)
-    admin_nickname = Column(Text, nullable=True)
+    admin_id = Column(BigInteger, ForeignKey(User.__table__.c.id), nullable=True) #TODO:MED: maybe it should be not admin, but reporting user (as it could be not admin)
+    admin_nickname = Column(Text, nullable=True) #TODO:MED: maybe it should be not admin, but reporting user (as it could be not admin)
     reason_for_action = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
