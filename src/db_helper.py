@@ -258,7 +258,7 @@ class Report(Base):
     reason = Column(String, nullable=True)
 
 
-class SpamReportLog(Base):
+class Spam_Report_Log(Base):
     __table_args__ = (PrimaryKeyConstraint('id', name='spam_report_log_pkey'),)
 
     id = Column(BigInteger, autoincrement=True, primary_key=True)
@@ -279,7 +279,7 @@ class SpamReportLog(Base):
     admin = relationship("User", foreign_keys=[admin_id], backref="admin_spam_reports")
 
     def __repr__(self):
-        return f"<SpamReportLog(id={self.id}, user_id={self.user_id}, chat_id={self.chat_id}, action_type='{self.action_type}', created_at={self.created_at})>"
+        return f"<Spam_Report_Log(id={self.id}, user_id={self.user_id}, chat_id={self.chat_id}, action_type='{self.action_type}', created_at={self.created_at})>"
 
 
 class Auto_Reply(Base):
