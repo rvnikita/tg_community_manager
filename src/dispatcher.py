@@ -343,6 +343,19 @@ async def tg_ban(update, context):
             # Ban the user
             await chat_helper.ban_user(bot, chat_id, ban_user_id)
 
+            # Log the ban action
+            await reporting_helper.log_spam_report(
+                ban_user_id,
+                user_helper.get_user_mention(ban_user_id, chat_id),
+                rating_helper.get_rating(ban_user_id, chat_id),
+                chat_id,
+                message.reply_to_message.text,
+                "ban",
+                message.from_user.id,
+                user_helper.get_user_mention(message.from_user.id, chat_id),
+                f"User {user_helper.get_user_mention(ban_user_id, chat_id)} was banned in chat {await chat_helper.get_chat_mention(bot, chat_id)}. Reason: {message.text}")
+
+
             await chat_helper.send_message(bot, chat_id, f"User {user_helper.get_user_mention(ban_user_id, chat_id)} has been banned.", delete_after=120)
 
     except Exception as error:
@@ -413,6 +426,19 @@ async def tg_gban(update, context):
 
             # Ban the user and add them to the banned_users table
             await chat_helper.ban_user(bot, ban_chat_id, ban_user_id, True, reason=ban_reason)
+
+            # Log the ban action
+            await reporting_helper.log_spam_report(
+                ban_user_id,
+                user_helper.get_user_mention(ban_user_id, chat_id),
+                rating_helper.get_rating(ban_user_id, chat_id),
+                chat_id,
+                message.reply_to_message.text,
+                "gban",
+                message.from_user.id,
+                user_helper.get_user_mention(message.from_user.id, chat_id),
+                ban_reason)
+
     except Exception as error:
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
         logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
