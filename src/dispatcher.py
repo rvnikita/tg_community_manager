@@ -255,12 +255,27 @@ async def tg_warn(update, context):
 
             number_of_reports_to_ban = int(chat_helper.get_chat_config(chat_id, 'number_of_reports_to_ban'))
 
+            warned_user_mention = user_helper.get_user_mention(warned_user_id, chat_id)
+            warning_admin_mention = user_helper.get_user_mention(message.from_user.id, chat_id)
+
             if warn_count >= number_of_reports_to_ban:
                 await chat_helper.delete_message(bot, chat_id, warned_message_id)
                 await chat_helper.ban_user(bot, chat_id, warned_user_id)
                 warned_user_mention = user_helper.get_user_mention(warned_user_id, chat_id)
                 await chat_helper.send_message(bot, chat_id, f"User {warned_user_mention} has been banned due to {warn_count} warnings.", delete_after=120)
                 await chat_helper.send_message_to_admin(bot, chat_id, f"User {warned_user_mention} has been banned in chat {await chat_helper.get_chat_mention(bot, chat_id)} due to {warn_count}/{number_of_reports_to_ban} warnings.")
+
+                # Log the ban action
+                await reporting_helper.log_spam_report(
+                    warned_user_id,
+                    warned_user_mention,
+                    rating_helper.get_rating(warned_user_id, chat_id),
+                    chat_id,
+                    message.reply_to_message.text,
+                    "warn",
+                    message.from_user.id, # id of user who warned (even though it is not an admin)
+                    user_helper.get_user_mention(message.from_user.id, chat_id),
+                    f"{warning_admin_mention} warned {warned_user_mention} in chat {await chat_helper.get_chat_mention(bot, chat_id)}. Reason: {reason}. Total Warnings: {warn_count}/{number_of_reports_to_ban}")
 
                 reporting_user_ids = db_session.query(db_helper.Report.reporting_user_id).filter(
                     db_helper.Report.reported_user_id == warned_user_id,
@@ -273,9 +288,6 @@ async def tg_warn(update, context):
                     await rating_helper.change_rating(user_id, bot_info.id, chat_id, 1, delete_message_delay = 120)
 
                 return
-
-            warned_user_mention = user_helper.get_user_mention(warned_user_id, chat_id)
-            warning_admin_mention = user_helper.get_user_mention(message.from_user.id, chat_id)
 
             await chat_helper.send_message(bot, chat_id, f"{warned_user_mention}, you've been warned {warn_count}/{number_of_reports_to_ban} times. Reason: {reason}", reply_to_message_id=warned_message_id)
             await chat_helper.delete_message(bot, chat_id, warned_message_id)
