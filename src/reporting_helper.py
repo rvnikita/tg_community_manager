@@ -26,6 +26,8 @@ async def add_report(reported_user_id, reporting_user_id, reported_message_id, c
 
 async def log_spam_report(user_id, user_nickname, user_current_rating, chat_id, message_content, action_type, admin_id, admin_nickname, reason_for_action):
     try:
+        logger.info("Entered log_spam_report")
+
         with db_helper.session_scope() as db_session:
             spam_report_log = db_helper.Spam_Report_Log(
                 message_content=message_content,
