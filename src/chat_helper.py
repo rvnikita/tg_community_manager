@@ -97,6 +97,7 @@ def get_chat_config(chat_id=None, config_param=None, default=None):
                     return chat.config
             else: #let's return default value in case chat_id is not found
                 default_config_param_value = get_default_chat(config_param)
+                logger.info(f"Default config param {config_param} value: {default_config_param_value} for chat_id {chat_id}")
                 if default_config_param_value is not None:
                     chat.config[config_param] = default_config_param_value
                     db_session.commit()
