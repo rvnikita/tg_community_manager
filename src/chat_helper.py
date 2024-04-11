@@ -95,13 +95,12 @@ def get_chat_config(chat_id=None, config_param=None, default=None):
                 else:
                     cache_helper.set_key(cache_key, json.dumps(chat.config), expire=3600)  # Cache entire config
                     return chat.config
-            else: #let's return default value in case chat_id is not found
+            else:
+                # If chat_id is not found, handle accordingly without attempting to access attributes of None
                 default_config_param_value = get_default_chat(config_param)
-                logger.info(f"Default config param {config_param} value: {default_config_param_value} for chat_id {chat_id}")
                 if default_config_param_value is not None:
-                    chat.config[config_param] = default_config_param_value
-                    db_session.commit()
-                    cache_helper.set_key(cache_key, json.dumps(default_config_param_value), expire=3600)  # Cache result
+                    logger.info(f"Default config param {config_param} value: {default_config_param_value} for chat_id {chat_id}")
+                    # Optionally handle the situation where default values are to be set for non-existent chats differently here
                     return default_config_param_value
                 else:
                     return default  # Return the default value in case of any error
