@@ -95,9 +95,15 @@ def get_chat_config(chat_id=None, config_param=None, default=None):
                 else:
                     cache_helper.set_key(cache_key, json.dumps(chat.config), expire=3600)  # Cache entire config
                     return chat.config
-            else:
-                # Logic for handling chat configuration when chat_id is not found in the database
-                return default  # Return the default value when chat_id is not found
+            else: #let's return default value in case chat_id is not found
+                default_config_param_value = get_default_chat(config_param)
+                if default_config_param_value is not None:
+                    chat.config[config_param] = default_config_param_value
+                    db_session.commit()
+                    cache_helper.set_key(cache_key, json.dumps(default_config_param_value), expire=3600)  # Cache result
+                    return default_config_param_value
+                else:
+                    return default  # Return the default value in case of any error
         except Exception as e:
             logger.error(f"Error: {traceback.format_exc()}")
             return default  # Return the default value in case of any error
