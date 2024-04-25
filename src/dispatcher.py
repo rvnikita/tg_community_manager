@@ -876,8 +876,8 @@ class BotManager:
             self.application.add_handler(CommandHandler(['report', 'r'], tg_report, filters.ChatType.SUPERGROUP), group=4)
             self.application.add_handler(CommandHandler(['warn', 'w'], tg_warn, filters.ChatType.SUPERGROUP), group=4)
 
-            self.application.add_handler(CommandHandler(['set_rating', 'sr'], tg_set_rating, filters.ChatType.SUPERGROUP), group=4)
-            self.application.add_handler(CommandHandler(['set_report', 'ur'], tg_set_report(), filters.ChatType.SUPERGROUP), group=4)
+            self.application.add_handler(CommandHandler(['set_rating'], tg_set_rating, filters.ChatType.SUPERGROUP), group=4)
+            self.application.add_handler(CommandHandler(['set_report'], tg_set_report(), filters.ChatType.SUPERGROUP), group=4)
 
             # Add a handler for chat join requests
             self.application.add_handler(ChatJoinRequestHandler(tg_join_request), group=5)
