@@ -8,7 +8,7 @@ import src.rating_helper as rating_helper
 
 logger = logging.get_logger()
 
-async def get_user_id(username: str = None) -> db_helper.User:
+def get_user_id(username: str = None) -> db_helper.User:
     try:
         with db_helper.session_scope() as db_session:
             if username:

@@ -181,7 +181,7 @@ async def tg_set_report(update, context):
         elif command_parts[1].isdigit():  # Direct user ID input
             reported_user_id = int(command_parts[1])
         elif '@' in command_parts[1]:  # Username input
-            reported_user_id = await user_helper.get_user_id(username=command_parts[1][1:])
+            reported_user_id = user_helper.get_user_id(username=command_parts[1][1:])
             if reported_user_id is None:
                 await chat_helper.send_message(context.bot, chat_id, f"No user found with username {command_parts[1]}.", reply_to_message_id=message.message_id)
                 return
