@@ -181,10 +181,8 @@ async def tg_set_report(update, context):
         elif command_parts[1].isdigit():  # Direct user ID input
             reported_user_id = int(command_parts[1])
         elif '@' in command_parts[1]:  # Username input
-            reported_user = await user_helper.get_user(username=command_parts[1][1:])
-            if reported_user:
-                reported_user_id = reported_user.id
-            else:
+            reported_user_id = await user_helper.get_user_id(username=command_parts[1][1:])
+            if reported_user_id is None:
                 await chat_helper.send_message(context.bot, chat_id, f"No user found with username {command_parts[1]}.", reply_to_message_id=message.message_id)
                 return
         else:
@@ -663,10 +661,8 @@ async def tg_set_rating(update, context):
             if user_identifier.isdigit():
                 target_user_id = int(user_identifier)
             elif user_identifier.startswith('@'):
-                target_user = user_helper.get_user(username=user_identifier[1:])
-                if target_user:
-                    target_user_id = target_user.id
-                else:
+                target_user_id = user_helper.get_user_id(username=user_identifier[1:])
+                if target_user_id is None:
                     await chat_helper.send_message(context.bot, chat_id, f"No user found with username {user_identifier}.", reply_to_message_id=message.message_id)
                     return
             else:
@@ -707,10 +703,8 @@ async def tg_get_rating(update, context):
             if user_identifier.isdigit():
                 target_user_id = int(user_identifier)
             elif user_identifier.startswith('@'):
-                target_user = user_helper.get_user(username=user_identifier[1:])
-                if target_user:
-                    target_user_id = target_user.id
-                else:
+                target_user_id = user_helper.get_user_id(username=user_identifier[1:])
+                if target_user_id is None:
                     await chat_helper.send_message(context.bot, chat_id, f"No user found with username {user_identifier}.", reply_to_message_id=message.message_id)
                     return
             else:

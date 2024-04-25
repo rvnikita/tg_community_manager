@@ -1,5 +1,4 @@
 from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy.orm import joinedload
 import traceback
 
 import src.db_helper as db_helper
@@ -9,16 +8,11 @@ import src.rating_helper as rating_helper
 
 logger = logging.get_logger()
 
-def get_user(user_id: int = None, username: str = None) -> db_helper.User:
+async def get_user_id(username: str = None) -> db_helper.User:
     try:
         with db_helper.session_scope() as db_session:
-            query = db_session.query(db_helper.User)
-            if user_id:
-                # Use joinedload('*') to load all relationships of the User object
-                user = query.options(joinedload('*')).filter_by(id=user_id).first()
-            elif username:
-                # Use joinedload('*') to load all relationships of the User object
-                user = query.options(joinedload('*')).filter_by(username=username).first()
+            if username:
+                user = db_session.query(db_helper.User).filter_by(username=username).first()
             else:
                 return None
 
