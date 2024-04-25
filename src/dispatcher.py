@@ -203,8 +203,8 @@ async def tg_set_report(update, context):
     except ValueError:
         await chat_helper.send_message(context.bot, chat_id, "Invalid number for report count. Please specify an integer.", reply_to_message_id=message.message_id)
     except Exception as error:
-        logger.error(f"Error in tg_set_report: {error}")
-        await chat_helper.send_message(context.bot, chat_id, "An error occurred while processing the set report command.")
+        update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
+        logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
 
 
 async def tg_pin(update, context):
@@ -685,8 +685,8 @@ async def tg_set_rating(update, context):
     except ValueError:
         await chat_helper.send_message(context.bot, chat_id, "Invalid number for rating. Please specify an integer.", reply_to_message_id=message.message_id)
     except Exception as error:
-        logger.error(f"Error in tg_set_rating: {error}")
-        await chat_helper.send_message(context.bot, chat_id, "An error occurred while processing the set rating command.")
+        update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
+        logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
 
 async def tg_get_rating(update, context):
     try:
@@ -724,8 +724,8 @@ async def tg_get_rating(update, context):
         await chat_helper.send_message(context.bot, chat_id, f"Rating for user {user_mention} is {current_rating}.", reply_to_message_id=message.message_id)
 
     except Exception as error:
-        logger.error(f"Error in tg_get_rating: {error}")
-        await chat_helper.send_message(context.bot, chat_id, "An error occurred while processing the get rating command.")
+        update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
+        logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
 
 
 
