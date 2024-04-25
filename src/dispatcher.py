@@ -711,10 +711,9 @@ async def tg_get_rating(update, context):
                 await chat_helper.send_message(context.bot, chat_id, "Invalid format. Use /get_rating @username or /get_rating user_id.", reply_to_message_id=message.message_id)
                 return
 
-        # Ensure this function handles await correctly if it's asynchronous
-        current_rating = await rating_helper.get_rating(target_user_id, chat_id)  # Ensure rating_helper.get_rating is async
+        current_rating = rating_helper.get_rating(target_user_id, chat_id)
 
-        user_mention = user_helper.get_user_mention(target_user_id, chat_id)  # Check if async and awaited correctly
+        user_mention = user_helper.get_user_mention(target_user_id, chat_id)
         await chat_helper.send_message(context.bot, chat_id, f"Rating for user {user_mention} is {current_rating}.", reply_to_message_id=message.message_id)
 
     except Exception as error:
