@@ -693,15 +693,21 @@ async def tg_get_rating(update, context):
         chat_id = update.effective_chat.id
         message = update.message
 
+        # Check if the command is used as a reply or if parameters are provided
+        if not message.reply_to_message and len(message.text.split()) == 1:
+            instruction = "Use /get_rating as a reply or specify a user with /get_rating @username or /get_rating user_id."
+            await chat_helper.send_message(context.bot, chat_id, instruction, reply_to_message_id=message.message_id)
+            return
+
         target_user_id = None
         if message.reply_to_message:
             target_user_id = message.reply_to_message.from_user.id
-        elif len(message.text.split()) > 1:
+        else:
             user_identifier = message.text.split()[1]
             if user_identifier.isdigit():
                 target_user_id = int(user_identifier)
             elif user_identifier.startswith('@'):
-                target_user = await user_helper.get_user(username=user_identifier[1:])
+                target_user = user_helper.get_user(username=user_identifier[1:])
                 if target_user:
                     target_user_id = target_user.id
                 else:
@@ -711,14 +717,16 @@ async def tg_get_rating(update, context):
                 await chat_helper.send_message(context.bot, chat_id, "Invalid format. Use /get_rating @username or /get_rating user_id.", reply_to_message_id=message.message_id)
                 return
 
-        current_rating = rating_helper.get_rating(target_user_id, chat_id)
+        # Ensure this function handles await correctly if it's asynchronous
+        current_rating = await rating_helper.get_rating(target_user_id, chat_id)  # Ensure rating_helper.get_rating is async
 
-        user_mention = user_helper.get_user_mention(target_user_id, chat_id)
+        user_mention = user_helper.get_user_mention(target_user_id, chat_id)  # Check if async and awaited correctly
         await chat_helper.send_message(context.bot, chat_id, f"Rating for user {user_mention} is {current_rating}.", reply_to_message_id=message.message_id)
 
     except Exception as error:
         logger.error(f"Error in tg_get_rating: {error}")
         await chat_helper.send_message(context.bot, chat_id, "An error occurred while processing the get rating command.")
+
 
 
 
