@@ -52,7 +52,8 @@ async def log_spam_report(user_id, user_nickname, user_current_rating, chat_id, 
         logger.error(f"Error logging spam report: {e}")
         return False
 
-async def calculate_cumulative_report_power(chat_id, reported_user_id):
+# Get the total number of reports a user has received
+async def get_total_reports(chat_id, reported_user_id):
     try:
         with db_helper.session_scope() as db_session:
             cumulative_report_power = db_session.query(

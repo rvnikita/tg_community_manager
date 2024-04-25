@@ -138,7 +138,7 @@ async def tg_report(update, context):
             logger.error("Failed to add report.")
             return
 
-        report_sum = await reporting_helper.calculate_cumulative_report_power(chat_id, reported_user_id)
+        report_sum = await reporting_helper.get_total_reports(chat_id, reported_user_id)
         if report_sum is None:
             logger.error("Failed to calculate cumulative report power.")
             return
