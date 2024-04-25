@@ -294,6 +294,36 @@ async def ban_user(bot, chat_id, user_to_ban, global_ban=False, reason=None):
             logger.error(f"Error: {traceback.format_exc()}")
             return None
 
+async def unban_user(bot, chat_id, user_to_unban, global_unban=False):
+    try:
+        with session_scope() as db_session:
+            # List of chats to process
+            if global_unban:
+                # If global unban is enabled, fetch all chat IDs where the bot is a member
+                all_chats = db_session.query(db_helper.Chat.id).filter(db_helper.Chat.id != 0).all()
+                chat_ids = [chat.id for chat in all_chats]
+            else:
+                # Otherwise, only include the provided chat ID
+                chat_ids = [chat_id]
+
+            for chat_id in chat_ids:
+                try:
+                    # Attempt to unban the user in each chat
+                    await bot.unban_chat_member(chat_id, user_to_unban)
+                    logger.info(f"User {user_to_unban} unbanned from chat {chat_id}")
+                except BadRequest as e:
+                    # Handle specific bad request errors such as "user not found" or "user not a member"
+                    logger.error(f"BadRequest in chat {chat_id} during unban: {e.message}")
+                except TelegramError as e:
+                    # Handle generic Telegram errors
+                    logger.error(f"Telegram error in chat {chat_id} during unban: {e.message}")
+                except Exception as e:
+                    # Catch-all for any other unexpected errors
+                    logger.error(f"Unexpected error during unban in chat {chat_id}: {e}")
+
+    except Exception as e:
+        logger.error(f"General error in unban_user function: {e}")
+
 
 async def delete_message(bot, chat_id: int, message_id: int, delay_seconds: int = None) -> None:
     if delay_seconds:
