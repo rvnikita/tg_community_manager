@@ -674,7 +674,7 @@ async def tg_set_rating(update, context):
                 return
 
         # Apply the new rating
-        current_rating = await rating_helper.get_rating(target_user_id, chat_id)
+        current_rating = rating_helper.get_rating(target_user_id, chat_id)
         adjustment = new_rating - current_rating
         if adjustment != 0:
             await rating_helper.change_rating(target_user_id, message.from_user.id, chat_id, adjustment, message.message_id, delete_message_delay=120)
