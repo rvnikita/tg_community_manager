@@ -62,45 +62,6 @@ async def tg_help(update, context):
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
         logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
 
-
-async def tg_report_reset(update, context):
-    try:
-        with db_helper.session_scope() as db_session:
-            #TODO:HIGH: this command reset all reports for this user. It could work when it is replied to message or followed by nickname. It could be done only by chat admin.
-            chat_id = update.effective_chat.id
-            message = update.message
-
-            chat_administrators = await bot.get_chat_administrators(chat_id)
-            is_admin = False
-
-            for admin in chat_administrators:
-                if admin.user.id == message.from_user.id:
-                    is_admin = True
-                    break
-
-            if not is_admin:
-                await chat_helper.send_message(bot, chat_id, "You are not an admin of this chat.")
-                return
-
-            if message.reply_to_message:
-                reported_user_id = message.reply_to_message.from_user.id
-            else:
-                #we need to take user nickname and then find user_id
-                #TODO:HIGH: implement this
-                return
-
-            reports = db_session.query(db_helper.Report).filter(db_helper.Report.reported_user_id == reported_user_id).all()
-            for report in reports:
-                db_session.delete(report)
-
-            db_session.commit()
-
-            await chat_helper.send_message(bot, chat_id, "Reports for this user were reset.")
-    except Exception as error:
-        update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
-        logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
-
-
 async def tg_report(update, context):
     try:
         chat_id = update.effective_chat.id
@@ -193,6 +154,55 @@ async def tg_report(update, context):
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
         logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
 
+async  def tg_unreport(update, context):
+    try:
+        chat_id = update.effective_chat.id
+        message = update.message
+
+        chat_administrators = await context.bot.get_chat_administrators(chat_id)
+        is_admin = any(admin.user.id == message.from_user.id for admin in chat_administrators)
+
+        if not is_admin:
+            #reply to message that he is not an admin to use this command
+            await chat_helper.send_message(context.bot, chat_id, "You are not an admin of this chat.", reply_to_message_id=message.message_id, delete_after = 120)
+            return
+
+        reported_user_id = None
+
+        command_parts = message.text.split()  # Split the message into parts
+        if len(command_parts) > 1:  # if the command has more than one part (means it has a user ID or username parameter)
+            if '@' in command_parts[1]:  # if the second part is a username
+                reported_user = await user_helper.get_user(username=command_parts[1][1:])
+                if reported_user is None:
+                    await message.reply_text(f"No user found with username {command_parts[1]}.")
+                    return
+                reported_user_id = reported_user.id
+
+
+            elif command_parts[1].isdigit():  # if the second part is a user ID
+                reported_user_id = int(command_parts[1])
+            else:
+                await message.reply_text("Invalid format. Use /unreport @username or /unreport user_id.")
+                return
+        else:
+            if not message.reply_to_message:
+                await message.reply_text("Please reply to a user's message to unreport them.")
+                return
+            reported_user_id = message.reply_to_message.from_user.id
+
+        # Calculate and compensate reports
+        total_reports = reporting_helper.get_total_reports(chat_id, reported_user_id)
+
+        # now we need to compensate all reports
+        if total_reports > 0:
+            await reporting_helper.add_report(reported_user_id, message.from_user.id, "Comepnsating with /unreport command", chat_id, -total_reports)
+
+        await chat_helper.unban_user(context.bot, chat_id, reported_user_id)
+        await chat_helper.send_message(context.bot, chat_id, f"Reporting reversed for user ID: {reported_user_id}.")
+
+    except Exception as error:
+        update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
+        logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
 
 async def tg_pin(update, context):
     try:
@@ -806,6 +816,7 @@ class BotManager:
 
             # reporting
             self.application.add_handler(CommandHandler(['report', 'r'], tg_report, filters.ChatType.SUPERGROUP), group=4)
+            self.application.add_handler(CommandHandler(['unreport', 'ur'], tg_unreport(), filters.ChatType.SUPERGROUP), group=4)
             self.application.add_handler(CommandHandler(['warn', 'w'], tg_warn, filters.ChatType.SUPERGROUP), group=4)
 
             # Add a handler for chat join requests
