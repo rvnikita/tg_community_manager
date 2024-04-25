@@ -687,7 +687,7 @@ async def tg_get_rating(update, context):
         # Check if the command is used as a reply or if parameters are provided
         if not message.reply_to_message and len(message.text.split()) == 1:
             instruction = "Use /get_rating as a reply or specify a user with /get_rating @username or /get_rating user_id."
-            await chat_helper.send_message(context.bot, chat_id, instruction, reply_to_message_id=message.message_id)
+            await chat_helper.send_message(context.bot, chat_id, instruction, reply_to_message_id=message.message_id, delete_after=120)
             return
 
         target_user_id = None
