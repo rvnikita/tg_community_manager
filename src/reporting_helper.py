@@ -79,6 +79,7 @@ async def check_existing_report(chat_id, reported_user_id, reporting_user_id):
         logger.error(f"Error calculating cumulative report power: {e}")
         return None
 
+# Get all users who have reported a user (e.g. used to increase rating of users who reported a spammer)
 async def get_reporting_users(chat_id, reported_user_id):
     try:
         with db_helper.session_scope() as db_session:
