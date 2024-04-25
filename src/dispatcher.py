@@ -635,32 +635,34 @@ async def tg_set_rating(update, context):
         chat_id = update.effective_chat.id
         message = update.message
 
-        # Verify if the command issuer is an administrator
+        # Check if the user is an administrator
         chat_administrators = await context.bot.get_chat_administrators(chat_id)
         is_admin = any(admin.user.id == message.from_user.id for admin in chat_administrators)
         if not is_admin:
             await chat_helper.send_message(context.bot, chat_id, "You must be an admin to use this command.", reply_to_message_id=message.message_id, delete_after=120)
             return
 
-        # Parse the command to extract user identification and the desired rating
-        command_parts = message.text.split()
-        if len(command_parts) < 3:
-            await chat_helper.send_message(context.bot, chat_id, "Usage: /set_rating [@username or user_id] [rating]", reply_to_message_id=message.message_id)
-            return
-
         target_user_id = None
         new_rating = None
 
-        # Identify the user and extract the new rating
+        # Handle reply to a message or direct command input
         if message.reply_to_message:
             target_user_id = message.reply_to_message.from_user.id
-            new_rating = int(command_parts[1])  # Assume rating follows the command in a reply
+            if len(message.text.split()) < 2:
+                await chat_helper.send_message(context.bot, chat_id, "Please specify a rating.", reply_to_message_id=message.message_id)
+                return
+            new_rating = int(message.text.split()[1])
         else:
+            command_parts = message.text.split()
+            if len(command_parts) < 3:
+                await chat_helper.send_message(context.bot, chat_id, "Usage: /set_rating [@username or user_id] [rating]", reply_to_message_id=message.message_id)
+                return
+
             user_identifier = command_parts[1]
-            new_rating = int(command_parts[2])  # Assume the rating is the third part when user is specified directly
-            if user_identifier.isdigit():  # User ID is specified
+            new_rating = int(command_parts[2])
+            if user_identifier.isdigit():
                 target_user_id = int(user_identifier)
-            elif user_identifier.startswith('@'):  # Username is specified
+            elif user_identifier.startswith('@'):
                 target_user = await user_helper.get_user(username=user_identifier[1:])
                 if target_user:
                     target_user_id = target_user.id
@@ -671,11 +673,14 @@ async def tg_set_rating(update, context):
                 await chat_helper.send_message(context.bot, chat_id, "Invalid format. Use /set_rating @username or /set_rating user_id rating.", reply_to_message_id=message.message_id)
                 return
 
-        # Calculate the adjustment needed and apply it
+        # Apply the new rating
         current_rating = await rating_helper.get_rating(target_user_id, chat_id)
         adjustment = new_rating - current_rating
         if adjustment != 0:
             await rating_helper.change_rating(target_user_id, message.from_user.id, chat_id, adjustment, message.message_id, delete_message_delay=120)
+        else:
+            # Specifically handle the case where no change is needed, especially when setting to zero
+            await chat_helper.send_message(context.bot, chat_id, f"Rating for user ID {target_user_id} is already set to {new_rating}.")
 
         await chat_helper.send_message(context.bot, chat_id, f"Rating for user ID {target_user_id} set to {new_rating}.")
     except ValueError:
@@ -683,6 +688,7 @@ async def tg_set_rating(update, context):
     except Exception as error:
         logger.error(f"Error in tg_set_rating: {error}")
         await chat_helper.send_message(context.bot, chat_id, "An error occurred while processing the set rating command.")
+
 
 
 async def tg_join_request(update, context):
