@@ -25,11 +25,6 @@ import src.user_helper as user_helper
 import src.rating_helper as rating_helper
 import src.reporting_helper as reporting_helper
 
-
-
-
-from datetime import datetime
-
 config = config_helper.get_config()
 
 logger = logging.get_logger()
