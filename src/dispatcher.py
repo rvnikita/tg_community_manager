@@ -682,7 +682,6 @@ async def tg_set_rating(update, context):
             # Specifically handle the case where no change is needed, especially when setting to zero
             await chat_helper.send_message(context.bot, chat_id, f"Rating for user ID {target_user_id} is already set to {new_rating}.")
 
-        await chat_helper.send_message(context.bot, chat_id, f"Rating for user ID {target_user_id} set to {new_rating}.")
     except ValueError:
         await chat_helper.send_message(context.bot, chat_id, "Invalid number for rating. Please specify an integer.", reply_to_message_id=message.message_id)
     except Exception as error:
