@@ -663,7 +663,7 @@ async def tg_set_rating(update, context):
             if user_identifier.isdigit():
                 target_user_id = int(user_identifier)
             elif user_identifier.startswith('@'):
-                target_user = await user_helper.get_user(username=user_identifier[1:])
+                target_user = user_helper.get_user(username=user_identifier[1:])
                 if target_user:
                     target_user_id = target_user.id
                 else:
