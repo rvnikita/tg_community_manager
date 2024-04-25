@@ -688,6 +688,38 @@ async def tg_set_rating(update, context):
         logger.error(f"Error in tg_set_rating: {error}")
         await chat_helper.send_message(context.bot, chat_id, "An error occurred while processing the set rating command.")
 
+async def tg_get_rating(update, context):
+    try:
+        chat_id = update.effective_chat.id
+        message = update.message
+
+        target_user_id = None
+        if message.reply_to_message:
+            target_user_id = message.reply_to_message.from_user.id
+        elif len(message.text.split()) > 1:
+            user_identifier = message.text.split()[1]
+            if user_identifier.isdigit():
+                target_user_id = int(user_identifier)
+            elif user_identifier.startswith('@'):
+                target_user = await user_helper.get_user(username=user_identifier[1:])
+                if target_user:
+                    target_user_id = target_user.id
+                else:
+                    await chat_helper.send_message(context.bot, chat_id, f"No user found with username {user_identifier}.", reply_to_message_id=message.message_id)
+                    return
+            else:
+                await chat_helper.send_message(context.bot, chat_id, "Invalid format. Use /get_rating @username or /get_rating user_id.", reply_to_message_id=message.message_id)
+                return
+
+        current_rating = rating_helper.get_rating(target_user_id, chat_id)
+
+        user_mention = user_helper.get_user_mention(target_user_id, chat_id)
+        await chat_helper.send_message(context.bot, chat_id, f"Rating for user {user_mention} is {current_rating}.", reply_to_message_id=message.message_id)
+
+    except Exception as error:
+        logger.error(f"Error in tg_get_rating: {error}")
+        await chat_helper.send_message(context.bot, chat_id, "An error occurred while processing the get rating command.")
+
 
 
 async def tg_join_request(update, context):
@@ -883,6 +915,8 @@ class BotManager:
 
             self.application.add_handler(CommandHandler(['set_rating'], tg_set_rating, filters.ChatType.SUPERGROUP), group=4)
             self.application.add_handler(CommandHandler(['set_report'], tg_set_report, filters.ChatType.SUPERGROUP), group=4)
+
+            self.application.add_handler(CommandHandler(['get_rating', 'gr'], tg_get_rating, filters.ChatType.SUPERGROUP), group=4)
 
             # Add a handler for chat join requests
             self.application.add_handler(ChatJoinRequestHandler(tg_join_request), group=5)
