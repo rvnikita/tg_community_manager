@@ -1,5 +1,6 @@
 from sqlalchemy import func
 from datetime import datetime
+import traceback
 
 import src.db_helper as db_helper
 import src.logging_helper as logging
@@ -21,7 +22,7 @@ async def add_report(reported_user_id, reporting_user_id, reported_message_id, c
             db_session.commit()
             return True
     except Exception as e:
-        logger.error(f"Error adding report: {e}")
+        logger.error(f"Error adding report: {e}. Traceback: {traceback.format_exc()}")
         return False
 
 async def log_spam_report(user_id, user_nickname, user_current_rating, chat_id, message_content, action_type, admin_id, admin_nickname, reason_for_action):
@@ -49,7 +50,7 @@ async def log_spam_report(user_id, user_nickname, user_current_rating, chat_id, 
 
             return True
     except Exception as e:
-        logger.error(f"Error logging spam report: {e}")
+        logger.error(f"Error logging spam report: {e}. Traceback: {traceback.format_exc()}")
         return False
 
 # Get the total number of reports a user has received
@@ -64,7 +65,7 @@ async def get_total_reports(chat_id, reported_user_id):
             ).scalar() or 0
             return cumulative_report_power
     except Exception as e:
-        logger.error(f"Error calculating cumulative report power: {e}")
+        logger.error(f"Error calculating cumulative report power: {e}. Traceback: {traceback.format_exc()}")
         return None
 
 async def check_existing_report(chat_id, reported_user_id, reporting_user_id):
@@ -77,7 +78,7 @@ async def check_existing_report(chat_id, reported_user_id, reporting_user_id):
             ).first()
             return existing_report is not None
     except Exception as e:
-        logger.error(f"Error calculating cumulative report power: {e}")
+        logger.error(f"Error checking for existing report: {e}. Traceback: {traceback.format_exc()}")
         return None
 
 # Get all users who have reported a user (e.g. used to increase rating of users who reported a spammer)
@@ -90,5 +91,5 @@ async def get_reporting_users(chat_id, reported_user_id):
             ).distinct().all()
             return [user_id[0] for user_id in reporting_user_ids]
     except Exception as e:
-        logger.error(f"Error getting reporting users: {e}")
+        logger.error(f"Error getting reporting users: {e}. Traceback: {traceback.format_exc()}")
         return []
