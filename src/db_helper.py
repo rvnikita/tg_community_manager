@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session, DeclarativeBase, declared_attr, relationship
 from sqlalchemy.sql.sqltypes import NullType
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import func
+from pgvector.sqlalchemy import Vector
 
 import psycopg2
 import psycopg2.extras
@@ -277,6 +278,7 @@ class Message_Log(Base):
     reporting_id_nickname = Column(Text, nullable=True)
     reason_for_action = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    embedding = Column(Vector, nullable=True)  # New column to store message embeddings
 
     # Relationships
     user = relationship("User", foreign_keys=[user_id], backref="message_logs")
