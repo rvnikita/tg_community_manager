@@ -3,6 +3,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
 import traceback
+from joblib import dump
 
 # Import necessary helper modules
 import src.db_helper as db_helper
@@ -22,7 +23,6 @@ def train_spam_classifier():
                            (db_helper.Message_Log.chat_id == db_helper.User_Status.chat_id)) \
                 .filter(db_helper.Message_Log.embedding != None) \
                 .filter(db_helper.Message_Log.message_content != None) \
-                .limit(600) \
                 .all()
 
             features = []
@@ -60,6 +60,12 @@ def train_spam_classifier():
             model.fit(X_train, y_train)
             accuracy = model.score(X_test, y_test)
             logger.info(f"Model accuracy: {accuracy}")
+
+            # Dump the trained model and scaler to file
+            dump(model, '../../ml_models/svm_spam_model.joblib')
+            dump(scaler, '../../ml_models/scaler.joblib')
+
+            logger.info("Model and scaler have been saved successfully.")
 
             y_pred = model.predict(X_test)
 

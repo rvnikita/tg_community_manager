@@ -25,6 +25,7 @@ import src.user_helper as user_helper
 import src.rating_helper as rating_helper
 import src.reporting_helper as reporting_helper
 import src.message_helper as message_helper
+import src.spamcheck_helper as spamcheck_helper
 
 config = config_helper.get_config()
 
@@ -616,6 +617,48 @@ async def tg_spam_check(update, context):
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
         logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
 
+async def tg_new_spamcheck(update, context):
+    message = update.message
+    user_id = message.from_user.id
+    chat_id = message.chat.id
+    text = message.text
+
+    try:
+        #TODO: As we anyway calculate embedding in predict_spam I think we need to store it in the database, not do it twice in cron later.
+        # Probably we will need too refactor, separate embedding and predict_spam (get embedding, not text as input)
+
+        is_spam = spamcheck_helper.predict_spam(text, user_id, chat_id)
+
+        # Log the spam check result
+        logger.info(f"Message ID: {message.message_id} | From User ID: {user_id} in Chat ID: {chat_id} | Spam Check: {'Spam' if is_spam else 'Not Spam'}")
+
+        if is_spam:
+            logger.info(f"‼️️‼️️‼️️️Message ID: {message.message_id} Message: {text} | From User ID: {user_id} in Chat ID: {chat_id} | Spam Check: {'Spam' if is_spam else 'Not Spam'}")
+            # Handle spam message: delete the message, inform the user, log the event, etc.
+            await chat_helper.delete_message(bot, chat_id, message.message_id)
+            await chat_helper.send_message(bot, chat_id, "A message was deleted because it was detected as spam.", delete_after=120)
+            #TODO:MED: for now let's not log spam messages as we can have mistakes in spam detection
+
+            # await message_helper.log_or_update_message(
+            #     user_id=user_id,
+            #     user_nickname=message.from_user.first_name,
+            #     user_current_rating=rating_helper.get_rating(user_id, chat_id),
+            #     chat_id=chat_id,
+            #     message_content=text,
+            #     action_type="spam detection",
+            #     reporting_id="system",
+            #     reporting_id_nickname="Bot System",
+            #     reason_for_action="Automated spam detection",
+            #     message_id=message.message_id,
+            #     is_spam=True
+            # )
+        else:
+            # Log or take further actions if the message is not spam
+            pass
+
+    except Exception as error:
+        logger.error(f"Error processing spam check: {traceback.format_exc()} | Message: {text} | User ID: {user_id} | Chat ID: {chat_id}")
+
 
 async def tg_thankyou(update, context):
     try:
@@ -945,6 +988,7 @@ class BotManager:
             # log all messages
             self.application.add_handler(MessageHandler(filters.TEXT, tg_log_message), group=0)
 
+
             # delete new member message
             self.application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, tg_new_member), group=1)
 
@@ -972,7 +1016,8 @@ class BotManager:
 
             self.application.add_handler(MessageHandler(filters.TEXT | filters.Document.ALL, tg_spam_check), group=7)
 
-            self.application.add_handler(MessageHandler(filters.TEXT, tg_ai_spam_check), group=8)
+            # self.application.add_handler(MessageHandler(filters.TEXT, tg_ai_spam_check), group=8)
+            self.application.add_handler(MessageHandler(filters.TEXT, tg_new_spamcheck), group=8)
 
             self.application.add_handler(CommandHandler(['pin', 'p'], tg_pin, filters.ChatType.SUPERGROUP), group=9)
             self.application.add_handler(CommandHandler(['unpin', 'up'], tg_unpin, filters.ChatType.SUPERGROUP), group=9)
