@@ -1,49 +1,82 @@
 import numpy as np
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
 import traceback
 
-from src.config_helper import get_config
-from src.db_helper import session_scope, Message_Log
-from src.logging_helper import get_logger
+# Import necessary helper modules
+import src.db_helper as db_helper
+import src.logging_helper as logging
 
 # Configure logger
-logger = get_logger()
-
-# Load configuration
-config = get_config()
+logger = logging.get_logger()
 
 def train_spam_classifier():
-    """Train a simple SVM model for spam detection using message embeddings."""
+    """Train a simple SVM model for spam detection using message embeddings, content, user ratings, and time difference."""
     try:
-        # Retrieve messages with embeddings and labels
-        with session_scope() as session:
-            messages_with_embeddings = session.query(Message_Log).filter(Message_Log.embedding != None).all()
-            embeddings = [message.embedding for message in messages_with_embeddings]
-            labels = [message.is_spam for message in messages_with_embeddings]
+        with db_helper.session_scope() as session:
+            # Fetch messages and statuses from database
+            messages_with_content_embeddings = session.query(db_helper.Message_Log, db_helper.User_Status) \
+                .join(db_helper.User, db_helper.Message_Log.user_id == db_helper.User.id) \
+                .outerjoin(db_helper.User_Status, (db_helper.Message_Log.user_id == db_helper.User_Status.user_id) &
+                           (db_helper.Message_Log.chat_id == db_helper.User_Status.chat_id)) \
+                .filter(db_helper.Message_Log.embedding != None) \
+                .filter(db_helper.Message_Log.message_content != None) \
+                .limit(600) \
+                .all()
 
-        # Split data into train and test sets
-        X_train, X_test, y_train, y_test = train_test_split(np.array(embeddings), labels, test_size=0.2, random_state=42)
+            features = []
+            labels = []
+            message_contents = {}
+            message_ids = []
 
-        # Train SVM model
-        model = SVC(kernel='linear')
-        model.fit(X_train, y_train)
+            for message, user_status in messages_with_content_embeddings:
+                user_rating_value = sum(r.change_value for r in message.user.user_ratings) if hasattr(message.user, 'user_ratings') else 0
+                if user_status:
+                    joined_date = user_status.created_at
+                else:
+                    joined_date = message.user.created_at
+                message_date = message.message_timestamp
+                time_difference = (message_date - joined_date).days
 
-        # Evaluate model
-        accuracy = model.score(X_test, y_test)
-        logger.info(f"Model accuracy: {accuracy}")
+                feature_array = np.concatenate((message.embedding, [user_rating_value, time_difference]))
+                features.append(feature_array)
+                labels.append(message.is_spam)
+                message_contents[message.id] = message.message_content
+                message_ids.append(message.id)
 
-        return model
+            features = np.array(features)
+            labels = np.array(labels)
+
+            X_train, X_test, y_train, y_test, ids_train, ids_test = train_test_split(
+                features, labels, message_ids, test_size=0.2, random_state=42
+            )
+
+            scaler = StandardScaler()
+            X_train = scaler.fit_transform(X_train)
+            X_test = scaler.transform(X_test)
+
+            model = SVC(kernel='linear')
+            model.fit(X_train, y_train)
+            accuracy = model.score(X_test, y_test)
+            logger.info(f"Model accuracy: {accuracy}")
+
+            y_pred = model.predict(X_test)
+
+            logger.info("Wrongly classified messages:")
+            for i in range(len(y_pred)):
+                message_id = ids_test[i]
+                pred = y_pred[i]
+                true = y_test[i]
+                content = message_contents[message_id]
+
+                if pred != true:
+                    logger.info(f"Message ID: {message_id}\nContent: {content}\nPredicted: {'Spam' if pred else 'Not Spam'}, True: {'Spam' if true else 'Not Spam'}")
+
+            return model
     except Exception as e:
         logger.error(f"An error occurred while training the spam classifier: {e}. Traceback: {traceback.format_exc()}")
         return None
 
 if __name__ == '__main__':
-    try:
-        trained_model = train_spam_classifier()
-        if trained_model:
-            logger.info("Spam classifier trained successfully.")
-        else:
-            logger.error("Failed to train spam classifier.")
-    except Exception as e:
-        logger.error(f"An error occurred in the main block: {e}. Traceback: {traceback.format_exc()}")
+    train_spam_classifier()
