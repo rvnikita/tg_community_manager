@@ -135,6 +135,7 @@ async def tg_report(update, context):
                 reporting_user_id,
                 user_helper.get_user_mention(reporting_user_id, chat_id),
                 f"User {reported_user_mention} was banned in chat {chat_mention} due to {report_sum}/{number_of_reports_to_ban} reports.",
+                reported_message_id,
                 is_spam=True)
 
         elif report_sum >= number_of_reports_to_warn:
