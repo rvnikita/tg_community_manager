@@ -9,3 +9,4 @@ alembic
 langdetect
 pytz
 pgvector
+scikit-learn
