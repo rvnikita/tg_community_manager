@@ -650,7 +650,7 @@ async def tg_new_spamcheck(update, context):
                 chat_id=chat_id,
                 message_content=text,
                 action_type="spam detection",
-                reporting_id=bot.id,
+                reporting_id=context.bot.id,
                 reporting_id_nickname="rv_tg_community_bot",
                 reason_for_action="Automated spam detection",
                 message_id=message.message_id,
