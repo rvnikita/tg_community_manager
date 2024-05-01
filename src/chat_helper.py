@@ -197,10 +197,10 @@ async def mute_user(bot, chat_id: int, user_id: int) -> None:
     permissions = ChatPermissions(can_send_messages=False)
     await bot.restrict_chat_member(chat_id, user_id, permissions, until_date=datetime.now() + timedelta(hours=24))
 
-from db_helper import session_scope
+
 
 async def ban_user(bot, chat_id, user_to_ban, global_ban=False, reason=None):
-    with session_scope() as db_session:
+    with db_helper.session_scope() as db_session:
         try:
             if chat_id is not None:
                 try:
