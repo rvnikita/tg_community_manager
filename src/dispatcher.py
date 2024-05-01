@@ -620,6 +620,10 @@ async def tg_spam_check(update, context):
 
 async def tg_new_spamcheck(update, context):
     message = update.message
+
+    if not message or not message.from_user:
+        return
+
     user_id = message.from_user.id
     chat_id = message.chat.id
     text = message.text
