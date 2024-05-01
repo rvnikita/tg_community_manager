@@ -25,34 +25,6 @@ async def add_report(reported_user_id, reporting_user_id, reported_message_id, c
         logger.error(f"Error adding report: {e}. Traceback: {traceback.format_exc()}")
         return False
 
-async def log_spam_report(user_id, user_nickname, user_current_rating, chat_id, message_content, action_type, admin_id, admin_nickname, reason_for_action):
-    try:
-        logger.info("Entered log_spam_report")
-
-        with db_helper.session_scope() as db_session:
-            spam_report_log = db_helper.Spam_Report_Log(
-                message_content=message_content,
-                user_id=user_id,
-                user_nickname=user_nickname,
-                user_current_rating=user_current_rating,
-                chat_id=chat_id,
-                message_timestamp=datetime.now(),
-                action_type=action_type,
-                admin_id=admin_id,
-                admin_nickname=admin_nickname,
-                reason_for_action=reason_for_action
-            )
-            db_session.add(spam_report_log)
-            db_session.commit()
-
-            #super detailed log
-            logger.info(f"User {user_nickname} ({user_id}) in chat {chat_id} was spam logged by {admin_nickname} ({admin_id}) for {reason_for_action}. Message content: {message_content}")
-
-            return True
-    except Exception as e:
-        logger.error(f"Error logging spam report: {e}. Traceback: {traceback.format_exc()}")
-        return False
-
 # Get the total number of reports a user has received
 async def get_total_reports(chat_id, reported_user_id):
     try:

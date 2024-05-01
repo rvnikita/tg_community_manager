@@ -258,28 +258,34 @@ class Report(Base):
     reason = Column(String, nullable=True)
 
 
-class Spam_Report_Log(Base):
-    __table_args__ = (PrimaryKeyConstraint('id', name='spam_report_log_pkey'),)
+class Message_Log(Base):
+    __table_args__ = (
+        UniqueConstraint('message_id', 'chat_id', name='uix_message_id_chat_id'),
+    )
 
-    id = Column(BigInteger, autoincrement=True, primary_key=True)
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    message_id = Column(BigInteger, index=True)
+    chat_id = Column(BigInteger, ForeignKey(Chat.__table__.c.id), nullable=False)
     message_content = Column(Text)
     user_id = Column(BigInteger, ForeignKey(User.__table__.c.id), nullable=False)
     user_nickname = Column(Text)
     user_current_rating = Column(Integer)
-    chat_id = Column(BigInteger, ForeignKey(Chat.__table__.c.id), nullable=False)
     message_timestamp = Column(DateTime(timezone=True), server_default=func.now())
+    is_spam = Column(Boolean, default=False, nullable=False)
     action_type = Column(Text)
-    admin_id = Column(BigInteger, ForeignKey(User.__table__.c.id), nullable=True) #TODO:MED: maybe it should be not admin, but reporting user (as it could be not admin)
-    admin_nickname = Column(Text, nullable=True) #TODO:MED: maybe it should be not admin, but reporting user (as it could be not admin)
+    reporting_id = Column(BigInteger, ForeignKey(User.__table__.c.id), nullable=True)
+    reporting_id_nickname = Column(Text, nullable=True)
     reason_for_action = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-    user = relationship("User", foreign_keys=[user_id], backref=backref("spam_report_logs", cascade="all, delete-orphan"))
-    chat = relationship("Chat", foreign_keys=[chat_id], backref=backref("spam_report_logs", cascade="all, delete-orphan"))
-    admin = relationship("User", foreign_keys=[admin_id], backref="admin_spam_reports")
+    # Relationships
+    user = relationship("User", foreign_keys=[user_id], backref="message_logs")
+    chat = relationship("Chat", foreign_keys=[chat_id], backref="message_logs")
+    admin = relationship("User", foreign_keys=[reporting_id], backref="admin_message_logs")
 
     def __repr__(self):
-        return f"<Spam_Report_Log(id={self.id}, user_id={self.user_id}, chat_id={self.chat_id}, action_type='{self.action_type}', created_at={self.created_at})>"
+        return f"<Message_Log(id={self.id}, user_id={self.user_id}, chat_id={self.chat_id}, message_id={self.message_id}, is_spam={self.is_spam}, action_type='{self.action_type}', created_at={self.created_at})>"
+
 
 
 class Auto_Reply(Base):

@@ -24,6 +24,7 @@ import src.config_helper as config_helper
 import src.user_helper as user_helper
 import src.rating_helper as rating_helper
 import src.reporting_helper as reporting_helper
+import src.message_helper as message_helper
 
 config = config_helper.get_config()
 
@@ -123,7 +124,7 @@ async def tg_report(update, context):
             await chat_helper.delete_scheduled_messages(bot, chat_id, trigger_id = reported_message_id)
 
             # Log the ban action
-            await  reporting_helper.log_spam_report(
+            await  message_helper.log_or_update_message(
                 reported_user_id,
                 reported_user_mention,
                 rating_helper.get_rating(reported_user_id, chat_id),
@@ -132,7 +133,8 @@ async def tg_report(update, context):
                 "report & ban",
                 reporting_user_id,
                 user_helper.get_user_mention(reporting_user_id, chat_id),
-                f"User {reported_user_mention} was banned in chat {chat_mention} due to {report_sum}/{number_of_reports_to_ban} reports.")
+                f"User {reported_user_mention} was banned in chat {chat_mention} due to {report_sum}/{number_of_reports_to_ban} reports.",
+                is_spam=True)
 
         elif report_sum >= number_of_reports_to_warn:
             await chat_helper.warn_user(context.bot, chat_id, reported_user_id)
@@ -350,16 +352,19 @@ async def tg_ban(update, context):
             await chat_helper.ban_user(bot, chat_id, ban_user_id)
 
             # Log the ban action
-            await reporting_helper.log_spam_report(
-                ban_user_id,
-                user_helper.get_user_mention(ban_user_id, chat_id),
-                rating_helper.get_rating(ban_user_id, chat_id),
-                chat_id,
-                message.reply_to_message.text,
-                "ban",
-                message.from_user.id,
-                user_helper.get_user_mention(message.from_user.id, chat_id),
-                f"User {user_helper.get_user_mention(ban_user_id, chat_id)} was banned in chat {await chat_helper.get_chat_mention(bot, chat_id)}. Reason: {message.text}")
+            await message_helper.log_or_update_message(
+                user_id=ban_user_id,
+                user_nickname=user_helper.get_user_mention(ban_user_id, chat_id),
+                user_current_rating=rating_helper.get_rating(ban_user_id, chat_id),
+                chat_id=chat_id,
+                message_content=message.reply_to_message.text,
+                action_type="ban",
+                reporting_id=message.from_user.id,
+                reporting_id_nickname=user_helper.get_user_mention(message.from_user.id, chat_id),
+                reason_for_action=f"User {user_helper.get_user_mention(ban_user_id, chat_id)} was banned in chat {await chat_helper.get_chat_mention(bot, chat_id)}. Reason: {message.text}",
+                message_id=message.reply_to_message.message_id,
+                is_spam=True
+            )
 
 
             await chat_helper.send_message(bot, chat_id, f"User {user_helper.get_user_mention(ban_user_id, chat_id)} has been banned.", delete_after=120)
@@ -434,16 +439,19 @@ async def tg_gban(update, context):
             await chat_helper.ban_user(bot, ban_chat_id, ban_user_id, True, reason=ban_reason)
 
             # Log the ban action
-            await reporting_helper.log_spam_report(
-                ban_user_id,
-                user_helper.get_user_mention(ban_user_id, chat_id),
-                rating_helper.get_rating(ban_user_id, chat_id),
-                chat_id,
-                message.reply_to_message.text,
-                "gban",
-                message.from_user.id,
-                user_helper.get_user_mention(message.from_user.id, chat_id),
-                ban_reason)
+            await message_helper.log_or_update_message(
+                user_id=ban_user_id,
+                user_nickname=user_helper.get_user_mention(ban_user_id, chat_id),
+                user_current_rating=rating_helper.get_rating(ban_user_id, chat_id),
+                chat_id=chat_id,
+                message_content=message.reply_to_message.text,
+                action_type="ban",
+                reporting_id=message.from_user.id,
+                reporting_id_nickname=user_helper.get_user_mention(message.from_user.id, chat_id),
+                reason_for_action=f"User {user_helper.get_user_mention(ban_user_id, chat_id)} was banned in chat {await chat_helper.get_chat_mention(bot, chat_id)}. Reason: {message.text}",
+                message_id=message.reply_to_message.message_id,
+                is_spam=True
+            )
 
     except Exception as error:
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
@@ -478,6 +486,45 @@ async def tg_auto_reply(update, context):
 
     except Exception as error:
         logger.error(f"tg_auto_reply error: {traceback.format_exc()}")
+
+async def tg_log_message(update, context):
+    try:
+        message = update.message
+        if message:  # Check if there is an actual message to log
+            user_id = message.from_user.id
+            user_nickname = message.from_user.username or message.from_user.first_name  # Use username if available, otherwise first name
+            chat_id = message.chat.id
+            message_content = message.text or "Non-text message"  # Handle non-text messages
+            message_id = message.message_id
+            user_current_rating = rating_helper.get_rating(user_id, chat_id)  # This needs to be defined in your helpers
+
+            # Assuming you have defined these or have default values to use
+            action_type = "message"  # Default action type for logging messages
+            reporting_id = user_id  # Since the user is self-reporting by sending a message
+            reporting_id_nickname = user_nickname
+            reason_for_action = "Regular message"  # Default reason
+
+            # Call the log_or_update_message function from your reporting helper
+            success = await message_helper.log_or_update_message(
+                user_id=user_id,
+                user_nickname=user_nickname,
+                user_current_rating=user_current_rating,
+                chat_id=chat_id,
+                message_content=message_content,
+                action_type=action_type,
+                reporting_id=reporting_id,
+                reporting_id_nickname=reporting_id_nickname,
+                reason_for_action=reason_for_action,
+                message_id=message_id,
+                is_spam=False  # Default to not spam when first logging
+            )
+
+            if not success:
+                logger.error("Failed to log the message in the database.")
+
+    except Exception as error:
+        update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
+        logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
 
 async def tg_ai_spam_check(update, context):
     try:
@@ -894,6 +941,9 @@ class BotManager:
     def run(self):
         try:
             self.application = Application.builder().token(config['BOT']['KEY']).build()
+
+            # log all messages
+            self.application.add_handler(MessageHandler(filters.TEXT, tg_log_message), group=0)
 
             # delete new member message
             self.application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, tg_new_member), group=1)

@@ -109,7 +109,3 @@ def get_rating(user_id, chat_id):
     except Exception as e:
         logger.error(f"Error fetching rating for user_id {user_id}: {traceback.format_exc()}")
         return None  # Return None if there is an error
-
-
-
-
