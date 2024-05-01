@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 import src.db_helper as db_helper
 import src.logging_helper as logging
 import src.openai_helper as openai_helper
+import src.rating_helper as rating_helper
 
 # Configure logger
 logger = logging.get_logger()
@@ -36,7 +37,7 @@ def predict_spam(message_text, user_id, chat_id):
             ).one_or_none()
 
             # Calculate user rating value
-            user_rating_value = sum(r.change_value for r in user.user_ratings) if hasattr(user, 'user_ratings') else 0
+            user_rating_value = rating_helper.get_user_rating(user_id, chat_id)
 
             # Calculate the time difference using current time from datetime module
             if user_status:

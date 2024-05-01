@@ -8,6 +8,7 @@ from joblib import dump
 # Import necessary helper modules
 import src.db_helper as db_helper
 import src.logging_helper as logging
+import src.rating_helper as rating_helper
 
 # Configure logger
 logger = logging.get_logger()
@@ -19,7 +20,7 @@ def train_spam_classifier():
             # Fetch messages and statuses from database
             messages_with_content_embeddings = session.query(db_helper.Message_Log, db_helper.User_Status) \
                 .join(db_helper.User, db_helper.Message_Log.user_id == db_helper.User.id) \
-                .outerjoin(db_helper.User_Status, (db_helper.Message_Log.user_id == db_helper.User_Status.user_id) &
+                .outerjoin(db_helper.User_Status, (db_helper.Message_Log.user_id == db_helper.User_Status.user_id) & \
                            (db_helper.Message_Log.chat_id == db_helper.User_Status.chat_id)) \
                 .filter(db_helper.Message_Log.embedding != None) \
                 .filter(db_helper.Message_Log.message_content != None) \
@@ -31,7 +32,7 @@ def train_spam_classifier():
             message_ids = []
 
             for message, user_status in messages_with_content_embeddings:
-                user_rating_value = sum(r.change_value for r in message.user.user_ratings) if hasattr(message.user, 'user_ratings') else 0
+                user_rating_value = rating_helper.get_rating(message.user_id, message.chat_id)
                 if user_status:
                     joined_date = user_status.created_at
                 else:
