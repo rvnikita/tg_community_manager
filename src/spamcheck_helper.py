@@ -37,7 +37,7 @@ def predict_spam(message_text, user_id, chat_id):
             ).one_or_none()
 
             # Calculate user rating value
-            user_rating_value = rating_helper.get_user_rating(user_id, chat_id)
+            user_rating_value = rating_helper.get_rating(user_id, chat_id)
 
             # Calculate the time difference using current time from datetime module
             if user_status:
