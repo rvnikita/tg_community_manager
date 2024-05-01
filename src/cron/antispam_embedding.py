@@ -13,6 +13,8 @@ config = get_config()
 OPENAI_API_KEY = config.get('OPENAI', 'KEY')
 OPENAI_MODEL = config.get('OPENAI', 'EMBEDDING_MODEL')
 
+#TODO:MED We should rewrite this script with the use of openai_helper.py and better db_helper.py usage
+
 def get_openai_embedding(text):
     """Call OpenAI API to get embeddings for the given text."""
     headers = {
