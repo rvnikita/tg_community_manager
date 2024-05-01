@@ -638,21 +638,20 @@ async def tg_new_spamcheck(update, context):
             # Handle spam message: delete the message, inform the user, log the event, etc.
             await chat_helper.delete_message(bot, chat_id, message.message_id)
             await chat_helper.send_message(bot, chat_id, "A message was deleted because it was detected as spam.", delete_after=120)
-            #TODO:MED: for now let's not log spam messages as we can have mistakes in spam detection
 
-            # await message_helper.log_or_update_message(
-            #     user_id=user_id,
-            #     user_nickname=message.from_user.first_name,
-            #     user_current_rating=rating_helper.get_rating(user_id, chat_id),
-            #     chat_id=chat_id,
-            #     message_content=text,
-            #     action_type="spam detection",
-            #     reporting_id="system",
-            #     reporting_id_nickname="Bot System",
-            #     reason_for_action="Automated spam detection",
-            #     message_id=message.message_id,
-            #     is_spam=True
-            # )
+            await message_helper.log_or_update_message(
+                user_id=user_id,
+                user_nickname=message.from_user.first_name,
+                user_current_rating=rating_helper.get_rating(user_id, chat_id),
+                chat_id=chat_id,
+                message_content=text,
+                action_type="spam detection",
+                reporting_id=bot.id,
+                reporting_id_nickname="rv_tg_community_bot",
+                reason_for_action="Automated spam detection",
+                message_id=message.message_id,
+                is_spam=True
+            )
         else:
             # Log or take further actions if the message is not spam
             pass
