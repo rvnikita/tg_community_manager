@@ -1,5 +1,6 @@
 from sqlalchemy.dialects.postgresql import insert
 import traceback
+from datetime import datetime
 
 import src.db_helper as db_helper
 import src.logging_helper as logging
@@ -86,7 +87,7 @@ def db_upsert_user(user_id, chat_id, username, last_message_datetime, first_name
             with db_helper.session_scope() as db_session:
                 # Upsert User
                 insert_stmt = insert(db_helper.User).values(
-                    id=user_id, username=username, first_name=first_name, last_name=last_name
+                    id=user_id, created_at=datetime.now(), username=username, first_name=first_name, last_name=last_name
                 ).on_conflict_do_update(
                     index_elements=['id'],  # Assumes 'id' is a unique index or primary key
                     set_=dict(username=username, first_name=first_name, last_name=last_name)
