@@ -9,7 +9,7 @@ logger = logging.get_logger()
 
 async def log_or_update_message(user_id, user_nickname, user_current_rating, chat_id, message_content, action_type, reporting_id, reporting_id_nickname, reason_for_action, message_id, is_spam=False):
     try:
-        logger.info("Processing message log")
+        # logger.info("Processing message log")
 
         with db_helper.session_scope() as db_session:
             # Define the insert statement with potential conflict
@@ -45,7 +45,7 @@ async def log_or_update_message(user_id, user_nickname, user_current_rating, cha
             # Execute the upsert operation
             db_session.execute(on_conflict_stmt)
             db_session.commit()
-            logger.info(f"Message {message_id} processed successfully for chat {chat_id}.")
+            # logger.info(f"Message {message_id} processed successfully for chat {chat_id}.")
             return True
     except Exception as e:
         logger.error(f"Error processing message log: {e}. Traceback: {traceback.format_exc()}")
