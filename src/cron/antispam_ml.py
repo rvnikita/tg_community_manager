@@ -57,7 +57,7 @@ def train_spam_classifier():
             X_train = scaler.fit_transform(X_train)
             X_test = scaler.transform(X_test)
 
-            model = SVC(kernel='linear')
+            model = SVC(kernel='linear', probability=True)
             model.fit(X_train, y_train)
             accuracy = model.score(X_test, y_test)
             logger.info(f"Model accuracy: {accuracy}")
