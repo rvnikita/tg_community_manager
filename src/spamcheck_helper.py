@@ -59,7 +59,7 @@ def predict_spam(message_text, user_id, chat_id):
 
             threshold = config['ANTISPAM']['THRESHOLD']
 
-            if prediction_proba[0][1] >= threshold:
+            if prediction_proba[0][1] >= float(threshold):
                 spam_detected = True
                 logger.info(f"‼️Spam ‼️ Probability: {prediction_proba[0][1]}. Threshold: {threshold}. Message: {message_text}")
             else:
