@@ -56,8 +56,17 @@ def predict_spam(message_text, user_id, chat_id):
 
             # Predict using the SVM model
             prediction_proba = model.predict_proba(feature_array)
+
             threshold = config['ANTISPAM']['THRESHOLD']
-            return prediction_proba[0][1] >= threshold  # Return True if probability of spam is above the threshold
+
+            if prediction_proba[0][1] >= threshold
+                spam_detected = True
+                logger.info(f"‼️Spam ‼️ Probability: {prediction_proba[0][1]}. Threshold: {threshold}. Message: {message_text}")
+            else:
+                spam_detected = False
+                logger.info(f"Not Spam Probability: {prediction_proba[0][1]}. Threshold: {threshold}. Message: {message_text}")
+
+            return spam_detected
 
     except Exception as e:
         logger.error(f"An error occurred during spam prediction: {traceback.format_exc()}")

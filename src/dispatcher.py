@@ -648,10 +648,10 @@ async def tg_new_spamcheck(update, context):
         is_spam = spamcheck_helper.predict_spam(text, user_id, chat_id)
 
         # Log the spam check result
-        logger.info(f"Message ID: {message.message_id} | From User ID: {user_id} in Chat ID: {chat_id} | Spam Check: {'Spam' if is_spam else 'Not Spam'}")
+        # logger.info(f"Message ID: {message.message_id} | From User ID: {user_id} in Chat ID: {chat_id} | Spam Check: {'Spam' if is_spam else 'Not Spam'}")
 
         if is_spam:
-            logger.info(f"‼️️‼️️‼️️️Message ID: {message.message_id} Message: {text} | From User ID: {user_id} in Chat ID: {chat_id} | Spam Check: {'Spam' if is_spam else 'Not Spam'}")
+            # logger.info(f"‼️️‼️️‼️️️Message ID: {message.message_id} Message: {text} | From User ID: {user_id} in Chat ID: {chat_id} | Spam Check: {'Spam' if is_spam else 'Not Spam'}")
             # Handle spam message: delete the message, inform the user, log the event, etc.
             await chat_helper.delete_message(bot, chat_id, message.message_id)
             await chat_helper.send_message(bot, chat_id, "A message was deleted because it was detected as spam.", delete_after=120)
