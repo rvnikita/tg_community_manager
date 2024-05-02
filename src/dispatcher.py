@@ -631,6 +631,10 @@ async def tg_new_spamcheck(update, context):
     if not message or not message.from_user:
         return
 
+    new_spamcheck_enabled = chat_helper.get_chat_config(update.message.chat.id, "new_spamcheck_enabled")
+    if new_spamcheck_enabled != True:
+        return
+
     chat_administrators = await context.bot.get_chat_administrators(message.chat.id)
     is_admin = any(admin.user.id == message.from_user.id for admin in chat_administrators)
     if is_admin:
