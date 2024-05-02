@@ -2,6 +2,8 @@ import numpy as np
 import traceback
 from joblib import load
 from datetime import datetime, timezone
+from telegram.request import HTTPXRequest
+from telegram import Bot
 
 # Import necessary helper modules
 import src.db_helper as db_helper
@@ -9,10 +11,15 @@ import src.logging_helper as logging
 import src.openai_helper as openai_helper
 import src.rating_helper as rating_helper
 import src.config_helper as config_helper
+import src.chat_helper as chat_helper
 
 # Configure logger
 logger = logging.get_logger()
 config = config_helper.get_config()
+bot = Bot(config['BOT']['KEY'],
+          request=HTTPXRequest(http_version="1.1"), #we need this to fix bug https://github.com/python-telegram-bot/python-telegram-bot/issues/3556
+          get_updates_request=HTTPXRequest(http_version="1.1")) #we need this to fix bug https://github.com/python-telegram-bot/python-telegram-bot/issues/3556)
+
 
 # Load the pre-trained SVM model
 model = load('ml_models/svm_spam_model.joblib')
@@ -61,10 +68,10 @@ def predict_spam(message_text, user_id, chat_id):
 
             if prediction_proba[0][1] >= float(threshold):
                 spam_detected = True
-                logger.info(f"‼️Spam ‼️ Probability: {prediction_proba[0][1]:.5f}. Threshold: {threshold}. Message: {message_text}")
+                logger.info(f"‼️Spam ‼️ Probability: {prediction_proba[0][1]:.5f}. Threshold: {threshold}. Message: {message_text}. Chat:  {await chat_helper.get_chat_mention(bot, chat_id)}. User: {await user_helper.get_user_mention(bot, user_id)}")
             else:
                 spam_detected = False
-                logger.info(f"Not Spam. Probability: {prediction_proba[0][1]:.5f}. Threshold: {threshold}. Message: {message_text}")
+                logger.info(f"Not Spam. Probability: {prediction_proba[0][1]:.5f}. Threshold: {threshold}. Message: {message_text}. Chat:  {await chat_helper.get_chat_mention(bot, chat_id)}. User: {await user_helper.get_user_mention(bot, user_id)}")
 
             return spam_detected
 
