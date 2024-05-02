@@ -1033,7 +1033,7 @@ class BotManager:
             self.application.add_handler(MessageHandler(filters.TEXT | filters.Document.ALL, tg_spam_check), group=7)
 
             # self.application.add_handler(MessageHandler(filters.TEXT, tg_ai_spam_check), group=8)
-            self.application.add_handler(MessageHandler(filters.TEXT, tg_new_spamcheck), group=8)
+            self.application.add_handler(MessageHandler(filters.TEXT & (filters.ChatType.GROUPS | filters.ChatType.SUPERGROUPS), tg_new_spamcheck), group=8)
 
             self.application.add_handler(CommandHandler(['pin', 'p'], tg_pin, filters.ChatType.SUPERGROUP), group=9)
             self.application.add_handler(CommandHandler(['unpin', 'up'], tg_unpin, filters.ChatType.SUPERGROUP), group=9)
