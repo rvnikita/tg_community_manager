@@ -61,10 +61,10 @@ def predict_spam(message_text, user_id, chat_id):
 
             if prediction_proba[0][1] >= float(threshold):
                 spam_detected = True
-                logger.info(f"‼️Spam ‼️ Probability: {prediction_proba[0][1]}. Threshold: {threshold}. Message: {message_text}")
+                logger.info(f"‼️Spam ‼️ Probability: {prediction_proba[0][1]:.5f}. Threshold: {threshold}. Message: {message_text}")
             else:
                 spam_detected = False
-                logger.info(f"Not Spam. Probability: {prediction_proba[0][1]}. Threshold: {threshold}. Message: {message_text}")
+                logger.info(f"Not Spam. Probability: {prediction_proba[0][1]:.5f}. Threshold: {threshold}. Message: {message_text}")
 
             return spam_detected
 
