@@ -12,6 +12,7 @@ import src.openai_helper as openai_helper
 import src.rating_helper as rating_helper
 import src.config_helper as config_helper
 import src.chat_helper as chat_helper
+import src.user_helper as user_helper
 
 # Configure logger
 logger = logging.get_logger()
