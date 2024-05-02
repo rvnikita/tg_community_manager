@@ -69,10 +69,10 @@ async def predict_spam(message_text, user_id, chat_id):
 
             if prediction_proba[0][1] >= float(threshold):
                 spam_detected = True
-                logger.info(f"‼️Spam ‼️ Probability: {prediction_proba[0][1]:.5f}. Threshold: {threshold}. Message: {message_text}. Chat:  {await chat_helper.get_chat_mention(bot, chat_id)}. User: {user_helper.get_user_mention(bot, user_id)}")
+                logger.info(f"‼️Spam ‼️ Probability: {prediction_proba[0][1]:.5f}. Threshold: {threshold}. Message: {message_text}. Chat:  {await chat_helper.get_chat_mention(bot, chat_id)}. User: {user_helper.get_user_mention(user_id, chat_id)}")
             else:
                 spam_detected = False
-                logger.info(f"Not Spam. Probability: {prediction_proba[0][1]:.5f}. Threshold: {threshold}. Message: {message_text}. Chat:  {await chat_helper.get_chat_mention(bot, chat_id)}. User: {user_helper.get_user_mention(bot, user_id)}")
+                logger.info(f"Not Spam. Probability: {prediction_proba[0][1]:.5f}. Threshold: {threshold}. Message: {message_text}. Chat:  {await chat_helper.get_chat_mention(bot, chat_id)}. User: {user_helper.get_user_mention(user_id, chat_id)}")
 
             return spam_detected
 
