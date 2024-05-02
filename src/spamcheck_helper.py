@@ -8,9 +8,11 @@ import src.db_helper as db_helper
 import src.logging_helper as logging
 import src.openai_helper as openai_helper
 import src.rating_helper as rating_helper
+import src.config_helper as config_helper
 
 # Configure logger
 logger = logging.get_logger()
+config = config_helper.get_config()
 
 # Load the pre-trained SVM model
 model = load('ml_models/svm_spam_model.joblib')
@@ -53,8 +55,9 @@ def predict_spam(message_text, user_id, chat_id):
             feature_array = scaler.transform([feature_array])  # Scale features using the loaded scaler
 
             # Predict using the SVM model
-            prediction = model.predict(feature_array)
-            return prediction[0] == 1  # Return True if model predicts '1' for spam
+            prediction_proba = model.predict_proba(feature_array)
+            threshold = config['ANTISPAM']['THRESHOLD']
+            return prediction_proba[0][1] >= threshold  # Return True if probability of spam is above the threshold
 
     except Exception as e:
         logger.error(f"An error occurred during spam prediction: {traceback.format_exc()}")
