@@ -628,6 +628,12 @@ async def tg_spam_check(update, context):
 async def tg_new_spamcheck(update, context):
     message = update.message
 
+    # check if user is admin so don't check spam for them
+    chat_administrators = await context.bot.get_chat_administrators(message.chat.id)
+    is_admin = any(admin.user.id == message.from_user.id for admin in chat_administrators)
+    if is_admin:
+        return
+
     if not message or not message.from_user:
         return
 
