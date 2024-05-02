@@ -26,7 +26,7 @@ bot = Bot(config['BOT']['KEY'],
 model = load('ml_models/svm_spam_model.joblib')
 scaler = load('ml_models/scaler.joblib')
 
-def predict_spam(message_text, user_id, chat_id):
+async def predict_spam(message_text, user_id, chat_id):
     try:
         # Calculate embedding for the message
         embedding = openai_helper.generate_embedding(message_text)
