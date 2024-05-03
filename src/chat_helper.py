@@ -193,9 +193,14 @@ async def warn_user(bot, chat_id: int, user_id: int) -> None:
     # bot.send_message(chat_id, text=f"User {user_id} has been warned due to multiple reports.")
     pass
 
-async def mute_user(bot, chat_id: int, user_id: int) -> None:
+async def mute_user(bot, chat_id: int, user_id: int, duration_in_hours = None) -> None:
     permissions = ChatPermissions(can_send_messages=False)
-    await bot.restrict_chat_member(chat_id, user_id, permissions, until_date=datetime.now() + timedelta(hours=24))
+
+    if duration_in_hours is not None:
+        await bot.restrict_chat_member(chat_id, user_id, permissions, until_date=datetime.now() + timedelta(hours=duration_in_hours))
+    else:
+        #mute indefinitely
+        await bot.restrict_chat_member(chat_id, user_id, permissions)
 
 
 
