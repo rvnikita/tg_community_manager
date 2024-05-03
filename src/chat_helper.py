@@ -100,7 +100,9 @@ def get_chat_config(chat_id=None, config_param=None, default=None):
                 default_config_param_value = get_default_chat(config_param)
                 if default_config_param_value is not None:
                     logger.info(f"Default config param {config_param} value: {default_config_param_value} for chat_id {chat_id}")
-                    # Optionally handle the situation where default values are to be set for non-existent chats differently here
+                    # Let's insert the chat into the database but with empty config
+                    db_session.add(db_helper.Chat(id=chat_id, config={}))
+
                     return default_config_param_value
                 else:
                     return default  # Return the default value in case of any error
