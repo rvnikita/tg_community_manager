@@ -659,10 +659,10 @@ async def tg_new_spamcheck(update, context):
 
         if spam_proba >= float(threshold):
             spam_detected = True
-            logger.info(f"‼️Spam ‼️ Probability: {spam_proba:.5f}. Threshold: {threshold}. Message: {message_text}. Chat:  {await chat_helper.get_chat_mention(bot, chat_id)}. User: {await user_helper.get_user_mention(bot, user_id)}")
+            logger.info(f"‼️Spam ‼️ Probability: {spam_proba:.5f}. Threshold: {threshold}. Message: {message_text}. Chat:  {await chat_helper.get_chat_mention(bot, chat_id)}. User: {user_helper.get_user_mention(bot, user_id)}")
         else:
             spam_detected = False
-            logger.info(f"Not Spam. Probability: {spam_proba:.5f}. Threshold: {threshold}. Message: {message_text}. Chat:  {await chat_helper.get_chat_mention(bot, chat_id)}. User: {await user_helper.get_user_mention(bot, user_id)}")
+            logger.info(f"Not Spam. Probability: {spam_proba:.5f}. Threshold: {threshold}. Message: {message_text}. Chat:  {await chat_helper.get_chat_mention(bot, chat_id)}. User: {user_helper.get_user_mention(bot, user_id)}")
 
         if spam_detected:
             # logger.info(f"‼️️‼️️‼️️️Message ID: {message.message_id} Message: {text} | From User ID: {user_id} in Chat ID: {chat_id} | Spam Check: {'Spam' if is_spam else 'Not Spam'}")
