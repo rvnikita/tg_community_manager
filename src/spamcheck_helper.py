@@ -74,4 +74,5 @@ async def predict_spam(user_id, chat_id, message_text=None, embedding=None):
 
     except Exception as e:
         logger.error(f"An error occurred during spam prediction: {traceback.format_exc()}")
+        logger.error(f"Feature array at time of error: {feature_array}")
         return False
