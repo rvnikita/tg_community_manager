@@ -28,8 +28,8 @@ import os
 current_path = os.getcwd()
 print("Current Working Directory:", current_path)
 
-model = load('../../ml_models/svm_spam_model.joblib')
-scaler = load('../../ml_models/scaler.joblib')
+model = load('ml_models/svm_spam_model.joblib')
+scaler = load('ml_models/scaler.joblib')
 
 async def generate_features(user_id, chat_id, message_text=None, embedding=None):
     try:
