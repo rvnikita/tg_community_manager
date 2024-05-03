@@ -653,7 +653,7 @@ async def tg_new_spamcheck(update, context):
         #TODO: As we anyway calculate embedding in predict_spam I think we need to store it in the database, not do it twice in cron later.
         # Probably we will need too refactor, separate embedding and predict_spam (get embedding, not text as input)
 
-        spam_proba = await spamcheck_helper.predict_spam(message_text, user_id, chat_id)
+        spam_proba = await spamcheck_helper.predict_spam(user_id, chat_id, message_text = message_text)
 
         threshold = config['ANTISPAM']['THRESHOLD']
 
