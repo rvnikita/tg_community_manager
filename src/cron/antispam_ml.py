@@ -29,7 +29,7 @@ async def train_spam_classifier():
             message_contents = {}  # Dictionary to store message contents for reference
 
             for message in messages:
-                feature_array = await spamcheck_helper.generate_features(message.message_content, message.user_id, message.chat_id)
+                feature_array = await spamcheck_helper.generate_features(message.user_id, message.chat_id, message.message_content, message.embedding)
                 if feature_array is not None:
                     features.append(feature_array)
                     labels.append(message.is_spam)
@@ -52,13 +52,11 @@ async def train_spam_classifier():
             model = SVC(kernel='linear', probability=True)
             model.fit(X_train, y_train)
             accuracy = model.score(X_test, y_test)
-            logger.info(f"Model accuracy: {accuracy}")
+            logger.info(f"🎉Model accuracy: {accuracy}")
 
             # Dump the trained model and scaler to file
-            dump(model, 'svm_spam_model.joblib')
-            dump(scaler, 'scaler.joblib')
-
-            logger.info("Model and scaler have been saved successfully.")
+            dump(model, '../../ml_models/svm_spam_model.joblib')
+            dump(scaler, '../../ml_models/scaler.joblib')
 
             # Evaluate wrongly classified messages
             y_pred = model.predict(X_test)

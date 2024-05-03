@@ -26,49 +26,46 @@ bot = Bot(config['BOT']['KEY'],
 model = load('../../ml_models/svm_spam_model.joblib')
 scaler = load('../../ml_models/scaler.joblib')
 
-async def generate_features(message_text, user_id, chat_id):
-    embedding = openai_helper.generate_embedding(message_text)
-    if embedding is None:
-        logger.error("Failed to generate embedding for spam prediction.")
-        return None
+async def generate_features(user_id, chat_id, message_text=None, embedding=None):
+    try:
+        if embedding is None and message_text is not None:
+            embedding = openai_helper.generate_embedding(message_text)
 
-    with db_helper.session_scope() as session:
-        user = session.query(db_helper.User).filter(db_helper.User.id == user_id).one_or_none()
-        if not user:
-            logger.error(f"User with ID {user_id} not found.")
+        if embedding is None:
+            logger.error("Failed to generate embedding for spam prediction.")
             return None
 
-        user_status = session.query(db_helper.User_Status).filter(
-            db_helper.User_Status.user_id == user_id,
-            db_helper.User_Status.chat_id == chat_id
-        ).one_or_none()
+        with db_helper.session_scope() as session:
+            user = session.query(db_helper.User).filter(db_helper.User.id == user_id).one_or_none()
+            if not user:
+                logger.error(f"User with ID {user_id} not found.")
+                return None
 
-        user_rating_value = rating_helper.get_rating(user_id, chat_id)
-        joined_date = user_status.created_at if user_status else user.created_at
-        message_date = datetime.now(timezone.utc)
-        time_difference = (message_date - joined_date).days
+            user_status = session.query(db_helper.User_Status).filter(
+                db_helper.User_Status.user_id == user_id,
+                db_helper.User_Status.chat_id == chat_id
+            ).one_or_none()
 
-        feature_array = np.concatenate((embedding, [user_rating_value, time_difference]))
-        return feature_array
+            user_rating_value = rating_helper.get_rating(user_id, chat_id)
+            joined_date = user_status.created_at if user_status else user.created_at
+            message_date = datetime.now(timezone.utc)
+            time_difference = (message_date - joined_date).days
+            message_length = len(message_text)
 
-async def predict_spam(message_text, user_id, chat_id):
+            feature_array = np.concatenate((embedding, [user_rating_value, time_difference, chat_id, user_id, message_length]))
+            return feature_array
+    except Exception as e:
+        logger.error(f"An error occurred during feature generation: {traceback.format_exc()}")
+        return None
+
+async def predict_spam(user_id, chat_id, message_text=None, embedding=None):
     try:
-        feature_array = await generate_features(message_text, user_id, chat_id)
+        feature_array = await generate_features(user_id, chat_id, message_text, embedding)
         if feature_array is None:
             return False
 
         feature_array = scaler.transform([feature_array])  # Reshape for scaler
-        prediction_proba = model.predict_proba(feature_array)
-        threshold = config['ANTISPAM']['THRESHOLD']
-
-        if prediction_proba[0][1] >= float(threshold):
-            spam_detected = True
-            logger.info(f"‼️Spam ‼️ Probability: {prediction_proba[0][1]:.5f}. Threshold: {threshold}. Message: {message_text}. Chat:  {await chat_helper.get_chat_mention(bot, chat_id)}. User: {await user_helper.get_user_mention(bot, user_id)}")
-        else:
-            spam_detected = False
-            logger.info(f"Not Spam. Probability: {prediction_proba[0][1]:.5f}. Threshold: {threshold}. Message: {message_text}. Chat:  {await chat_helper.get_chat_mention(bot, chat_id)}. User: {await user_helper.get_user_mention(bot, user_id)}")
-
-        return spam_detected
+        return model.predict_proba(feature_array)[0][1]
 
     except Exception as e:
         logger.error(f"An error occurred during spam prediction: {traceback.format_exc()}")

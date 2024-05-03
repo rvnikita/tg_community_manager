@@ -642,29 +642,35 @@ async def tg_new_spamcheck(update, context):
 
     user_id = message.from_user.id
     chat_id = message.chat.id
-    text = message.text
+    message_text = message.text
 
     try:
         #TODO: As we anyway calculate embedding in predict_spam I think we need to store it in the database, not do it twice in cron later.
         # Probably we will need too refactor, separate embedding and predict_spam (get embedding, not text as input)
 
-        is_spam = spamcheck_helper.predict_spam(text, user_id, chat_id)
+        spam_proba = await spamcheck_helper.predict_spam(message_text, user_id, chat_id)
 
-        # Log the spam check result
-        # logger.info(f"Message ID: {message.message_id} | From User ID: {user_id} in Chat ID: {chat_id} | Spam Check: {'Spam' if is_spam else 'Not Spam'}")
+        threshold = config['ANTISPAM']['THRESHOLD']
 
-        if is_spam:
+        if spam_proba[0][1] >= float(threshold):
+            spam_detected = True
+            logger.info(f"‼️Spam ‼️ Probability: {spam_proba:.5f}. Threshold: {threshold}. Message: {message_text}. Chat:  {await chat_helper.get_chat_mention(bot, chat_id)}. User: {await user_helper.get_user_mention(bot, user_id)}")
+        else:
+            spam_detected = False
+            logger.info(f"Not Spam. Probability: {spam_proba:.5f}. Threshold: {threshold}. Message: {message_text}. Chat:  {await chat_helper.get_chat_mention(bot, chat_id)}. User: {await user_helper.get_user_mention(bot, user_id)}")
+
+        if spam_detected:
             # logger.info(f"‼️️‼️️‼️️️Message ID: {message.message_id} Message: {text} | From User ID: {user_id} in Chat ID: {chat_id} | Spam Check: {'Spam' if is_spam else 'Not Spam'}")
             # Handle spam message: delete the message, inform the user, log the event, etc.
             await chat_helper.delete_message(bot, chat_id, message.message_id)
-            await chat_helper.send_message(bot, chat_id, "A message was deleted because it was detected as spam.", delete_after=120)
+            # await chat_helper.send_message(bot, chat_id, "A message was deleted because it was detected as spam.", delete_after=120)
 
             await message_helper.log_or_update_message(
                 user_id=user_id,
                 user_nickname=message.from_user.first_name,
                 user_current_rating=rating_helper.get_rating(user_id, chat_id),
                 chat_id=chat_id,
-                message_content=text,
+                message_content=message_text,
                 action_type="spam detection",
                 reporting_id=context.bot.id,
                 reporting_id_nickname="rv_tg_community_bot",
@@ -677,7 +683,7 @@ async def tg_new_spamcheck(update, context):
             pass
 
     except Exception as error:
-        logger.error(f"Error processing spam check: {traceback.format_exc()} | Message: {text} | User ID: {user_id} | Chat ID: {chat_id}")
+        logger.error(f"Error processing spam check: {traceback.format_exc()} | Message: {message_text} | User ID: {user_id} | Chat ID: {chat_id}")
 
 
 async def tg_thankyou(update, context):
@@ -1037,7 +1043,7 @@ class BotManager:
             self.application.add_handler(MessageHandler(filters.TEXT | filters.Document.ALL, tg_spam_check), group=7)
 
             # self.application.add_handler(MessageHandler(filters.TEXT, tg_ai_spam_check), group=8)
-            self.application.add_handler(MessageHandler(filters.TEXT, tg_new_spamcheck), group=8)
+            self.application.add_handler(MessageHandler(filters.TEXT & (filters.ChatType.GROUPS | filters.ChatType.SUPERGROUP), tg_new_spamcheck), group=8)
 
             self.application.add_handler(CommandHandler(['pin', 'p'], tg_pin, filters.ChatType.SUPERGROUP), group=9)
             self.application.add_handler(CommandHandler(['unpin', 'up'], tg_unpin, filters.ChatType.SUPERGROUP), group=9)
