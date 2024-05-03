@@ -246,7 +246,8 @@ async def tg_warn(update, context):
 
         await chat_helper.delete_message(bot, chat_id, message.message_id, delay_seconds=120)  # clean up the command message
 
-        if message.from_user.id not in admin_ids:
+        # TODO:MED: Could be a bug here, because non admins answering from thirs channles will be able to use this command, but I am not sure. Didn't get how to check it.
+        if message.from_user.id not in admin_ids or message.from_user.username != "Channel_Bot":  #Channel_Bot is when user answers from channel
             await chat_helper.send_message(bot, chat_id, "You must be an admin to use this command.", reply_to_message_id=message.message_id, delete_after = 120)
             return
 
@@ -319,7 +320,9 @@ async def tg_ban(update, context):
 
             # Check if the command was sent by an admin of the chat
             chat_administrators = await bot.get_chat_administrators(chat_id)
-            if message.from_user.id not in [admin.user.id for admin in chat_administrators]:
+
+            # TODO:MED: Could be a bug here, because non admins answering from thirs channles will be able to use this command, but I am not sure. Didn't get how to check it.
+            if message.from_user.id not in [admin.user.id for admin in chat_administrators] or message.from_user.username != "Channel_Bot": #Channel_Bot is when user answers from channel
                 await chat_helper.send_message(bot, chat_id, "You must be an admin to use this command.", reply_to_message_id=message.message_id, delete_after = 120)
                 return
 
@@ -385,10 +388,9 @@ async def tg_gban(update, context):
             ban_reason = None
 
             # Check if the command was sent by a global admin of the bot
-            if message.from_user.id != int(config['BOT']['ADMIN_ID']):
+            #TODO:MED: Could be a bug here, because non admins answering from thirs channles will be able to use this command, but I am not sure. Didn't get how to check it.
+            if message.from_user.id != int(config['BOT']['ADMIN_ID']) or message.from_user.username != "Channel_Bot": #Channel_Bot is when user answers from channel
                 #print chat_id
-                await message.reply_text(f"Chat id {chat_id}")
-                await message.reply_text(f"User id {message.from_user.id}")
                 await message.reply_text("You must be a global bot admin to use this command.")
                 return
 
