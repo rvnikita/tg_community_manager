@@ -69,6 +69,9 @@ async def predict_spam(user_id, chat_id, message_text=None, embedding=None):
         if feature_array is None:
             return False
 
+        if np.isnan(feature_array).any():
+            logger.error(f"NaN values found in feature_array: {feature_array}")
+
         feature_array = scaler.transform([feature_array])  # Reshape for scaler
         return model.predict_proba(feature_array)[0][1]
 
