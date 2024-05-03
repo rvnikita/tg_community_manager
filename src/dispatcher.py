@@ -387,8 +387,8 @@ async def tg_gban(update, context):
             # Check if the command was sent by a global admin of the bot
             if message.from_user.id != int(config['BOT']['ADMIN_ID']):
                 #print chat_id
-                await message.reply_text("Chat id f{chat_id}")
-                await message.reply_text("User id f{message.from_user.id}")
+                await message.reply_text(f"Chat id {chat_id}")
+                await message.reply_text(f"User id {message.from_user.id}")
                 await message.reply_text("You must be a global bot admin to use this command.")
                 return
 
