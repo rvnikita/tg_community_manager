@@ -23,8 +23,8 @@ bot = Bot(config['BOT']['KEY'],
 
 
 # Load the pre-trained SVM model
-model = load('../../ml_models/svm_spam_model.joblib')
-scaler = load('../../ml_models/scaler.joblib')
+model = load('../ml_models/svm_spam_model.joblib')
+scaler = load('../ml_models/scaler.joblib')
 
 async def generate_features(user_id, chat_id, message_text=None, embedding=None):
     try:
