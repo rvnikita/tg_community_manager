@@ -657,7 +657,7 @@ async def tg_new_spamcheck(update, context):
 
         threshold = config['ANTISPAM']['THRESHOLD']
 
-        if spam_proba[0][1] >= float(threshold):
+        if spam_proba >= float(threshold):
             spam_detected = True
             logger.info(f"‼️Spam ‼️ Probability: {spam_proba:.5f}. Threshold: {threshold}. Message: {message_text}. Chat:  {await chat_helper.get_chat_mention(bot, chat_id)}. User: {await user_helper.get_user_mention(bot, user_id)}")
         else:
