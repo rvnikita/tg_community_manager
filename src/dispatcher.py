@@ -511,6 +511,8 @@ async def tg_log_message(update, context):
             reporting_id_nickname = user_nickname
             reason_for_action = "Regular message"  # Default reason
 
+            embedding = openai_helper.generate_embedding(message_content)
+
             # Call the log_or_update_message function from your reporting helper
             success = await message_helper.log_or_update_message(
                 user_id=user_id,
@@ -523,7 +525,8 @@ async def tg_log_message(update, context):
                 reporting_id_nickname=reporting_id_nickname,
                 reason_for_action=reason_for_action,
                 message_id=message_id,
-                is_spam=False  # Default to not spam when first logging
+                is_spam=False,  # Default to not spam when first logging
+                embedding=embedding
             )
 
             if not success:
