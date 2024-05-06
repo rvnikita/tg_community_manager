@@ -661,7 +661,7 @@ async def tg_new_spamcheck(update, context):
             return
 
         if spam_proba >= mute_threshold:
-            logger.info(f"‼️Spam (delete, mute) ‼️ Probability: {spam_proba:.5f}. Threshold: {delete_threshold}. Message: {message_text}. Chat: {await chat_helper.get_chat_mention(bot, chat_id)}. User: {user_helper.get_user_mention(user_id, chat_id)}")
+            logger.info(f"‼️Spam (delete, mute) ‼️ Probability: {spam_proba:.5f}. Threshold: {mute_threshold}. Message: {message_text}. Chat: {await chat_helper.get_chat_mention(bot, chat_id)}. User: {user_helper.get_user_mention(user_id, chat_id)}")
             await chat_helper.mute_user(bot, chat_id, user_id, 7 * 24)
         else:
             logger.info(f"‼️Spam (delete) ‼️ Probability: {spam_proba:.5f}. Threshold: {delete_threshold}. Message: {message_text}. Chat: {await chat_helper.get_chat_mention(bot, chat_id)}. User: {user_helper.get_user_mention(user_id, chat_id)}")
