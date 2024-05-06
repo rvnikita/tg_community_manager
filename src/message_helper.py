@@ -7,7 +7,7 @@ import src.logging_helper as logging
 
 logger = logging.get_logger()
 
-async def log_or_update_message(user_id, user_nickname, user_current_rating, chat_id, message_content, action_type, reporting_id, reporting_id_nickname, reason_for_action, message_id, is_spam=False):
+async def log_or_update_message(user_id, user_nickname, user_current_rating, chat_id, message_content, action_type, reporting_id, reporting_id_nickname, reason_for_action, message_id, is_spam=False, embedding=None):
     try:
         # logger.info("Processing message log")
 
@@ -26,7 +26,8 @@ async def log_or_update_message(user_id, user_nickname, user_current_rating, cha
                 reporting_id=reporting_id,
                 reporting_id_nickname=reporting_id_nickname,
                 reason_for_action=reason_for_action,
-                created_at=datetime.datetime.now()
+                created_at=datetime.datetime.now(),
+                embedding=embedding
             )
 
             # Define the on_conflict clause
