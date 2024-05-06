@@ -55,8 +55,8 @@ async def train_spam_classifier():
             logger.info(f"🎉Model accuracy: {accuracy}")
 
             # Dump the trained model and scaler to file
-            dump(model, '../../ml_models/svm_spam_model.joblib')
-            dump(scaler, '../../ml_models/scaler.joblib')
+            dump(model, 'ml_models/svm_spam_model.joblib')
+            dump(scaler, 'ml_models/scaler.joblib')
 
             # Evaluate wrongly classified messages
             y_pred = model.predict(X_test)
