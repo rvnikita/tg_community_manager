@@ -635,6 +635,7 @@ async def tg_spam_check(update, context):
 
 
 async def tg_new_spamcheck(update, context):
+    #TODO:HIGH: We currently calculate embeddings twice. Once in tg_log_message and once during prediction. We should reorganize this to avoid redundant calculations.
     message = update.message
 
     if not message or not message.from_user:
