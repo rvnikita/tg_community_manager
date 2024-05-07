@@ -933,6 +933,17 @@ async def tg_update_user_status(update, context):
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
         logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
 
+#We need this function to coordinate different function working with all text messages
+async def tg_wiretapping(update, context):
+    try:
+        tg_log_message(update, context)
+        tg_spam_check(update, context)
+        tg_new_spamcheck(update, context)
+
+    except Exception as e:
+        update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
+        logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
+
 class BotManager:
     def __init__(self):
         self.application = None
@@ -950,14 +961,9 @@ class BotManager:
         try:
             self.application = Application.builder().token(config['BOT']['KEY']).build()
 
-            # log all messages
-            self.application.add_handler(MessageHandler(filters.TEXT, tg_log_message), group=0)
-
-
             # delete new member message
             self.application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, tg_new_member), group=1)
 
-            # wiretapping
             self.application.add_handler(MessageHandler(filters.TEXT & filters.ChatType.SUPERGROUP, tg_update_user_status), group=2)  # filters.ChatType.SUPERGROUP to get only chat messages
             self.application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, tg_update_user_status), group=2)
 
@@ -979,10 +985,10 @@ class BotManager:
             self.application.add_handler(CommandHandler(['ban', 'b'], tg_ban, filters.ChatType.SUPERGROUP), group=6)
             self.application.add_handler(CommandHandler(['gban', 'g', 'gb'], tg_gban), group=6)
 
-            self.application.add_handler(MessageHandler(filters.TEXT | filters.Document.ALL, tg_spam_check), group=7)
+            #wiretapping
+            self.application.add_handler(MessageHandler(filters.TEXT | filters.Document.ALL, tg_wiretapping), group=7)
 
             # self.application.add_handler(MessageHandler(filters.TEXT, tg_ai_spam_check), group=8)
-            self.application.add_handler(MessageHandler(filters.TEXT & (filters.ChatType.GROUPS | filters.ChatType.SUPERGROUP), tg_new_spamcheck), group=8)
 
             self.application.add_handler(CommandHandler(['pin', 'p'], tg_pin, filters.ChatType.SUPERGROUP), group=9)
             self.application.add_handler(CommandHandler(['unpin', 'up'], tg_unpin, filters.ChatType.SUPERGROUP), group=9)
