@@ -151,7 +151,7 @@ class Chat(Base):
       "ai_spam_check_enabled": true
       
       // A boolean value that determines if spam check with new AI model should be enabled or not
-      "new_spamcheck_enabled": true
+      "ai_spamcheck_enabled": true
 
     }
     """

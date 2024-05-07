@@ -590,14 +590,14 @@ async def tg_spam_check(update, context):
         logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
 
 
-async def tg_new_spamcheck(update, context):
+async def tg_ai_spamcheck(update, context):
     #TODO:HIGH: We currently calculate embeddings twice. Once in tg_log_message and once during prediction. We should reorganize this to avoid redundant calculations.
     message = update.message
 
     if not message or not message.from_user:
         return
 
-    if chat_helper.get_chat_config(message.chat.id, "new_spamcheck_enabled") != True:
+    if chat_helper.get_chat_config(message.chat.id, "ai_spamcheck_enabled") != True:
         return
 
     if any(admin.user.id == message.from_user.id for admin in await context.bot.get_chat_administrators(message.chat.id)):
@@ -893,7 +893,7 @@ async def tg_wiretapping(update, context):
     try:
         tg_log_message(update, context)
         tg_spam_check(update, context)
-        tg_new_spamcheck(update, context)
+        tg_ai_spamcheck(update, context)
 
     except Exception as e:
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
