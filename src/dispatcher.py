@@ -537,51 +537,6 @@ async def tg_log_message(update, context):
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
         logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
 
-async def tg_ai_spam_check(update, context):
-    try:
-        message = update.message if update.message else update.edited_message
-        if not message:
-            update_dict = update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}
-            update_str = json.dumps(update_dict, indent=4, sort_keys=True, default=str)
-            logger.info(f"Update does not contain a message: {update_str}")
-            return
-
-        check_spam = chat_helper.get_chat_config(message.chat_id, 'ai_spam_check_enabled')
-
-        if check_spam and message.text:
-            text = message.text.strip()
-            if text:
-                # Call the completion_create function with the prepared prompt
-                prompt = [
-                    {"role": "user", "content": f"{config['ANTISPAM']['PROMPT']} '{text}'"}
-                ]
-
-                response = await openai_helper.chat_completion_create(prompt)
-
-                #let's log prompt for debugging
-                #logger.info(f"Prompt: {prompt}")
-
-                # Assuming the response needs to be parsed to extract the spam rating
-                try:
-                    spam_rating = int(response.choices[0].message.content.strip())
-                except ValueError:
-                    logger.info(f"Failed to parse spam rating from OpenAI response. Chat name {message.chat.title} | Chat ID: {message.chat_id} | Message from: {message.from_user.username} | Message ID: {message.message_id} | Message text: {message.text} | Spam rating: {response.choices[0].message.content.strip()}")
-                    spam_rating = 1
-                except AttributeError:
-                    logger.error(f"Failed to parse spam rating from OpenAI response. Chat name {message.chat.title} | Chat ID: {message.chat_id} | Message from: {message.from_user.username} | Message ID: {message.message_id} | Message text: {message.text} | Spam rating: {spam_rating}")
-                    return
-
-                logger.info(f"ANTISPAM. Chat name {message.chat.title} | Chat ID: {message.chat_id} | Message from: {message.from_user.username} | Message ID: {message.message_id} | Message text: {message.text} | Spam rating: {spam_rating}")
-
-                if spam_rating >= 8:  # Assuming a rating of 10 or more is considered spam
-                    await chat_helper.send_message(context.bot, message.chat_id, "It appears to be spam. If that is the case, please respond to the original message with the command /report ", reply_to_message_id=message.message_id, delete_after = 300)
-                    logger.info(f"❗ANTISPAM. Chat name {message.chat.title} | Chat ID: {message.chat_id} | Message from: {message.from_user.username} | Message ID: {message.message_id} | Detected spam.")
-
-    except Exception as error:
-        update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
-        logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
-
-
 async def tg_spam_check(update, context):
     try:
         message = update.message if update.message else update.edited_message
@@ -987,8 +942,6 @@ class BotManager:
 
             #wiretapping
             self.application.add_handler(MessageHandler(filters.TEXT | filters.Document.ALL, tg_wiretapping), group=7)
-
-            # self.application.add_handler(MessageHandler(filters.TEXT, tg_ai_spam_check), group=8)
 
             self.application.add_handler(CommandHandler(['pin', 'p'], tg_pin, filters.ChatType.SUPERGROUP), group=9)
             self.application.add_handler(CommandHandler(['unpin', 'up'], tg_unpin, filters.ChatType.SUPERGROUP), group=9)
