@@ -208,17 +208,6 @@ class User_Rating(Base):
 
 
 
-class Qna(Base):
-    __table_args__ = (
-        PrimaryKeyConstraint('id', name='qna_pkey'),
-    )
-
-    id = Column(BigInteger, primary_key=True)
-    title = Column(Text, nullable=False)
-    body = Column(Text, nullable=False)
-    created_at = Column(DateTime, server_default=text('now()'))
-    embedding = Column(NullType)
-
 
 class User_Status(Base):
     __table_args__ = (

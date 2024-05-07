@@ -929,67 +929,6 @@ async def tg_update_user_status(update, context):
                         logger.info(
                             f"Channel message deleted from chat {update.message.chat.title} ({update.message.chat.id}) for user @{update.message.from_user.username} ({update.message.from_user.id})")
 
-            # #TODO: we need to separate this part of the code to separate funciton tg_openai_autorespond
-            # if update.message.chat.id == -1001588101140: #O1
-            # # if update.message.chat.id == -1001688952630:  # debug
-            #     #TODO: we need to support multiple chats, settings in db etc
-            #
-            #     #Let's here check if we know an answer for a question and send it to user
-            #     openai.api_key = config['OPENAI']['KEY']
-            #
-            #     messages = [
-            #         {"role": "system",
-            #          "content": f"Answer only yes or no"},
-            #             {"role": "user", "content": f"Is this a question: \"{update.message.text}\""}
-            #     ]
-            #
-            #     response = openai.ChatCompletion.create(
-            #         model=config['OPENAI']['COMPLETION_MODEL'],
-            #         messages=messages,
-            #         temperature=float(config['OPENAI']['TEMPERATURE']),
-            #         max_tokens=int(config['OPENAI']['MAX_TOKENS']),
-            #         top_p=1,
-            #         frequency_penalty=0,
-            #         presence_penalty=0
-            #     )
-            #
-            #     #check if response.choices[0].message.content contains "yes" without case sensitivity
-            #     if "yes" in response.choices[0].message.content.lower():
-            #         rows = openai_helper.get_nearest_vectors(update.message.text, 0)
-            #
-            #         logger.info("Question detected " + update.message.text)
-            #
-            #         if len(rows) > 0:
-            #             logger.info("Vectors detected " + str(rows) + str(rows[0]['similarity']))
-            #
-            #             #TODO this is a debug solution to skip questions with high similarity
-            #             if rows[0]['similarity'] < float(config['OPENAI']['SIMILARITY_THRESHOLD']):
-            #                 logger.info("Skip, similarity=" + str(rows[0]['similarity']) + f" while threshold={config['OPENAI']['SIMILARITY_THRESHOLD']}")
-            #                 return #skip this message
-            #
-            #             messages = [
-            #                 {"role": "system",
-            #                  "content": f"Answer in one Russian message based on user question and embedding vectors. Do not mention embedding. Be applicable and short."},
-            #                 {"role": "user", "content": f"\"{update.message.text}\""}
-            #             ]
-            #
-            #             for i in range(len(rows)):
-            #                 messages.append({"role": "system", "content": f"Embedding Title {i}: {rows[i]['title']}\n Embedding Body {i}: {rows[i]['body']}"})
-            #
-            #             response = openai.ChatCompletion.create(
-            #                 model=config['OPENAI']['COMPLETION_MODEL'],
-            #                 messages=messages,
-            #                 temperature=float(config['OPENAI']['TEMPERATURE']),
-            #                 max_tokens=int(config['OPENAI']['MAX_TOKENS']),
-            #                 top_p=1,
-            #                 frequency_penalty=0,
-            #                 presence_penalty=0
-            #             )
-            #             await chat_helper.send_message(bot, update.message.chat.id, response.choices[0].message.content + f" ({rows[0]['similarity']:.2f})", reply_to_message_id=update.message.message_id)
-            #
-            #             #resend update.message to admin
-            #             await bot.forward_message(config['BOT']['ADMIN_ID'], update.message.chat.id, update.message.message_id)
-            #             await chat_helper.send_message(bot, config['BOT']['ADMIN_ID'], response.choices[0].message.content + f" ({rows[0]['similarity']:.2f})", disable_web_page_preview=True)
     except Exception as e:
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
         logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
