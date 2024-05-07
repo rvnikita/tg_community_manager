@@ -891,9 +891,11 @@ async def tg_update_user_status(update, context):
 #We need this function to coordinate different function working with all text messages
 async def tg_wiretapping(update, context):
     try:
-        tg_log_message(update, context)
-        tg_spam_check(update, context)
-        tg_ai_spamcheck(update, context)
+        await tg_log_message(update, context)
+        await tg_spam_check(update, context)
+        await tg_ai_spamcheck(update, context)
+
+        return
 
     except Exception as e:
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
