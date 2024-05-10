@@ -51,13 +51,25 @@ async def generate_features(user_id, chat_id, message_text=None, embedding=None)
                 db_helper.User_Status.chat_id == chat_id
             ).one_or_none()
 
+            # Count spam and not spam messages
+            spam_count = session.query(db_helper.Message_Log).filter(
+                db_helper.Message_Log.user_id == user_id,
+                db_helper.Message_Log.is_spam == True
+            ).count()
+
+            # Count spam and not spam messages
+            not_spam_count = session.query(db_helper.Message_Log).filter(
+                db_helper.Message_Log.user_id == user_id,
+                db_helper.Message_Log.is_spam == True
+            ).count()
+
             user_rating_value = rating_helper.get_rating(user_id, chat_id)
             joined_date = user_status.created_at if user_status else user.created_at
             message_date = datetime.now(timezone.utc)
             time_difference = (message_date - joined_date).days
             message_length = len(message_text)
 
-            feature_array = np.concatenate((embedding, [user_rating_value, time_difference, chat_id, user_id, message_length]))
+            feature_array = np.concatenate((embedding, [user_rating_value, time_difference, chat_id, user_id, message_length, spam_count, not_spam_count]))
             return feature_array
     except Exception as e:
         logger.error(f"An error occurred during feature generation: {traceback.format_exc()}")
