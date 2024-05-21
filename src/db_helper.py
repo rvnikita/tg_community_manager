@@ -273,6 +273,7 @@ class Message_Log(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     embedding = Column(Vector, nullable=True)  # New column to store message embeddings
     used_for_training = Column(Boolean, default=False, nullable=False)
+    manually_verified = Column(Boolean, default=False, nullable=False)
 
     # Relationships
     user = relationship("User", foreign_keys=[user_id], backref="message_logs")
