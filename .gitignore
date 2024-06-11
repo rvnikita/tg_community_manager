@@ -15,3 +15,5 @@ alembic.ini
 
 # Ignore session files
 *.session
+
+__pycache__
