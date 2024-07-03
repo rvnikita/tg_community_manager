@@ -84,7 +84,7 @@ async def status_update():
                         logger.info(f"Chat not found (Chat ID: {user_status_row['chat_id']}): {error_message}")
                     else:
                         # If it's another kind of BadRequest, log it as an error
-                        logger.error(f"BadRequest error: {bad_request_error}")
+                        logger.error(f"BadRequest error: {bad_request_error}. ChatID: {user_status_row['chat_id']}, UserID: {user_status_row['user_id']}")
                 except Forbidden as forbidden_error:
                     # Log the Forbidden error as an informational entry with chat ID
                     logger.info(f"Bot is not a member of the group chat (Chat ID: {user_status_row['chat_id']}): {forbidden_error}")
