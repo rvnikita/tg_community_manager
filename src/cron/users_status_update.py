@@ -82,6 +82,12 @@ async def status_update():
                     elif "Chat not found" in error_message:
                         # Log the "Chat not found" error as an informational entry with chat ID
                         logger.info(f"Chat not found (Chat ID: {user_status_row['chat_id']}): {error_message}")
+                    elif "Member not found" in error_message:
+                        # Update the user's status to "Member not found"
+                        updates.append(("Member not found", user_status_row['user_id'], user_status_row['chat_id']))
+                    elif "Participant_id_invalid" in error_message:
+                        # Update the user's status to "Participant ID invalid"
+                        updates.append(("Participant ID invalid", user_status_row['user_id'], user_status_row['chat_id']))
                     else:
                         # If it's another kind of BadRequest, log it as an error
                         logger.error(f"BadRequest error: {bad_request_error}. ChatID: {user_status_row['chat_id']}, UserID: {user_status_row['user_id']}")
