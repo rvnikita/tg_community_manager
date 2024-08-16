@@ -991,33 +991,33 @@ class BotManager:
             # delete new member message
             self.application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, tg_new_member), group=1)
 
-            self.application.add_handler(MessageHandler(filters.TEXT & filters.ChatType.SUPERGROUP, tg_update_user_status), group=2)  # filters.ChatType.SUPERGROUP to get only chat messages
+            self.application.add_handler(MessageHandler(filters.TEXT & filters.ChatType.GROUPS, tg_update_user_status), group=2)  # filters.ChatType.GROUPS to get only chat messages
             self.application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, tg_update_user_status), group=2)
 
             # checking if user says thank you.
             self.application.add_handler(MessageHandler(filters.TEXT, tg_thankyou), group=3)
 
             # reporting
-            self.application.add_handler(CommandHandler(['report', 'r'], tg_report, filters.ChatType.SUPERGROUP), group=4)
-            self.application.add_handler(CommandHandler(['warn', 'w'], tg_warn, filters.ChatType.SUPERGROUP), group=4)
-            self.application.add_handler(CommandHandler(['offtop', 'o'], tg_offtop, filters.ChatType.SUPERGROUP), group=4)
+            self.application.add_handler(CommandHandler(['report', 'r'], tg_report, filters.ChatType.GROUPS), group=4)
+            self.application.add_handler(CommandHandler(['warn', 'w'], tg_warn, filters.ChatType.GROUPS), group=4)
+            self.application.add_handler(CommandHandler(['offtop', 'o'], tg_offtop, filters.ChatType.GROUPS), group=4)
 
-            self.application.add_handler(CommandHandler(['set_rating'], tg_set_rating, filters.ChatType.SUPERGROUP), group=4)
-            self.application.add_handler(CommandHandler(['set_report'], tg_set_report, filters.ChatType.SUPERGROUP), group=4)
+            self.application.add_handler(CommandHandler(['set_rating'], tg_set_rating, filters.ChatType.GROUPS), group=4)
+            self.application.add_handler(CommandHandler(['set_report'], tg_set_report, filters.ChatType.GROUPS), group=4)
 
-            self.application.add_handler(CommandHandler(['get_rating', 'gr'], tg_get_rating, filters.ChatType.SUPERGROUP), group=4)
+            self.application.add_handler(CommandHandler(['get_rating', 'gr'], tg_get_rating, filters.ChatType.GROUPS), group=4)
 
             # Add a handler for chat join requests
             self.application.add_handler(ChatJoinRequestHandler(tg_join_request), group=5)
 
-            self.application.add_handler(CommandHandler(['ban', 'b'], tg_ban, filters.ChatType.SUPERGROUP), group=6)
+            self.application.add_handler(CommandHandler(['ban', 'b'], tg_ban, filters.ChatType.GROUPS), group=6)
             self.application.add_handler(CommandHandler(['gban', 'g', 'gb'], tg_gban), group=6)
 
             #wiretapping
             self.application.add_handler(MessageHandler(filters.TEXT | filters.Document.ALL, tg_wiretapping), group=7)
 
-            self.application.add_handler(CommandHandler(['pin', 'p'], tg_pin, filters.ChatType.SUPERGROUP), group=9)
-            self.application.add_handler(CommandHandler(['unpin', 'up'], tg_unpin, filters.ChatType.SUPERGROUP), group=9)
+            self.application.add_handler(CommandHandler(['pin', 'p'], tg_pin, filters.ChatType.GROUPS), group=9)
+            self.application.add_handler(CommandHandler(['unpin', 'up'], tg_unpin, filters.ChatType.GROUPS), group=9)
 
             self.application.add_handler(CommandHandler(['help', 'h'], tg_help), group=10)
 
