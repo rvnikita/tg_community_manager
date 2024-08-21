@@ -21,3 +21,6 @@ __pycache__
 
 # Ignore venv
 venv
+.vscode/launch.json
+tg-community-manager-db.session.sql
+.vscode/settings.json
