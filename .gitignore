@@ -16,4 +16,8 @@ alembic.ini
 # Ignore session files
 *.session
 
+# Ignore cache
 __pycache__
+
+# Ignore venv
+venv
