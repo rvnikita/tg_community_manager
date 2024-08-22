@@ -6,6 +6,7 @@ sys.path.append(os.getcwd())
 import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
+from sklearn.impute import SimpleImputer
 from sklearn.svm import SVC
 import traceback
 from joblib import dump
@@ -23,23 +24,9 @@ async def train_spam_classifier():
     """Train a simple SVM model for spam detection using message embeddings, content, user ratings, and time difference."""
     try:
         with db_helper.session_scope() as session:
-            
             logger.info("before db")
-            # Fetch all necessary data in one query, limit to 1000 rows for debugging
-            spam_count_subquery = (
-                session.query(func.count())
-                .filter(db_helper.Message_Log.user_id == db_helper.Message_Log.user_id, db_helper.Message_Log.is_spam == True)
-                .correlate(db_helper.Message_Log)
-                .scalar_subquery()
-            )
-
-            not_spam_count_subquery = (
-                session.query(func.count())
-                .filter(db_helper.Message_Log.user_id == db_helper.Message_Log.user_id, db_helper.Message_Log.is_spam == False)
-                .correlate(db_helper.Message_Log)
-                .scalar_subquery()
-            )
-
+            
+            # Fetch the first 500 messages ordered by ID in descending order
             query = (
                 session.query(
                     db_helper.Message_Log.id,
@@ -51,8 +38,14 @@ async def train_spam_classifier():
                     db_helper.Message_Log.user_current_rating,
                     db_helper.User_Status.created_at.label('status_created_at'),
                     db_helper.User.created_at.label('user_created_at'),
-                    spam_count_subquery.label('spam_count'),
-                    not_spam_count_subquery.label('not_spam_count')
+                    func.count(db_helper.Message_Log.is_spam).over(
+                        partition_by=[db_helper.Message_Log.user_id],
+                        order_by=db_helper.Message_Log.user_id
+                    ).label('spam_count'),
+                    func.count(db_helper.Message_Log.is_spam).over(
+                        partition_by=[db_helper.Message_Log.user_id],
+                        order_by=db_helper.Message_Log.user_id
+                    ).label('not_spam_count')
                 )
                 .outerjoin(db_helper.User_Status, 
                     (db_helper.User_Status.user_id == db_helper.Message_Log.user_id) & 
@@ -60,8 +53,10 @@ async def train_spam_classifier():
                 )
                 .join(db_helper.User, db_helper.User.id == db_helper.Message_Log.user_id)
                 .filter(db_helper.Message_Log.embedding != None,
-                        db_helper.Message_Log.message_content != None)
-                # .limit(10000)
+                        db_helper.Message_Log.message_content != None,
+                        db_helper.Message_Log.manually_verified == True) # Only use manually verified messages
+                .order_by(db_helper.Message_Log.id.desc())  # Order by ID descending
+                # .limit(500)  # Limit to the first 500 messages
             )
 
             logger.info("after db")
@@ -87,84 +82,72 @@ async def train_spam_classifier():
                 time_difference = (datetime.now(timezone.utc) - joined_date).days
                 message_length = len(message_data.message_content)
 
+                # Feature array construction including all features used in generate_features
                 feature_array = np.concatenate((
                     message_data.embedding,
-                    [message_data.user_current_rating, time_difference, message_data.chat_id, message_data.user_id, message_length, message_data.spam_count, message_data.not_spam_count]
+                    [
+                        message_data.user_current_rating, 
+                        time_difference, 
+                        message_data.chat_id,  # Include chat_id
+                        message_data.user_id,  # Include user_id
+                        message_length, 
+                        message_data.spam_count, 
+                        message_data.not_spam_count
+                    ]
                 ))
 
                 features.append(feature_array)
                 labels.append(message_data.is_spam)
                 message_contents[message_data.id] = message_data.message_content
-                
+
             logger.info("after messages_data loop")
 
             if not features:
                 logger.info("No features to train on.")
                 return None
 
-            # Convert features to a NumPy array
+            # Convert features and labels to NumPy arrays
             features = np.array(features)
+            labels = np.array(labels)
 
-            # Log the features to inspect the data
-            logger.info(f"Features array: {features}")
+            # Handle NaN values by imputing with the mean of each column
+            imputer = SimpleImputer(strategy='mean')
+            features = imputer.fit_transform(features)
 
-            # Check the dtype of the features array
-            logger.info(f"Features array dtype: {features.dtype}")
+            # Check the class distribution before splitting
+            unique_classes, class_counts = np.unique(labels, return_counts=True)
+            logger.info(f"Class distribution: {dict(zip(unique_classes, class_counts))}")
 
-            # Attempt to convert the features array to a numeric dtype
-            try:
-                features = features.astype(np.float64)
-            except ValueError as e:
-                logger.error(f"Error converting features to numeric: {e}")
-                return None
-
-            # Now that the data is numeric, check for NaN values
-            nan_indices = np.isnan(features).any(axis=1)
-            if np.any(nan_indices):
-                logger.warning(f"Found {np.sum(nan_indices)} rows with NaN values in the features.")
-                logger.warning(f"NaN values are in the following rows: {features[nan_indices]}")
-            else:
-                logger.info("No NaN values found before removal.")
-
-            # Ensure nan_indices is a boolean array
-            nan_indices = nan_indices.astype(bool)
-
-            # Remove rows with NaN values
-            features_clean = features[~nan_indices]
-            labels_clean = np.array(labels)[~nan_indices]
-            cleaned_ids = np.array(list(message_contents.keys()))[~nan_indices]
-
-            # Log NaN values after removal to double-check
-            if np.isnan(features_clean).any():
-                remaining_nan_indices = np.isnan(features_clean).any(axis=1)
-                logger.error(f"NaN values still present after cleaning in the following rows: {features_clean[remaining_nan_indices]}")
-                return None
-            else:
-                logger.info("All NaN values successfully removed.")
-
+            # Split the data into training and testing sets using stratified splitting
             X_train, X_test, y_train, y_test, ids_train, ids_test = train_test_split(
-                features_clean, labels_clean, cleaned_ids, test_size=0.2, random_state=42)
+                features, labels, list(message_contents.keys()), test_size=0.05, stratify=labels)
 
+            # Check class distribution after splitting
+            unique_train_classes, train_class_counts = np.unique(y_train, return_counts=True)
+            unique_test_classes, test_class_counts = np.unique(y_test, return_counts=True)
+            logger.info(f"Training class distribution: {dict(zip(unique_train_classes, train_class_counts))}")
+            logger.info(f"Test class distribution: {dict(zip(unique_test_classes, test_class_counts))}")
+
+            # Scale the features
             scaler = StandardScaler().fit(X_train)
             X_train = scaler.transform(X_train)
             X_test = scaler.transform(X_test)
 
-            logger.info("before SVC")
+            # Train the SVM model
             model = SVC(kernel='linear', probability=True)
-            logger.info("before fit")
             model.fit(X_train, y_train)
-            logger.info("before score")
+
+            # Evaluate the model
             accuracy = model.score(X_test, y_test)
             logger.info(f"🎉Model accuracy: {accuracy}")
 
             # Dump the trained model and scaler to file
-            logger.info("before dump")
             dump(model, 'ml_models/svm_spam_model.joblib')
             dump(scaler, 'ml_models/scaler.joblib')
 
-            logger.info("before predict")
             # Evaluate wrongly classified messages
             y_pred = model.predict(X_test)
+            logger.info("Wrongly classified messages:")
             for i in range(len(y_pred)):
                 message_id = ids_test[i]
                 pred = y_pred[i]

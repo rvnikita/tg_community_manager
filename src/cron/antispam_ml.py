@@ -6,6 +6,10 @@ import traceback
 from joblib import dump
 import asyncio
 
+import sys
+import os
+sys.path.append(os.getcwd())
+
 # Import necessary helper modules
 import src.spamcheck_helper as spamcheck_helper
 import src.db_helper as db_helper
@@ -18,18 +22,21 @@ async def train_spam_classifier():
     """Train a simple SVM model for spam detection using message embeddings, content, user ratings, and time difference."""
     try:
         with db_helper.session_scope() as session:
-            # Fetch messages and statuses from database
+            # Fetch the first 500 messages ordered by ID in descending order
             messages = session.query(db_helper.Message_Log) \
                               .filter(db_helper.Message_Log.embedding != None,
                                       db_helper.Message_Log.message_content != None) \
-                              .all()
+                              .order_by(db_helper.Message_Log.id.desc()) \
+                              .limit(500)  # Limit to 500 messages
 
             features = []
             labels = []
             message_contents = {}  # Dictionary to store message contents for reference
 
             for message in messages:
-                feature_array = await spamcheck_helper.generate_features(message.user_id, message.chat_id, message.message_content, message.embedding)
+                feature_array = await spamcheck_helper.generate_features(
+                    message.user_id, message.chat_id, message.message_content, message.embedding
+                )
                 if feature_array is not None:
                     features.append(feature_array)
                     labels.append(message.is_spam)
