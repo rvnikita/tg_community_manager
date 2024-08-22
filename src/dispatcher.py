@@ -438,7 +438,7 @@ async def tg_ban(update, context):
                 reporting_id_nickname=user_helper.get_user_mention(message.from_user.id, chat_id),
                 reason_for_action=f"User {user_helper.get_user_mention(ban_user_id, chat_id)} was banned in chat {await chat_helper.get_chat_mention(bot, chat_id)}. Reason: {message.text}",
                 message_id=message.reply_to_message.message_id,
-                is_spam=True
+                is_spam=False
             )
 
 
@@ -522,12 +522,13 @@ async def tg_gban(update, context):
                 user_current_rating=rating_helper.get_rating(ban_user_id, chat_id),
                 chat_id=chat_id,
                 message_content=message.reply_to_message.text,
-                action_type="ban",
+                action_type="gban",
                 reporting_id=message.from_user.id,
                 reporting_id_nickname=user_helper.get_user_mention(message.from_user.id, chat_id),
                 reason_for_action=f"User {user_helper.get_user_mention(ban_user_id, chat_id)} was banned in chat {await chat_helper.get_chat_mention(bot, chat_id)}. Reason: {message.text}",
                 message_id=message.reply_to_message.message_id,
-                is_spam=True
+                is_spam=True,
+                manually_verified=True 
             )
 
     except Exception as error:
