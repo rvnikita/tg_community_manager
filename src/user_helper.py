@@ -33,23 +33,23 @@ def get_user_mention(user_id: int, chat_id: int = None) -> str:
                 # This part constructs the user mention string based on the available user information.
                 # Output table for different user input combinations:
                 #   First name | Last name | Username   | ID   | `user_mention`
-                # --------------|-----------|------------|------|------------------------------
-                #   "Nikita"    | "Rvachev" | "rvnikita" | 123  | "Nikita Rvachev - @rvnikita"
-                #   "Nikita"    | "Rvachev" | None       | 123  | "Nikita Rvachev"
-                #   None        | None      | "rvnikita" | 123  | "@rvnikita"
-                #   "Nikita"    | None      | "rvnikita" | 123  | "Nikita - @rvnikita"
-                #   None        | "Rvachev" | "rvnikita" | 123  | "Rvachev - @rvnikita"
-                #   "Nikita"    | None      | None       | 123  | "Nikita"
-                #   None        | "Rvachev" | None       | 123  | "Rvachev"
-                #   None        | None      | None       | 123  | "123"
+                # -------------|-----------|------------|------|------------------------------
+                #   "Nikita"   | "Rvachev" | "rvnikita" | 123  | "123 - Nikita Rvachev - @rvnikita"
+                #   "Nikita"   | "Rvachev" | None       | 123  | "123 - Nikita Rvachev"
+                #   None       | None      | "rvnikita" | 123  | "123 - @rvnikita"
+                #   "Nikita"   | None      | "rvnikita" | 123  | "123 - Nikita - @rvnikita"
+                #   None       | "Rvachev" | "rvnikita" | 123  | "123 - Rvachev - @rvnikita"
+                #   "Nikita"   | None      | None       | 123  | "123 - Nikita"
+                #   None       | "Rvachev" | None       | 123  | "123 - Rvachev"
+                #   None       | None      | None       | 123  | "123"
                 parts = [user.first_name, user.last_name]  # Start with possible first and last name
                 full_name = ' '.join(filter(None, parts))  # Combine them with a space, filter out None values
                 if full_name and user.username:
-                    user_mention = f"{full_name} - @{user.username}"
+                    user_mention = f"{user.id} - {full_name} - @{user.username}"
                 elif user.username:
-                    user_mention = f"@{user.username}"
+                    user_mention = f"{user.id} - @{user.username}"
                 elif full_name:
-                    user_mention = full_name
+                    user_mention = f"{user.id} - {full_name}"
                 else:
                     user_mention = str(user.id)
 
