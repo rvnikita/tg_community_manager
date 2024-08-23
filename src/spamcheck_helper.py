@@ -37,7 +37,7 @@ async def generate_features(user_id, chat_id, message_text=None, embedding=None)
             embedding = openai_helper.generate_embedding(message_text)
 
         if embedding is None:
-            logger.error("Failed to generate embedding for spam prediction.")
+            logger.error(f"Failed to generate embedding for spam prediction. Message text: {message_text}")
             return None
 
         with db_helper.session_scope() as session:
