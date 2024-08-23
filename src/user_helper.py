@@ -27,31 +27,31 @@ def get_user_mention(user_id: int, chat_id: int = None) -> str:
         with db_helper.session_scope() as db_session:
             user = db_session.query(db_helper.User).filter_by(id=user_id).first()
             if user is None:
-                # If the user is not found, return the user ID as a string.
-                return str(user_id)
+                # If the user is not found, return the user ID as a string enclosed in square brackets.
+                return f"[{user_id}]"
             else:
                 # This part constructs the user mention string based on the available user information.
                 # Output table for different user input combinations:
                 #   First name | Last name | Username   | ID   | `user_mention`
                 # -------------|-----------|------------|------|------------------------------
-                #   "Nikita"   | "Rvachev" | "rvnikita" | 123  | "123 - Nikita Rvachev - @rvnikita"
-                #   "Nikita"   | "Rvachev" | None       | 123  | "123 - Nikita Rvachev"
-                #   None       | None      | "rvnikita" | 123  | "123 - @rvnikita"
-                #   "Nikita"   | None      | "rvnikita" | 123  | "123 - Nikita - @rvnikita"
-                #   None       | "Rvachev" | "rvnikita" | 123  | "123 - Rvachev - @rvnikita"
-                #   "Nikita"   | None      | None       | 123  | "123 - Nikita"
-                #   None       | "Rvachev" | None       | 123  | "123 - Rvachev"
-                #   None       | None      | None       | 123  | "123"
+                #   "Nikita"   | "Rvachev" | "rvnikita" | 123  | "[123] - Nikita Rvachev - @rvnikita"
+                #   "Nikita"   | "Rvachev" | None       | 123  | "[123] - Nikita Rvachev"
+                #   None       | None      | "rvnikita" | 123  | "[123] - @rvnikita"
+                #   "Nikita"   | None      | "rvnikita" | 123  | "[123] - Nikita - @rvnikita"
+                #   None       | "Rvachev" | "rvnikita" | 123  | "[123] - Rvachev - @rvnikita"
+                #   "Nikita"   | None      | None       | 123  | "[123] - Nikita"
+                #   None       | "Rvachev" | None       | 123  | "[123] - Rvachev"
+                #   None       | None      | None       | 123  | "[123]"
                 parts = [user.first_name, user.last_name]  # Start with possible first and last name
                 full_name = ' '.join(filter(None, parts))  # Combine them with a space, filter out None values
                 if full_name and user.username:
-                    user_mention = f"{user.id} - {full_name} - @{user.username}"
+                    user_mention = f"[{user.id}] - {full_name} - @{user.username}"
                 elif user.username:
-                    user_mention = f"{user.id} - @{user.username}"
+                    user_mention = f"[{user.id}] - @{user.username}"
                 elif full_name:
-                    user_mention = f"{user.id} - {full_name}"
+                    user_mention = f"[{user.id}] - {full_name}"
                 else:
-                    user_mention = str(user.id)
+                    user_mention = f"[{user.id}]"
 
                 # If chat_id is provided, attempt to fetch and append the user's total rating
                 if chat_id is not None:
@@ -65,7 +65,7 @@ def get_user_mention(user_id: int, chat_id: int = None) -> str:
     except Exception as e:
         # Log the error and return the user_id as the mention in case of an error.
         logger.error(f"Error generating mention for user_id {user_id}: {traceback.format_exc()}")
-        return str(user_id)
+        return f"[{user_id}]"
 
 
 def db_upsert_user(user_id, chat_id, username, last_message_datetime, first_name=None, last_name=None):
