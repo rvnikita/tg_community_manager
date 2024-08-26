@@ -73,7 +73,7 @@ async def tg_report(update, context):
         reporting_user_id = message.from_user.id
 
         if reported_user_id == "1032783821": #hack for Elena Che
-            await chat_helper.send_message(context.bot, chat_id, "Кажется смерть близкого человека не повод банить его в чате", delete_after=120)
+            await chat_helper.send_message(context.bot, chat_id, "Кажется смерть близкого человека не повод банить его в чате")
             return
 
         if message:
