@@ -72,6 +72,9 @@ async def tg_report(update, context):
         reported_user_id = message.reply_to_message.from_user.id
         reporting_user_id = message.from_user.id
 
+        if reported_user_id == "1032783821": #hack for Elena Che
+            return
+
         if message:
             await chat_helper.schedule_message_deletion(chat_id,  message.message_id, message.from_user.id, trigger_id = reported_message_id, delay_seconds = 2*60*60) #use reported_message_id as trigger_id
 
@@ -568,23 +571,25 @@ async def tg_auto_reply(update, context):
 async def tg_log_message(update, context):
     try:
         message = update.message
-        if message:  # Check if there is an actual message to log
+        if message:
             user_id = message.from_user.id
-            user_nickname = message.from_user.username or message.from_user.first_name  # Use username if available, otherwise first name
+            user_nickname = message.from_user.username or message.from_user.first_name
             chat_id = message.chat.id
-            message_content = message.text or "Non-text message"  # Handle non-text messages
+            message_content = message.text or "Non-text message"
             message_id = message.message_id
-            user_current_rating = rating_helper.get_rating(user_id, chat_id)  # This needs to be defined in your helpers
+            user_current_rating = rating_helper.get_rating(user_id, chat_id)
+            
+            action_type = "message"
+            reason_for_action = "Regular message"
 
-            # Assuming you have defined these or have default values to use
-            action_type = "message"  # Default action type for logging messages
-            reporting_id = user_id  # Since the user is self-reporting by sending a message
-            reporting_id_nickname = user_nickname
-            reason_for_action = "Regular message"  # Default reason
+            # Check if the message is a forwarded message
+            if message.is_automatic_forward or message.forward_date:
+                action_type = "forward"
+                reason_for_action = f"Forwarded message from {message.forward_from_chat.title if message.forward_from_chat else 'unknown chat'}"
 
             embedding = openai_helper.generate_embedding(message_content)
 
-            # Call the log_or_update_message function from your reporting helper
+            # Log the message, treating forwarded messages differently if needed
             success = await message_helper.log_or_update_message(
                 user_id=user_id,
                 user_nickname=user_nickname,
@@ -592,12 +597,14 @@ async def tg_log_message(update, context):
                 chat_id=chat_id,
                 message_content=message_content,
                 action_type=action_type,
-                reporting_id=reporting_id,
-                reporting_id_nickname=reporting_id_nickname,
+                reporting_id=user_id,
+                reporting_id_nickname=user_nickname,
                 reason_for_action=reason_for_action,
                 message_id=message_id,
-                is_spam=False,  # Default to not spam when first logging
-                embedding=embedding
+                is_spam=False,
+                embedding=embedding,
+                is_repost=message.is_automatic_forward or False,
+                reply_to_message_id=message.reply_to_message.message_id if message.reply_to_message else None
             )
 
             if not success:
