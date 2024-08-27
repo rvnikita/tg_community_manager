@@ -599,12 +599,12 @@ async def tg_log_message(update, context):
 
             logger.info("b")
 
-            # Check if 'forward_from' is in the dictionary format
-            if 'forward_from' in message:
-                forward_from = message['forward_from']
-                logger.info(f"Forward From: {forward_from}")
+            # Check if 'forward_from' exists
+            if message.forward_from:
+                forward_from = message.forward_from
+                logger.info(f"Forward From: {forward_from.to_dict()}")
                 action_type = "forward"
-                reason_for_action = f"Forwarded message from {forward_from.get('first_name', 'unknown')} {forward_from.get('last_name', '')} (ID: {forward_from.get('id', 'unknown')})"
+                reason_for_action = f"Forwarded message from {forward_from.first_name} {forward_from.last_name} (ID: {forward_from.id})"
                 is_forwarded = True
             else:
                 logger.info("No 'forward_from' in message.")
@@ -646,8 +646,6 @@ async def tg_log_message(update, context):
             default=str
         )
         logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
-
-
 
 
 async def tg_spam_check(update, context):
