@@ -584,17 +584,13 @@ async def tg_log_message(update, context):
             reason_for_action = "Regular message"
 
             # Initialize reposted message ID, chat ID, and forwarded content as None
-            forwarded_message_id = None
-            forwarded_chat_id = None
-            forwarded_message_content = None
+            is_forwarded = None
 
             # Check if the message is a forwarded message
             if hasattr(message, 'forward_from') or hasattr(message, 'forward_from_chat'):
                 action_type = "forward"
                 reason_for_action = f"Forwarded message from {message.forward_from_chat.title if hasattr(message, 'forward_from_chat') and message.forward_from_chat else 'unknown chat'}"
-                forwarded_message_id = getattr(message, 'forward_from_message_id', None)
-                forwarded_chat_id = getattr(message.forward_from_chat, 'id', None) if hasattr(message, 'forward_from_chat') else None
-                forwarded_message_content = message.text or "Non-text message"  # Get the content of the forwarded message
+                is_forwarded = True 
 
             embedding = openai_helper.generate_embedding(message_content)
 
@@ -613,9 +609,7 @@ async def tg_log_message(update, context):
                 is_spam=False,
                 embedding=embedding,
                 reply_to_message_id=message.reply_to_message.message_id if message.reply_to_message else None,
-                forwarded_message_id=forwarded_message_id,  # Store the ID of the reposted message
-                forwarded_chat_id=forwarded_chat_id,  # Store the ID of the original chat
-                forwarded_message_content=forwarded_message_content  # Store the content of the forwarded message
+                is_forwarded=is_forwarded  # Store the content of the forwarded message
             )
 
             if not success:
@@ -702,9 +696,7 @@ async def tg_ai_spamcheck(update, context):
     reply_to_message_id = message.reply_to_message.message_id if message.reply_to_message else None
 
     # Initialize forwarded message data
-    forwarded_message_id = getattr(message, 'forward_from_message_id', None)
-    forwarded_chat_id = getattr(message.forward_from_chat, 'id', None) if hasattr(message, 'forward_from_chat') else None
-    forwarded_message_content = message.text or "Non-text message" if hasattr(message, 'forward_from') or hasattr(message, 'forward_from_chat') else None
+    is_forwarded = True if hasattr(message, 'forward_from') or hasattr(message, 'forward_from_chat') else None
 
     try:
         # Generate the embedding once here
@@ -717,9 +709,7 @@ async def tg_ai_spamcheck(update, context):
             message_text=message_text,
             embedding=embedding,
             reply_to_message_id=reply_to_message_id,
-            forwarded_message_id=forwarded_message_id,
-            forwarded_chat_id=forwarded_chat_id,
-            forwarded_message_content=forwarded_message_content
+            is_forwarded=is_forwarded
         )
 
         delete_threshold = float(config['ANTISPAM']['DELETE_THRESHOLD'])

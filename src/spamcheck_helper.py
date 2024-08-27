@@ -34,7 +34,7 @@ import numpy as np
 import traceback
 from datetime import datetime, timezone
 
-async def generate_features(user_id, chat_id, message_text=None, embedding=None, forwarded_message_id=None, forwarded_chat_id=None, forwarded_message_content=None, reply_to_message_id=None):
+async def generate_features(user_id, chat_id, message_text=None, embedding=None, is_forwarded=None, reply_to_message_id=None):
     try:
         if embedding is None and message_text is not None:
             embedding = openai_helper.generate_embedding(message_text)
@@ -72,9 +72,6 @@ async def generate_features(user_id, chat_id, message_text=None, embedding=None,
             message_length = len(message_text) if message_text else 0
 
             # Default values for the new columns if they are None
-            forwarded_message_id = forwarded_message_id or 0
-            forwarded_chat_id = forwarded_chat_id or 0
-            forwarded_message_length = len(forwarded_message_content or '')
             reply_to_message_id = reply_to_message_id or 0
 
             # Construct feature array
@@ -82,7 +79,7 @@ async def generate_features(user_id, chat_id, message_text=None, embedding=None,
                 embedding, 
                 [user_rating_value, time_difference, chat_id, user_id, message_length, 
                  spam_count, not_spam_count, 
-                 forwarded_message_id, forwarded_chat_id, forwarded_message_length, 
+                 is_forwarded, 
                  reply_to_message_id]
             ))
 
@@ -95,11 +92,11 @@ async def generate_features(user_id, chat_id, message_text=None, embedding=None,
         return None
 
 
-async def predict_spam(user_id, chat_id, message_text=None, embedding=None, forwarded_message_id=None, forwarded_chat_id=None, forwarded_message_content=None, reply_to_message_id=None):
+async def predict_spam(user_id, chat_id, message_text=None, embedding=None, is_forwarded=None, reply_to_message_id=None):
     try:
         feature_array = await generate_features(
             user_id, chat_id, message_text, embedding, 
-            forwarded_message_id, forwarded_chat_id, forwarded_message_content, reply_to_message_id
+            is_forwarded, reply_to_message_id
         )
         if feature_array is None:
             logger.error("Feature array is None, skipping prediction.")

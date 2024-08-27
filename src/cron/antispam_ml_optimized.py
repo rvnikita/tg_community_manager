@@ -36,9 +36,7 @@ async def train_spam_classifier():
                     db_helper.Message_Log.chat_id,
                     db_helper.Message_Log.is_spam,
                     db_helper.Message_Log.user_current_rating,
-                    db_helper.Message_Log.forwarded_message_id,  # New column
-                    db_helper.Message_Log.forwarded_chat_id,  # New column
-                    db_helper.Message_Log.forwarded_message_content,  # New column
+                    db_helper.Message_Log.is_forwarded,  # New column
                     db_helper.Message_Log.reply_to_message_id,  # New column
                     db_helper.User_Status.created_at.label('status_created_at'),
                     db_helper.User.created_at.label('user_created_at'),
@@ -95,9 +93,7 @@ async def train_spam_classifier():
                         message_length, 
                         message_data.spam_count, 
                         message_data.not_spam_count,
-                        message_data.forwarded_message_id or 0,
-                        message_data.forwarded_chat_id or 0,
-                        len(message_data.forwarded_message_content or ''),
+                        len(message_data.is_forwarded or ''),
                         message_data.reply_to_message_id or 0  # Include reply_to_message_id (use 0 if None)
                     ]
                 ))

@@ -274,9 +274,7 @@ class Message_Log(Base):
     embedding = Column(Vector, nullable=True)  # Column to store message embeddings
     used_for_training = Column(Boolean, default=False, nullable=False)
     manually_verified = Column(Boolean, default=False, nullable=False)
-    forwarded_message_id = Column(BigInteger, nullable=True)  # Column to store forwarded message ID
-    forwarded_chat_id = Column(BigInteger, nullable=True)  # Column to store forwarded chat ID
-    forwarded_message_content = Column(Text, nullable=True)  # Column to store forwarded message content
+    is_forwarded = Column(Boolean, nullable=True)  # Column to store is message is forwarded
     reply_to_message_id = Column(BigInteger, nullable=True)  # Column to store reply-to message ID
 
     # Relationships
