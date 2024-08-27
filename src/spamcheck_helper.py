@@ -54,7 +54,6 @@ async def generate_features(user_id, chat_id, message_text=None, embedding=None,
                 db_helper.User_Status.chat_id == chat_id
             ).one_or_none()
 
-            # Count spam and not spam messages
             spam_count = session.query(db_helper.Message_Log).filter(
                 db_helper.Message_Log.user_id == user_id,
                 db_helper.Message_Log.is_spam == True
@@ -72,16 +71,22 @@ async def generate_features(user_id, chat_id, message_text=None, embedding=None,
             message_length = len(message_text) if message_text else 0
 
             # Default values for the new columns if they are None
+            is_forwarded = is_forwarded or 0
             reply_to_message_id = reply_to_message_id or 0
 
             # Construct feature array
-            feature_array = np.concatenate((
-                embedding, 
-                [user_rating_value, time_difference, chat_id, user_id, message_length, 
-                 spam_count, not_spam_count, 
-                 is_forwarded, 
-                 reply_to_message_id]
-            ))
+            feature_array = np.array([
+                *embedding, 
+                float(user_rating_value), 
+                float(time_difference), 
+                float(chat_id), 
+                float(user_id), 
+                float(message_length), 
+                float(spam_count), 
+                float(not_spam_count), 
+                float(is_forwarded), 
+                float(reply_to_message_id)
+            ])
 
             # Log the shape of the feature array
             logger.info(f"Generated feature array with shape: {feature_array.shape}")
@@ -90,6 +95,7 @@ async def generate_features(user_id, chat_id, message_text=None, embedding=None,
     except Exception as e:
         logger.error(f"An error occurred during feature generation: {traceback.format_exc()}")
         return None
+
 
 
 async def predict_spam(user_id, chat_id, message_text=None, embedding=None, is_forwarded=None, reply_to_message_id=None):
@@ -102,7 +108,7 @@ async def predict_spam(user_id, chat_id, message_text=None, embedding=None, is_f
             logger.error("Feature array is None, skipping prediction.")
             return False
 
-        if np.isnan(feature_array).any():
+        if np.isnan(feature_array.astype(float)).any():  # Ensure feature_array is float type
             logger.error(f"NaN values found in feature_array: {feature_array}")
             return False
 
