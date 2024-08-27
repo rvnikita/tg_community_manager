@@ -271,9 +271,12 @@ class Message_Log(Base):
     reporting_id_nickname = Column(Text, nullable=True)
     reason_for_action = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    embedding = Column(Vector, nullable=True)  # New column to store message embeddings
+    embedding = Column(Vector, nullable=True)  # Column to store message embeddings
     used_for_training = Column(Boolean, default=False, nullable=False)
     manually_verified = Column(Boolean, default=False, nullable=False)
+    forwarded_message_id = Column(BigInteger, nullable=True)  # Column to store forwarded message ID
+    forwarded_chat_id = Column(BigInteger, nullable=True)  # Column to store forwarded chat ID
+    forwarded_message_content = Column(Text, nullable=True)  # Column to store forwarded message content
 
     # Relationships
     user = relationship("User", foreign_keys=[user_id], backref="message_logs")
@@ -281,7 +284,9 @@ class Message_Log(Base):
     admin = relationship("User", foreign_keys=[reporting_id], backref="admin_message_logs")
 
     def __repr__(self):
-        return f"<Message_Log(id={self.id}, user_id={self.user_id}, chat_id={self.chat_id}, message_id={self.message_id}, is_spam={self.is_spam}, action_type='{self.action_type}', created_at={self.created_at})>"
+        return f"<Message_Log(id={self.id}, message_id={self.message_id}, chat_id={self.chat_id}, user_id={self.user_id}, action_type='{self.action_type}', created_at={self.created_at})>"
+
+
 
 
 
