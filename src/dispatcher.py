@@ -592,6 +592,7 @@ async def tg_log_message(update, context):
             logger.info(hasattr(message, 'forward_from') )
             logger.info(hasattr(message, 'forward_from_chat'))
             logger.info(message.forward_from)
+            logger.info(message['forward_from'])
 
             logger.info(hasattr(message, 'forward_from') or hasattr(message, 'forward_from_chat'))
 
