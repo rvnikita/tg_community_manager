@@ -582,21 +582,15 @@ async def tg_log_message(update, context):
             
             action_type = "message"
             reason_for_action = "Regular message"
-
-            # Initialize reposted message ID, chat ID, and forwarded content as None
             is_forwarded = None
 
-            logger.info("a")
-
-            # Check if 'forward_from' exists directly
-            if message.forward_from:
-                forward_from = message.forward_from.to_dict()
-                logger.info(f"Forward From: {json.dumps(forward_from, indent=4)}")
-                action_type = "forward"
-                reason_for_action = f"Forwarded message from {forward_from.get('first_name', 'unknown')} {forward_from.get('last_name', 'unknown')} (ID: {forward_from.get('id', 'unknown')})"
+            # Check if 'forward_origin' exists and if it contains the necessary data
+            if message.forward_origin and message.forward_origin.sender_user:
+                forward_from = message.forward_origin.sender_user
+                reason_for_action = f"Forwarded message from {forward_from.first_name} {forward_from.last_name} (ID: {forward_from.id})"
                 is_forwarded = True
             else:
-                logger.info("No 'forward_from' in message.")
+                logger.info("No 'forward_origin' in message or sender_user data is missing.")
 
             embedding = openai_helper.generate_embedding(message_content)
 
@@ -615,14 +609,15 @@ async def tg_log_message(update, context):
                 is_spam=False,
                 embedding=embedding,
                 reply_to_message_id=message.reply_to_message.message_id if message.reply_to_message else None,
-                is_forwarded=is_forwarded  # Store the content of the forwarded message
+                is_forwarded=is_forwarded
             )
 
             if not success:
                 logger.error(f"Failed to log the message in the database: {traceback.format_exc()}")
 
     except Exception as error:
-        logger.error(f"Error: {traceback.format_exc()} | Update: {update}")
+        logger.error(f"Error: {traceback.format_exc()}")
+
 
 
 
