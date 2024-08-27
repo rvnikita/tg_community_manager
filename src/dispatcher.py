@@ -569,7 +569,7 @@ async def tg_auto_reply(update, context):
     except Exception as error:
         logger.error(f"tg_auto_reply error: {traceback.format_exc()}")
 
-async def tg_log_message(update, context):
+async def tg_log_message(update: Update, context: CallbackContext):
     try:
         message = update.message
         if message:
@@ -588,28 +588,26 @@ async def tg_log_message(update, context):
 
             logger.info("a")
 
-            message_str = json.dumps(message.to_dict() if hasattr(message, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
+            message_str = json.dumps(
+                message.to_dict() if hasattr(message, 'to_dict') else {'info': 'Update object has no to_dict method'},
+                indent=4,
+                sort_keys=True,
+                default=str
+            )
             logger.info(f"Log : {traceback.format_exc()} | Update: {message_str}")
             logger.info(message)
 
             logger.info("b")
 
-            logger.info(hasattr(message, 'forward_from') )
-            logger.info(hasattr(message, 'forward_from_chat'))
-            logger.info(message.forward_from)
-            logger.info(message['forward_from'])
+            # Check if 'forward_from' is in the dictionary format
             if 'forward_from' in message:
-                logger.info(message['forward_from'])
-                logger.info("!")
-
-            logger.info(hasattr(message, 'forward_from') or hasattr(message, 'forward_from_chat'))
-
-            # Check if the message is a forwarded message
-            if hasattr(message, 'forward_from') or hasattr(message, 'forward_from_chat'):
-                logger.info(f"we are in a forward if")
+                forward_from = message['forward_from']
+                logger.info(f"Forward From: {forward_from}")
                 action_type = "forward"
-                reason_for_action = f"Forwarded message from {message.forward_from_chat.title if hasattr(message, 'forward_from_chat') and message.forward_from_chat else 'unknown chat'}"
-                is_forwarded = True 
+                reason_for_action = f"Forwarded message from {forward_from.get('first_name', 'unknown')} {forward_from.get('last_name', '')} (ID: {forward_from.get('id', 'unknown')})"
+                is_forwarded = True
+            else:
+                logger.info("No 'forward_from' in message.")
 
             embedding = openai_helper.generate_embedding(message_content)
 
@@ -632,13 +630,22 @@ async def tg_log_message(update, context):
             )
 
             if not success:
-                update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
+                update_str = json.dumps(
+                    update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'},
+                    indent=4,
+                    sort_keys=True,
+                    default=str
+                )
                 logger.error(f"Failed to log the message in the database: {traceback.format_exc()} | Update: {update_str}")
 
     except Exception as error:
-        update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
+        update_str = json.dumps(
+            update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'},
+            indent=4,
+            sort_keys=True,
+            default=str
+        )
         logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
-
 
 
 
