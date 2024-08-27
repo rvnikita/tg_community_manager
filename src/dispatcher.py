@@ -590,6 +590,7 @@ async def tg_log_message(update, context):
 
             message_str = json.dumps(message.to_dict() if hasattr(message, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
             logger.info(f"Log : {traceback.format_exc()} | Update: {message_str}")
+            logger.info(message)
 
             logger.info("b")
 
