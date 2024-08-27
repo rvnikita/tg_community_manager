@@ -18,9 +18,8 @@ import src.user_helper as user_helper
 logger = logging.get_logger()
 config = config_helper.get_config()
 bot = Bot(config['BOT']['KEY'],
-          request=HTTPXRequest(http_version="1.1"), #we need this to fix bug https://github.com/python-telegram-bot/python-telegram-bot/issues/3556
-          get_updates_request=HTTPXRequest(http_version="1.1")) #we need this to fix bug https://github.com/python-telegram-bot/python-telegram-bot/issues/3556)
-
+          request=HTTPXRequest(http_version="1.1"),
+          get_updates_request=HTTPXRequest(http_version="1.1"))
 
 # Load the pre-trained SVM model
 import os
@@ -31,7 +30,7 @@ print("Current Working Directory:", current_path)
 model = load('ml_models/svm_spam_model.joblib')
 scaler = load('ml_models/scaler.joblib')
 
-async def generate_features(user_id, chat_id, message_text=None, embedding=None):
+async def generate_features(user_id, chat_id, message_text=None, embedding=None, forwarded_message_id=None, forwarded_chat_id=None, forwarded_message_content=None):
     try:
         if embedding is None and message_text is not None:
             embedding = openai_helper.generate_embedding(message_text)
@@ -57,27 +56,40 @@ async def generate_features(user_id, chat_id, message_text=None, embedding=None)
                 db_helper.Message_Log.is_spam == True
             ).count()
 
-            # Count spam and not spam messages
             not_spam_count = session.query(db_helper.Message_Log).filter(
                 db_helper.Message_Log.user_id == user_id,
-                db_helper.Message_Log.is_spam == True
+                db_helper.Message_Log.is_spam == False
             ).count()
 
             user_rating_value = rating_helper.get_rating(user_id, chat_id)
             joined_date = user_status.created_at if user_status else user.created_at
             message_date = datetime.now(timezone.utc)
             time_difference = (message_date - joined_date).days
-            message_length = len(message_text)
+            message_length = len(message_text) if message_text else 0
 
-            feature_array = np.concatenate((embedding, [user_rating_value, time_difference, chat_id, user_id, message_length, spam_count, not_spam_count]))
+            # Default values for the new columns if they are None
+            forwarded_message_id = forwarded_message_id or 0
+            forwarded_chat_id = forwarded_chat_id or 0
+            forwarded_message_length = len(forwarded_message_content or '')
+
+            feature_array = np.concatenate((
+                embedding, 
+                [user_rating_value, time_difference, chat_id, user_id, message_length, 
+                spam_count, not_spam_count, 
+                forwarded_message_id, forwarded_chat_id, forwarded_message_length]
+            ))
+
             return feature_array
     except Exception as e:
         logger.error(f"An error occurred during feature generation: {traceback.format_exc()}")
         return None
 
-async def predict_spam(user_id, chat_id, message_text=None, embedding=None):
+async def predict_spam(user_id, chat_id, message_text=None, embedding=None, forwarded_message_id=None, forwarded_chat_id=None, forwarded_message_content=None):
     try:
-        feature_array = await generate_features(user_id, chat_id, message_text, embedding)
+        feature_array = await generate_features(
+            user_id, chat_id, message_text, embedding, 
+            forwarded_message_id, forwarded_chat_id, forwarded_message_content
+        )
         if feature_array is None:
             return False
 

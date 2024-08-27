@@ -36,6 +36,9 @@ async def train_spam_classifier():
                     db_helper.Message_Log.chat_id,
                     db_helper.Message_Log.is_spam,
                     db_helper.Message_Log.user_current_rating,
+                    db_helper.Message_Log.forwarded_message_id,  # New column
+                    db_helper.Message_Log.forwarded_chat_id,  # New column
+                    db_helper.Message_Log.forwarded_message_content,  # New column
                     db_helper.User_Status.created_at.label('status_created_at'),
                     db_helper.User.created_at.label('user_created_at'),
                     func.count(db_helper.Message_Log.is_spam).over(
@@ -54,7 +57,7 @@ async def train_spam_classifier():
                 .join(db_helper.User, db_helper.User.id == db_helper.Message_Log.user_id)
                 .filter(db_helper.Message_Log.embedding != None,
                         db_helper.Message_Log.message_content != None,
-                        db_helper.Message_Log.manually_verified == True) # Only use manually verified messages
+                        db_helper.Message_Log.manually_verified == True)  # Only use manually verified messages
                 .order_by(db_helper.Message_Log.id.desc())  # Order by ID descending
                 # .limit(500)  # Limit to the first 500 messages
             )
@@ -92,7 +95,10 @@ async def train_spam_classifier():
                         message_data.user_id,  # Include user_id
                         message_length, 
                         message_data.spam_count, 
-                        message_data.not_spam_count
+                        message_data.not_spam_count,
+                        message_data.forwarded_message_id or 0,  # Include forwarded_message_id (use 0 if None)
+                        message_data.forwarded_chat_id or 0,  # Include forwarded_chat_id (use 0 if None)
+                        len(message_data.forwarded_message_content or '')  # Length of forwarded_message_content (use 0 if None)
                     ]
                 ))
 
@@ -120,7 +126,7 @@ async def train_spam_classifier():
 
             # Split the data into training and testing sets using stratified splitting
             X_train, X_test, y_train, y_test, ids_train, ids_test = train_test_split(
-                features, labels, list(message_contents.keys()), test_size=0.05, stratify=labels)
+                features, labels, list(message_contents.keys()), test_size=0.005, stratify=labels)
 
             # Check class distribution after splitting
             unique_train_classes, train_class_counts = np.unique(y_train, return_counts=True)
