@@ -684,7 +684,7 @@ async def tg_spam_check(update, context):
 
 
 async def tg_ai_spamcheck(update, context):
-    #TODO:HIGH: We currently calculate embeddings twice. Once in tg_log_message and once during prediction. We should reorganize this to avoid redundant calculations.
+    # Avoid calculating embeddings twice: once in tg_log_message and once during prediction
     message = update.message
 
     if not message or not message.from_user:
@@ -699,9 +699,29 @@ async def tg_ai_spamcheck(update, context):
     user_id = message.from_user.id
     chat_id = message.chat.id
     message_text = message.text
+    reply_to_message_id = message.reply_to_message.message_id if message.reply_to_message else None
+
+    # Initialize forwarded message data
+    forwarded_message_id = getattr(message, 'forward_from_message_id', None)
+    forwarded_chat_id = getattr(message.forward_from_chat, 'id', None) if hasattr(message, 'forward_from_chat') else None
+    forwarded_message_content = message.text or "Non-text message" if hasattr(message, 'forward_from') or hasattr(message, 'forward_from_chat') else None
 
     try:
-        spam_proba = await spamcheck_helper.predict_spam(user_id, chat_id, message_text=message_text)
+        # Generate the embedding once here
+        embedding = openai_helper.generate_embedding(message_text)
+
+        # Use the embedding and other parameters for spam prediction
+        spam_proba = await spamcheck_helper.predict_spam(
+            user_id=user_id,
+            chat_id=chat_id,
+            message_text=message_text,
+            embedding=embedding,
+            reply_to_message_id=reply_to_message_id,
+            forwarded_message_id=forwarded_message_id,
+            forwarded_chat_id=forwarded_chat_id,
+            forwarded_message_content=forwarded_message_content
+        )
+
         delete_threshold = float(config['ANTISPAM']['DELETE_THRESHOLD'])
         mute_threshold = float(config['ANTISPAM']['MUTE_THRESHOLD'])
 

@@ -277,6 +277,7 @@ class Message_Log(Base):
     forwarded_message_id = Column(BigInteger, nullable=True)  # Column to store forwarded message ID
     forwarded_chat_id = Column(BigInteger, nullable=True)  # Column to store forwarded chat ID
     forwarded_message_content = Column(Text, nullable=True)  # Column to store forwarded message content
+    reply_to_message_id = Column(BigInteger, nullable=True)  # Column to store reply-to message ID
 
     # Relationships
     user = relationship("User", foreign_keys=[user_id], backref="message_logs")
@@ -285,7 +286,6 @@ class Message_Log(Base):
 
     def __repr__(self):
         return f"<Message_Log(id={self.id}, message_id={self.message_id}, chat_id={self.chat_id}, user_id={self.user_id}, action_type='{self.action_type}', created_at={self.created_at})>"
-
 
 
 

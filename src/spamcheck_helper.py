@@ -30,7 +30,7 @@ print("Current Working Directory:", current_path)
 model = load('ml_models/svm_spam_model.joblib')
 scaler = load('ml_models/scaler.joblib')
 
-async def generate_features(user_id, chat_id, message_text=None, embedding=None, forwarded_message_id=None, forwarded_chat_id=None, forwarded_message_content=None):
+async def generate_features(user_id, chat_id, message_text=None, embedding=None, forwarded_message_id=None, forwarded_chat_id=None, forwarded_message_content=None, reply_to_message_id=None):
     try:
         if embedding is None and message_text is not None:
             embedding = openai_helper.generate_embedding(message_text)
@@ -71,12 +71,14 @@ async def generate_features(user_id, chat_id, message_text=None, embedding=None,
             forwarded_message_id = forwarded_message_id or 0
             forwarded_chat_id = forwarded_chat_id or 0
             forwarded_message_length = len(forwarded_message_content or '')
+            reply_to_message_id = reply_to_message_id or 0
 
             feature_array = np.concatenate((
                 embedding, 
                 [user_rating_value, time_difference, chat_id, user_id, message_length, 
-                spam_count, not_spam_count, 
-                forwarded_message_id, forwarded_chat_id, forwarded_message_length]
+                 spam_count, not_spam_count, 
+                 forwarded_message_id, forwarded_chat_id, forwarded_message_length, 
+                 reply_to_message_id]
             ))
 
             return feature_array
@@ -84,17 +86,19 @@ async def generate_features(user_id, chat_id, message_text=None, embedding=None,
         logger.error(f"An error occurred during feature generation: {traceback.format_exc()}")
         return None
 
-async def predict_spam(user_id, chat_id, message_text=None, embedding=None, forwarded_message_id=None, forwarded_chat_id=None, forwarded_message_content=None):
+async def predict_spam(user_id, chat_id, message_text=None, embedding=None, forwarded_message_id=None, forwarded_chat_id=None, forwarded_message_content=None, reply_to_message_id=None):
     try:
         feature_array = await generate_features(
             user_id, chat_id, message_text, embedding, 
-            forwarded_message_id, forwarded_chat_id, forwarded_message_content
+            forwarded_message_id, forwarded_chat_id, forwarded_message_content, reply_to_message_id
         )
         if feature_array is None:
+            logger.error("Feature array is None, skipping prediction.")
             return False
 
         if np.isnan(feature_array).any():
             logger.error(f"NaN values found in feature_array: {feature_array}")
+            return False
 
         feature_array = scaler.transform([feature_array])  # Reshape for scaler
         return model.predict_proba(feature_array)[0][1]
