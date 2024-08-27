@@ -26,7 +26,7 @@ async def train_spam_classifier():
         with db_helper.session_scope() as session:
             logger.info("before db")
             
-            # Fetch the first 500 messages ordered by ID in descending order
+            # Fetch ordered by ID in descending order
             query = (
                 session.query(
                     db_helper.Message_Log.id,
@@ -39,6 +39,7 @@ async def train_spam_classifier():
                     db_helper.Message_Log.forwarded_message_id,  # New column
                     db_helper.Message_Log.forwarded_chat_id,  # New column
                     db_helper.Message_Log.forwarded_message_content,  # New column
+                    db_helper.Message_Log.reply_to_message_id,  # New column
                     db_helper.User_Status.created_at.label('status_created_at'),
                     db_helper.User.created_at.label('user_created_at'),
                     func.count(db_helper.Message_Log.is_spam).over(
@@ -62,11 +63,9 @@ async def train_spam_classifier():
                 # .limit(500)  # Limit to the first 500 messages
             )
 
-            logger.info("after db")
 
             messages_data = query.all()
 
-            # Log how many messages we have
             logger.info(f"Fetched {len(messages_data)} messages from the database.")
 
             if not messages_data:
@@ -78,27 +77,28 @@ async def train_spam_classifier():
             labels = []
             message_contents = {}
 
-            logger.info("before messages_data loop")
+            logger.info("Processing messages data...")
 
             for message_data in messages_data:
                 joined_date = message_data.status_created_at if message_data.status_created_at else message_data.user_created_at
                 time_difference = (datetime.now(timezone.utc) - joined_date).days
                 message_length = len(message_data.message_content)
 
-                # Feature array construction including all features used in generate_features
+                # Feature array construction including reply_to_message_id
                 feature_array = np.concatenate((
                     message_data.embedding,
                     [
                         message_data.user_current_rating, 
                         time_difference, 
-                        message_data.chat_id,  # Include chat_id
-                        message_data.user_id,  # Include user_id
+                        message_data.chat_id, 
+                        message_data.user_id, 
                         message_length, 
                         message_data.spam_count, 
                         message_data.not_spam_count,
-                        message_data.forwarded_message_id or 0,  # Include forwarded_message_id (use 0 if None)
-                        message_data.forwarded_chat_id or 0,  # Include forwarded_chat_id (use 0 if None)
-                        len(message_data.forwarded_message_content or '')  # Length of forwarded_message_content (use 0 if None)
+                        message_data.forwarded_message_id or 0,
+                        message_data.forwarded_chat_id or 0,
+                        len(message_data.forwarded_message_content or ''),
+                        message_data.reply_to_message_id or 0  # Include reply_to_message_id (use 0 if None)
                     ]
                 ))
 
@@ -122,7 +122,7 @@ async def train_spam_classifier():
 
             # Check the class distribution before splitting
             unique_classes, class_counts = np.unique(labels, return_counts=True)
-            logger.info(f"Class distribution: {dict(zip(unique_classes, class_counts))}")
+            logger.info(f"Class distribution before splitting: {dict(zip(unique_classes, class_counts))}")
 
             # Split the data into training and testing sets using stratified splitting
             X_train, X_test, y_train, y_test, ids_train, ids_test = train_test_split(

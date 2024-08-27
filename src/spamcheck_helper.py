@@ -30,6 +30,10 @@ print("Current Working Directory:", current_path)
 model = load('ml_models/svm_spam_model.joblib')
 scaler = load('ml_models/scaler.joblib')
 
+import numpy as np
+import traceback
+from datetime import datetime, timezone
+
 async def generate_features(user_id, chat_id, message_text=None, embedding=None, forwarded_message_id=None, forwarded_chat_id=None, forwarded_message_content=None, reply_to_message_id=None):
     try:
         if embedding is None and message_text is not None:
@@ -73,6 +77,7 @@ async def generate_features(user_id, chat_id, message_text=None, embedding=None,
             forwarded_message_length = len(forwarded_message_content or '')
             reply_to_message_id = reply_to_message_id or 0
 
+            # Construct feature array
             feature_array = np.concatenate((
                 embedding, 
                 [user_rating_value, time_difference, chat_id, user_id, message_length, 
@@ -81,10 +86,14 @@ async def generate_features(user_id, chat_id, message_text=None, embedding=None,
                  reply_to_message_id]
             ))
 
+            # Log the shape of the feature array
+            logger.info(f"Generated feature array with shape: {feature_array.shape}")
+
             return feature_array
     except Exception as e:
         logger.error(f"An error occurred during feature generation: {traceback.format_exc()}")
         return None
+
 
 async def predict_spam(user_id, chat_id, message_text=None, embedding=None, forwarded_message_id=None, forwarded_chat_id=None, forwarded_message_content=None, reply_to_message_id=None):
     try:
