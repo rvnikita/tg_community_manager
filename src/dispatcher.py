@@ -586,8 +586,12 @@ async def tg_log_message(update, context):
             # Initialize reposted message ID, chat ID, and forwarded content as None
             is_forwarded = None
 
+            logger.info("a")
+
             message_str = json.dumps(message.to_dict() if hasattr(message, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
             logger.info(f"Log : {traceback.format_exc()} | Update: {message_str}")
+
+            logger.info("b")
 
             logger.info(hasattr(message, 'forward_from') )
             logger.info(hasattr(message, 'forward_from_chat'))
