@@ -589,11 +589,11 @@ async def tg_log_message(update, context):
             forwarded_message_content = None
 
             # Check if the message is a forwarded message
-            if message.forward_from or message.forward_from_chat:
+            if hasattr(message, 'forward_from') or hasattr(message, 'forward_from_chat'):
                 action_type = "forward"
-                reason_for_action = f"Forwarded message from {message.forward_from_chat.title if message.forward_from_chat else 'unknown chat'}"
-                forwarded_message_id = message.forward_from_message_id if hasattr(message, 'forward_from_message_id') else None
-                forwarded_chat_id = message.forward_from_chat.id if message.forward_from_chat else None
+                reason_for_action = f"Forwarded message from {message.forward_from_chat.title if hasattr(message, 'forward_from_chat') and message.forward_from_chat else 'unknown chat'}"
+                forwarded_message_id = getattr(message, 'forward_from_message_id', None)
+                forwarded_chat_id = getattr(message.forward_from_chat, 'id', None) if hasattr(message, 'forward_from_chat') else None
                 forwarded_message_content = message.text or "Non-text message"  # Get the content of the forwarded message
 
             embedding = openai_helper.generate_embedding(message_content)
@@ -612,7 +612,7 @@ async def tg_log_message(update, context):
                 message_id=message_id,
                 is_spam=False,
                 embedding=embedding,
-                is_repost=bool(message.forward_from or message.forward_from_chat),
+                is_repost=bool(hasattr(message, 'forward_from') or hasattr(message, 'forward_from_chat')),
                 reply_to_message_id=message.reply_to_message.message_id if message.reply_to_message else None,
                 forwarded_message_id=forwarded_message_id,  # Store the ID of the reposted message
                 forwarded_chat_id=forwarded_chat_id,  # Store the ID of the original chat
@@ -626,6 +626,7 @@ async def tg_log_message(update, context):
     except Exception as error:
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
         logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
+
 
 
 
