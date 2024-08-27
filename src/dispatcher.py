@@ -589,6 +589,8 @@ async def tg_log_message(update, context):
             update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
             logger.info(f"Log : {traceback.format_exc()} | Update: {update_str}")
 
+            logger.info(hasattr(message, 'forward_from') or hasattr(message, 'forward_from_chat'))
+
             # Check if the message is a forwarded message
             if hasattr(message, 'forward_from') or hasattr(message, 'forward_from_chat'):
                 logger.info(f"we are in a forward if")
