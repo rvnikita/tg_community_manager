@@ -573,9 +573,6 @@ async def tg_log_message(update, context):
     try:
         message = update.message
         if message:
-            # Convert message to dict to handle raw data access
-            message_dict = message.to_dict()
-            
             user_id = message.from_user.id
             user_nickname = message.from_user.username or message.from_user.first_name
             chat_id = message.chat.id
@@ -591,20 +588,9 @@ async def tg_log_message(update, context):
 
             logger.info("a")
 
-            message_str = json.dumps(
-                message_dict if message_dict else {'info': 'Update object has no to_dict method'},
-                indent=4,
-                sort_keys=True,
-                default=str
-            )
-            logger.info(f"Log : {traceback.format_exc()} | Update: {message_str}")
-            logger.info(message)
-
-            logger.info("b")
-
-            # Check if 'forward_from' exists in the raw dictionary
-            if 'forward_from' in message_dict:
-                forward_from = message_dict['forward_from']
+            # Check if 'forward_from' exists directly
+            if message.forward_from:
+                forward_from = message.forward_from.to_dict()
                 logger.info(f"Forward From: {json.dumps(forward_from, indent=4)}")
                 action_type = "forward"
                 reason_for_action = f"Forwarded message from {forward_from.get('first_name', 'unknown')} {forward_from.get('last_name', 'unknown')} (ID: {forward_from.get('id', 'unknown')})"
@@ -633,22 +619,11 @@ async def tg_log_message(update, context):
             )
 
             if not success:
-                update_str = json.dumps(
-                    update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'},
-                    indent=4,
-                    sort_keys=True,
-                    default=str
-                )
-                logger.error(f"Failed to log the message in the database: {traceback.format_exc()} | Update: {update_str}")
+                logger.error(f"Failed to log the message in the database: {traceback.format_exc()}")
 
     except Exception as error:
-        update_str = json.dumps(
-            update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'},
-            indent=4,
-            sort_keys=True,
-            default=str
-        )
-        logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
+        logger.error(f"Error: {traceback.format_exc()} | Update: {update}")
+
 
 
 async def tg_spam_check(update, context):
