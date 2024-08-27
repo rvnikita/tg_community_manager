@@ -569,7 +569,7 @@ async def tg_auto_reply(update, context):
     except Exception as error:
         logger.error(f"tg_auto_reply error: {traceback.format_exc()}")
 
-async def tg_log_message(update: Update, context: CallbackContext):
+async def tg_log_message(update, context):
     try:
         message = update.message
         if message:
