@@ -569,10 +569,13 @@ async def tg_auto_reply(update, context):
     except Exception as error:
         logger.error(f"tg_auto_reply error: {traceback.format_exc()}")
 
-async def tg_log_message(update, context):
+async def tg_log_message(update: Update, context: CallbackContext):
     try:
         message = update.message
         if message:
+            # Convert message to dict to handle raw data access
+            message_dict = message.to_dict()
+            
             user_id = message.from_user.id
             user_nickname = message.from_user.username or message.from_user.first_name
             chat_id = message.chat.id
@@ -589,7 +592,7 @@ async def tg_log_message(update, context):
             logger.info("a")
 
             message_str = json.dumps(
-                message.to_dict() if hasattr(message, 'to_dict') else {'info': 'Update object has no to_dict method'},
+                message_dict if message_dict else {'info': 'Update object has no to_dict method'},
                 indent=4,
                 sort_keys=True,
                 default=str
@@ -599,12 +602,12 @@ async def tg_log_message(update, context):
 
             logger.info("b")
 
-            # Check if 'forward_from' exists
-            if message.forward_from:
-                forward_from = message.forward_from
-                logger.info(f"Forward From: {forward_from.to_dict()}")
+            # Check if 'forward_from' exists in the raw dictionary
+            if 'forward_from' in message_dict:
+                forward_from = message_dict['forward_from']
+                logger.info(f"Forward From: {json.dumps(forward_from, indent=4)}")
                 action_type = "forward"
-                reason_for_action = f"Forwarded message from {forward_from.first_name} {forward_from.last_name} (ID: {forward_from.id})"
+                reason_for_action = f"Forwarded message from {forward_from.get('first_name', 'unknown')} {forward_from.get('last_name', 'unknown')} (ID: {forward_from.get('id', 'unknown')})"
                 is_forwarded = True
             else:
                 logger.info("No 'forward_from' in message.")
