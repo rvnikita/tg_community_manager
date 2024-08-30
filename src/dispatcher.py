@@ -1045,7 +1045,7 @@ class BotManager:
             self.application.add_handler(CommandHandler(['gban', 'g', 'gb'], tg_gban), group=6)
 
             #wiretapping
-            self.application.add_handler(MessageHandler(filters.TEXT | filters.Document.ALL, tg_wiretapping), group=7)
+            self.application.add_handler(MessageHandler(filters.TEXT | (filters.PHOTO & filters.CAPTION) | (filters.VIDEO & filters.CAPTION) | filters.Document.ALL, tg_wiretapping), group=7)
 
             self.application.add_handler(CommandHandler(['pin', 'p'], tg_pin, filters.ChatType.GROUPS), group=9)
             self.application.add_handler(CommandHandler(['unpin', 'up'], tg_unpin, filters.ChatType.GROUPS), group=9)
