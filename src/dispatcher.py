@@ -576,7 +576,7 @@ async def tg_log_message(update, context):
             user_id = message.from_user.id
             user_nickname = message.from_user.username or message.from_user.first_name
             chat_id = message.chat.id
-            message_content = message.text or "Non-text message"
+            message_content = message.text or message.caption or "Non-text message"
             message_id = message.message_id
             user_current_rating = rating_helper.get_rating(user_id, chat_id)
             
