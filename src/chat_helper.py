@@ -303,7 +303,7 @@ async def ban_user(bot, chat_id, user_to_ban, global_ban=False, reason=None):
 
 async def unban_user(bot, chat_id, user_to_unban, global_unban=False):
     try:
-        with session_scope() as db_session:
+        with db_helper.session_scope() as db_session:
             # List of chats to process
             if global_unban:
                 # If global unban is enabled, fetch all chat IDs where the bot is a member

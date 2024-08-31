@@ -55,7 +55,7 @@ async def log_or_update_message(
             ).returning(db_helper.Message_Log.id)  # Also return the ID on conflict
 
             # Execute the statement and fetch the ID
-            result = await db_session.execute(on_conflict_stmt)
+            result = db_session.execute(on_conflict_stmt)
             db_session.commit()
 
             row_id = result.fetchone()[0]  # Fetch the ID from the result
