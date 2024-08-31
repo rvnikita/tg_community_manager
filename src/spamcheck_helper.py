@@ -101,7 +101,7 @@ async def generate_features(user_id, chat_id, message_text=None, embedding=None,
 async def predict_spam(user_id, chat_id, message_content=None, embedding=None, is_forwarded=None, reply_to_message_id=None):
     try:
         feature_array = await generate_features(
-            user_id, chat_id, message_text, embedding, 
+            user_id, chat_id, message_content, embedding, 
             is_forwarded, reply_to_message_id
         )
         if feature_array is None:
