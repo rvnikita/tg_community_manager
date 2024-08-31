@@ -717,19 +717,23 @@ async def tg_ai_spamcheck(update, context):
     if not message or not message.from_user:
         return
 
+    # Check if AI spam check is enabled for the chat
     if chat_helper.get_chat_config(message.chat.id, "ai_spamcheck_enabled") != True:
         return
 
+    # Skip if the user is an admin
     if any(admin.user.id == message.from_user.id for admin in await context.bot.get_chat_administrators(message.chat.id)):
         return
 
     user_id = message.from_user.id
     chat_id = message.chat.id
+
+    # Extract message content
     # TODO:MED: let's take the photo content, send it to the OpenAI to describe and attach it to message_content so it could be used in spam prediction 
     message_content = message.text or message.caption or "Non-text message"
     reply_to_message_id = message.reply_to_message.message_id if message.reply_to_message else None
 
-    # Initialize forwarded message data
+    # Determine if the message is forwarded
     is_forwarded = True if hasattr(message, 'forward_from') or hasattr(message, 'forward_from_chat') else None
 
     try:
@@ -746,7 +750,14 @@ async def tg_ai_spamcheck(update, context):
             is_forwarded=is_forwarded
         )
 
-        # Correctly call the synchronous function without using await
+        # Fetch thresholds for deleting and muting messages
+        delete_threshold = float(config['ANTISPAM']['DELETE_THRESHOLD'])
+        mute_threshold = float(config['ANTISPAM']['MUTE_THRESHOLD'])
+
+        # Determine if the message is spam based on the delete threshold
+        is_spam = spam_proba >= delete_threshold
+
+        # Log the message
         message_log_id = message_helper.log_or_update_message(
             user_id=user_id,
             user_nickname=message.from_user.first_name,
@@ -758,29 +769,41 @@ async def tg_ai_spamcheck(update, context):
             reporting_id_nickname="rv_tg_community_bot",
             reason_for_action="Automated spam detection",
             message_id=message.message_id,
-            is_spam=True,
+            is_spam=is_spam,
             spam_prediction_probability=spam_proba
         )
 
-        delete_threshold = float(config['ANTISPAM']['DELETE_THRESHOLD'])
-        mute_threshold = float(config['ANTISPAM']['MUTE_THRESHOLD'])
+        # Get the chat mention and user mention for logging
+        chat_mention = await chat_helper.get_chat_mention(context.bot, chat_id)
+        user_mention = user_helper.get_user_mention(user_id, chat_id)
 
-        # Log whether the message is spam or not
+        # Handle actions based on spam probability
         if spam_proba < delete_threshold:
-            logger.info(f"Not Spam. Probability: {spam_proba:.5f}. Threshold: {delete_threshold}. Message: {message_content}. Chat: {await chat_helper.get_chat_mention(bot, chat_id)}. User: {user_helper.get_user_mention(user_id, chat_id)}. Message log id: {message_log_id}")
+            logger.info(
+                f"Not Spam. Probability: {spam_proba:.5f}. Threshold: {delete_threshold}. "
+                f"Message: {message_content}. Chat: {chat_mention}. "
+                f"User: {user_mention}. Message log id: {message_log_id}"
+            )
             return
 
         if spam_proba >= mute_threshold:
-            logger.info(f"‼️Spam (delete, mute) ‼️ Probability: {spam_proba:.5f}. Threshold: {mute_threshold}. Message: {message_content}. Chat: {await chat_helper.get_chat_mention(bot, chat_id)}. User: {user_helper.get_user_mention(user_id, chat_id)} Message log id: {message_log_id}")
-            await chat_helper.mute_user(bot, chat_id, user_id, 7 * 24)
+            logger.info(
+                f"‼️Spam (delete, mute) ‼️ Probability: {spam_proba:.5f}. Threshold: {mute_threshold}. "
+                f"Message: {message_content}. Chat: {chat_mention}. "
+                f"User: {user_mention} Message log id: {message_log_id}"
+            )
+            await chat_helper.mute_user(context.bot, chat_id, user_id, 7 * 24)
         else:
-            logger.info(f"‼️Spam (delete) ‼️ Probability: {spam_proba:.5f}. Threshold: {delete_threshold}. Message: {message_content}. Chat: {await chat_helper.get_chat_mention(bot, chat_id)}. User: {user_helper.get_user_mention(user_id, chat_id)} Message log id: {message_log_id}")
+            logger.info(
+                f"‼️Spam (delete) ‼️ Probability: {spam_proba:.5f}. Threshold: {delete_threshold}. "
+                f"Message: {message_content}. Chat: {chat_mention}. "
+                f"User: {user_mention} Message log id: {message_log_id}"
+            )
 
-        await chat_helper.delete_message(bot, chat_id, message.message_id)
+        await chat_helper.delete_message(context.bot, chat_id, message.message_id)
 
     except Exception as error:
         logger.error(f"Error processing spam check for User ID: {user_id}, Chat ID: {chat_id}, Error: {error}, Message: {message_content}")
-
 
 async def tg_thankyou(update, context):
     try:
