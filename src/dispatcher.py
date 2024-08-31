@@ -585,7 +585,7 @@ async def tg_log_message(update, context):
             is_forwarded = None
 
             # Check if 'forward_origin' exists and if it contains the necessary data
-            if message.forward_origin and message.forward_origin.sender_user:
+            if hasattr(message, 'forward_origin') and message.forward_origin and hasattr(message.forward_origin, 'sender_user'):
                 forward_from = message.forward_origin.sender_user
                 reason_for_action = f"Forwarded message from {forward_from.first_name} {forward_from.last_name} (ID: {forward_from.id})"
                 action_type = "forward"
