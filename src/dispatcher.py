@@ -614,8 +614,8 @@ async def tg_log_message(update, context):
             )
 
             if not success:
-                logger.error(f"Failed to log the message in the database: {traceback.format_exc()}")
-
+                update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
+                logger.error(f"Failed to log the message in the database: {traceback.format_exc()} | Update: {update_str}")
     except Exception as error:
         logger.error(f"Error: {traceback.format_exc()}")
 
