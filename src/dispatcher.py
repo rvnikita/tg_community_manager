@@ -646,6 +646,8 @@ async def tg_log_message(update, context):
                 is_forwarded=is_forwarded
             )
 
+            logger.info(f"Returned message log id after function call: {message_log_id}")
+
             if not message_log_id:
                 update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
                 logger.error(f"Failed to log the message in the database: {traceback.format_exc()} | Update: {update_str}")
@@ -759,6 +761,8 @@ async def tg_ai_spamcheck(update, context):
             is_spam=True,
             spam_prediction_probability=spam_proba
         )
+
+        logger.info(f"Returned message log id after function call: {message_log_id}")
 
         delete_threshold = float(config['ANTISPAM']['DELETE_THRESHOLD'])
         mute_threshold = float(config['ANTISPAM']['MUTE_THRESHOLD'])
