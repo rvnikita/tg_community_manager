@@ -58,11 +58,11 @@ def log_or_update_message(
             result = db_session.execute(on_conflict_stmt)
             db_session.commit()
 
-            # Log result for debugging purposes
-            logger.info(f"Executed SQL Result: {result.rowcount} rows affected.")
+            # Fetch the first row from the result
+            row = result.fetchone()
 
-            if result.rowcount > 0:
-                row_id = result.fetchone()[0]  # Fetch the ID from the result
+            if row:
+                row_id = row[0]  # Get the ID from the first column of the result
                 logger.info(f"Message log id: {row_id}")
                 return row_id
             else:
