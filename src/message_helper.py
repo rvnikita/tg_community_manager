@@ -8,12 +8,14 @@ import src.logging_helper as logging
 logger = logging.get_logger()
 
 # TODO: add non required parameter "spam prediction probability" that would be used when we we log with spam detection part of the code. That will easier to filter and manually verify in batch. Not going to use it in the prediction itself.
-async def log_or_update_message(user_id, user_nickname, user_current_rating, chat_id, message_content, action_type, reporting_id, reporting_id_nickname, reason_for_action, message_id, is_spam=False, manually_verified=False, embedding=None, is_forwarded=None, reply_to_message_id=None):
+async def log_or_update_message(
+    user_id, user_nickname, user_current_rating, chat_id, message_content, action_type, 
+    reporting_id, reporting_id_nickname, reason_for_action, message_id, is_spam=False, 
+    manually_verified=False, embedding=None, is_forwarded=None, reply_to_message_id=None):
+    
     try:
-        # logger.info("Processing message log")
-
         with db_helper.session_scope() as db_session:
-            # Define the insert statement with potential conflict
+            # Prepare the insert statement with RETURNING clause
             insert_stmt = insert(db_helper.Message_Log).values(
                 message_id=message_id,
                 message_content=message_content,
@@ -30,11 +32,11 @@ async def log_or_update_message(user_id, user_nickname, user_current_rating, cha
                 created_at=datetime.datetime.now(),
                 embedding=embedding,
                 manually_verified=manually_verified,
-                is_forwarded=is_forwarded,  # New field for forwarded message content
-                reply_to_message_id=reply_to_message_id  # New field for reply-to message ID
-            )
+                is_forwarded=is_forwarded,
+                reply_to_message_id=reply_to_message_id
+            ).returning(db_helper.Message_Log.id)  # Return the ID of the row
 
-            # Define the on_conflict clause
+            # Handle conflicts on 'message_id' and 'chat_id'
             on_conflict_stmt = insert_stmt.on_conflict_do_update(
                 index_elements=['message_id', 'chat_id'],
                 set_={
@@ -45,17 +47,18 @@ async def log_or_update_message(user_id, user_nickname, user_current_rating, cha
                     'reason_for_action': reason_for_action,
                     'message_timestamp': datetime.datetime.now(),
                     'manually_verified': manually_verified,
-                    'is_forwarded': is_forwarded,  # Update on conflict
-                    'reply_to_message_id': reply_to_message_id  # Update on conflict
+                    'is_forwarded': is_forwarded,
+                    'reply_to_message_id': reply_to_message_id
                 }
-            )
+            ).returning(db_helper.Message_Log.id)  # Also return the ID on conflict
 
-            # Execute the upsert operation
-            db_session.execute(on_conflict_stmt)
+            # Execute the statement and fetch the ID
+            result = await db_session.execute(on_conflict_stmt)
             db_session.commit()
-            # logger.info(f"Message {message_id} processed successfully for chat {chat_id}.")
-            return True
+
+            row_id = result.fetchone()[0]  # Fetch the ID from the result
+            return row_id
+
     except Exception as e:
         logger.error(f"Error processing message log: {e}. Traceback: {traceback.format_exc()}")
-        return False
-
+        return None
