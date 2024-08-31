@@ -591,7 +591,8 @@ async def tg_log_message(update, context):
                 action_type = "forward"
                 is_forwarded = True
             else:
-                logger.info("No 'forward_origin' in message or sender_user data is missing.")
+                pass
+                # logger.info("No 'forward_origin' in message or sender_user data is missing.")
 
             embedding = openai_helper.generate_embedding(message_content)
 
