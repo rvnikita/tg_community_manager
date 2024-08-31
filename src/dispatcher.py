@@ -70,11 +70,13 @@ async def tg_report(update, context):
 
         reported_message_id = message.reply_to_message.message_id
         reported_user_id = message.reply_to_message.from_user.id
+        # Determine the content of the reported message: Use text if available, otherwise use caption
+        reported_message_content = message.reply_to_message.text or message.reply_to_message.caption
+
         reporting_user_id = message.from_user.id
 
-
         if message:
-            await chat_helper.schedule_message_deletion(chat_id,  message.message_id, message.from_user.id, trigger_id = reported_message_id, delay_seconds = 2*60*60) #use reported_message_id as trigger_id
+            await chat_helper.schedule_message_deletion(chat_id, message.message_id, message.from_user.id, trigger_id=reported_message_id, delay_seconds=2 * 60 * 60)  # use reported_message_id as trigger_id
 
         chat_administrators = await context.bot.get_chat_administrators(chat_id)
         if any(admin.user.id == reported_user_id for admin in chat_administrators):
@@ -108,11 +110,18 @@ async def tg_report(update, context):
         reported_user_mention = user_helper.get_user_mention(reported_user_id, chat_id)
         chat_mention = await chat_helper.get_chat_mention(context.bot, chat_id)
 
-        await chat_helper.send_message_to_admin(context.bot, chat_id, f"User {reported_user_mention} has been reported by {user_helper.get_user_mention(reporting_user_id, chat_id)} in chat {chat_mention} {report_sum}/{number_of_reports_to_ban} times.\nReported message: {message.reply_to_message.text}")
-        logger.info(f"User {reported_user_id} has been reported by {user_helper.get_user_mention(reporting_user_id, chat_id)} in chat {chat_id} {report_sum}/{number_of_reports_to_ban} times. Reported message: {message.reply_to_message.text}")
+        # Inform admins about the report
+        await chat_helper.send_message_to_admin(
+            context.bot, 
+            chat_id, 
+            f"User {reported_user_mention} has been reported by {user_helper.get_user_mention(reporting_user_id, chat_id)} in chat {chat_mention} {report_sum}/{number_of_reports_to_ban} times.\nReported message: {reported_message_content}"
+        )
+        logger.info(
+            f"User {reported_user_id} has been reported by {user_helper.get_user_mention(reporting_user_id, chat_id)} in chat {chat_id} {report_sum}/{number_of_reports_to_ban} times. Reported message: {reported_message_content}"
+        )
 
         if report_sum >= number_of_reports_to_ban:
-            # let's now increase rating for all users who reported this user
+            # Increase rating for all users who reported this user
             reporting_user_ids = await reporting_helper.get_reporting_users(chat_id, reported_user_id)
             bot_info = await bot.get_me()
             await rating_helper.change_rating(reporting_user_ids, bot_info.id, chat_id, 1, delete_message_delay=120)
@@ -120,35 +129,57 @@ async def tg_report(update, context):
             await chat_helper.ban_user(context.bot, chat_id, reported_user_id)
             await chat_helper.delete_message(context.bot, chat_id, reported_message_id)
             await chat_helper.send_message(context.bot, chat_id, f"User {reported_user_mention} has been banned due to {report_sum}/{number_of_reports_to_ban} reports.", delete_after=120)
-            await chat_helper.send_message_to_admin(context.bot, chat_id, f"User {reported_user_mention} has been banned in chat {chat_mention} due to {report_sum}/{number_of_reports_to_ban} reports. \nReported message: {message.reply_to_message.text}")
+            await chat_helper.send_message_to_admin(
+                context.bot, 
+                chat_id, 
+                f"User {reported_user_mention} has been banned in chat {chat_mention} due to {report_sum}/{number_of_reports_to_ban} reports. \nReported message: {reported_message_content}"
+            )
 
-            # now delete all messages from scheduled deletion with trigger_id = reported_message_id
-            await chat_helper.delete_scheduled_messages(bot, chat_id, trigger_id = reported_message_id)
+            # Delete all messages from scheduled deletion with trigger_id = reported_message_id
+            await chat_helper.delete_scheduled_messages(bot, chat_id, trigger_id=reported_message_id)
 
             # Log the ban action
-            await  message_helper.log_or_update_message(
+            await message_helper.log_or_update_message(
                 reported_user_id,
                 reported_user_mention,
                 rating_helper.get_rating(reported_user_id, chat_id),
                 chat_id,
-                message.reply_to_message.text,
+                reported_message_content,
                 "report & ban",
                 reporting_user_id,
                 user_helper.get_user_mention(reporting_user_id, chat_id),
                 f"User {reported_user_mention} was banned in chat {chat_mention} due to {report_sum}/{number_of_reports_to_ban} reports.",
                 reported_message_id,
-                is_spam=True)
+                is_spam=True
+            )
 
         elif report_sum >= number_of_reports_to_warn:
             await chat_helper.warn_user(context.bot, chat_id, reported_user_id)
             await chat_helper.mute_user(context.bot, chat_id, reported_user_id)
-            await chat_helper.send_message(context.bot, chat_id, f"User {reported_user_mention} has been warned and muted due to {report_sum}/{number_of_reports_to_ban} reports.", reply_to_message_id=reported_message_id, delete_after=120)
-            await chat_helper.send_message_to_admin(context.bot, chat_id, f"User {reported_user_mention} has been warned and muted in chat {chat_mention} due to {report_sum}/{number_of_reports_to_ban} reports. \nReported message: {message.reply_to_message.text}")
+            await chat_helper.send_message(
+                context.bot, 
+                chat_id, 
+                f"User {reported_user_mention} has been warned and muted due to {report_sum}/{number_of_reports_to_ban} reports.", 
+                reply_to_message_id=reported_message_id, 
+                delete_after=120
+            )
+            await chat_helper.send_message_to_admin(
+                context.bot, 
+                chat_id, 
+                f"User {reported_user_mention} has been warned and muted in chat {chat_mention} due to {report_sum}/{number_of_reports_to_ban} reports. \nReported message: {reported_message_content}"
+            )
         else:
-            user_has_been_reported_message = await chat_helper.send_message(context.bot, chat_id, f"User {reported_user_mention} has been reported {report_sum}/{number_of_reports_to_ban} times.")
-            await chat_helper.schedule_message_deletion(chat_id, message_id = user_has_been_reported_message.message_id, user_id=reported_user_id, trigger_id=reported_message_id)
-
-
+            user_has_been_reported_message = await chat_helper.send_message(
+                context.bot, 
+                chat_id, 
+                f"User {reported_user_mention} has been reported {report_sum}/{number_of_reports_to_ban} times."
+            )
+            await chat_helper.schedule_message_deletion(
+                chat_id, 
+                message_id=user_has_been_reported_message.message_id, 
+                user_id=reported_user_id, 
+                trigger_id=reported_message_id
+            )
 
     except Exception as error:
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
@@ -392,9 +423,9 @@ async def tg_ban(update, context):
             # Check if the command was sent by an admin of the chat
             chat_administrators = await bot.get_chat_administrators(chat_id)
 
-            # TODO:MED: We should find the way how to identify admin if he answes from channel
+            # TODO:MED: We should find the way how to identify admin if he answers from channel
             if message.from_user.id not in [admin.user.id for admin in chat_administrators]:
-                await chat_helper.send_message(bot, chat_id, "You must be an admin to use this command.", reply_to_message_id=message.message_id, delete_after = 120)
+                await chat_helper.send_message(bot, chat_id, "You must be an admin to use this command.", reply_to_message_id=message.message_id, delete_after=120)
                 return
 
             command_parts = message.text.split()  # Split the message into parts
@@ -410,7 +441,7 @@ async def tg_ban(update, context):
                 else:
                     await message.reply_text("Invalid format. Use /ban @username or /ban user_id.")
                     return
-            else: # Check if a user is mentioned in the command message as a reply to message
+            else:  # Check if a user is mentioned in the command message as a reply to message
                 if not message.reply_to_message:
                     await message.reply_text("Please reply to a user's message to ban them.")
                     return
@@ -424,6 +455,9 @@ async def tg_ban(update, context):
                     await message.reply_text("You cannot ban an admin.")
                     return
 
+            # Determine the content of the reported message: Use text if available, otherwise use caption
+            reported_message_content = message.reply_to_message.text or message.reply_to_message.caption
+
             # Ban the user
             await chat_helper.ban_user(bot, chat_id, ban_user_id)
 
@@ -433,7 +467,7 @@ async def tg_ban(update, context):
                 user_nickname=user_helper.get_user_mention(ban_user_id, chat_id),
                 user_current_rating=rating_helper.get_rating(ban_user_id, chat_id),
                 chat_id=chat_id,
-                message_content=message.reply_to_message.text,
+                message_content=reported_message_content,
                 action_type="ban",
                 reporting_id=message.from_user.id,
                 reporting_id_nickname=user_helper.get_user_mention(message.from_user.id, chat_id),
@@ -442,12 +476,12 @@ async def tg_ban(update, context):
                 is_spam=False
             )
 
-
             await chat_helper.send_message(bot, chat_id, f"User {user_helper.get_user_mention(ban_user_id, chat_id)} has been banned.", delete_after=120)
 
     except Exception as error:
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
         logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
+
 
 async def tg_gban(update, context):
     try:
@@ -459,9 +493,8 @@ async def tg_gban(update, context):
             ban_reason = None
 
             # Check if the command was sent by a global admin of the bot
-            # TODO:MED: We should find the way how to identify admin if he answes from channel
+            # TODO:MED: We should find the way how to identify admin if he answers from channel
             if message.from_user.id != int(config['BOT']['ADMIN_ID']):
-                #print chat_id
                 await message.reply_text("You must be a global bot admin to use this command.")
                 return
 
@@ -481,14 +514,12 @@ async def tg_gban(update, context):
                 else:
                     await message.reply_text("Invalid format. Use gban @username or gban user_id.")
                     return
-            elif chat_id == int(config['LOGGING']['INFO_CHAT_ID']) or chat_id == int(
-                    config['LOGGING']['ERROR_CHAT_ID']):
+            elif chat_id == int(config['LOGGING']['INFO_CHAT_ID']) or chat_id == int(config['LOGGING']['ERROR_CHAT_ID']):
                 ban_reason = f"User was globally banned by {message.text} command in info chat. Message: {message.reply_to_message.text}"
                 if not message.reply_to_message:
                     await message.reply_text("Please reply to a message containing usernames to ban.")
                     return
-                username_list = re.findall('@(\w+)',
-                                           message.reply_to_message.text)  # extract usernames from the reply_to_message
+                username_list = re.findall('@(\w+)', message.reply_to_message.text)  # extract usernames from the reply_to_message
                 if len(username_list) > 2:  # Check if there are more than 2 usernames in the message
                     await message.reply_text("More than two usernames found. Please specify which user to ban.")
                     return
@@ -502,9 +533,9 @@ async def tg_gban(update, context):
                         await message.reply_text(f"No user found with username {username_list[0]}.")
                         return
                     ban_user_id = user.id
-            else: # Check if a user is mentioned in the command message as a reply to message
+            else:  # Check if a user is mentioned in the command message as a reply to message
                 ban_reason = f"User was globally banned by {message.text} command in {await chat_helper.get_chat_mention(bot, chat_id)}. Message: {message.reply_to_message.text}"
-                ban_chat_id = chat_id # We need to ban in the same chat as the command was sent
+                ban_chat_id = chat_id  # We need to ban in the same chat as the command was sent
 
                 if not message.reply_to_message:
                     await message.reply_text("Please reply to a user's message to ban them.")
@@ -512,6 +543,9 @@ async def tg_gban(update, context):
                 ban_user_id = message.reply_to_message.from_user.id
 
                 await chat_helper.delete_message(bot, chat_id, message.reply_to_message.message_id)
+
+            # Determine the content of the reported message: Use text if available, otherwise use caption
+            reported_message_content = message.reply_to_message.text or message.reply_to_message.caption
 
             # Ban the user and add them to the banned_users table
             await chat_helper.ban_user(bot, ban_chat_id, ban_user_id, True, reason=ban_reason)
@@ -522,7 +556,7 @@ async def tg_gban(update, context):
                 user_nickname=user_helper.get_user_mention(ban_user_id, chat_id),
                 user_current_rating=rating_helper.get_rating(ban_user_id, chat_id),
                 chat_id=chat_id,
-                message_content=message.reply_to_message.text,
+                message_content=reported_message_content,
                 action_type="gban",
                 reporting_id=message.from_user.id,
                 reporting_id_nickname=user_helper.get_user_mention(message.from_user.id, chat_id),
@@ -535,6 +569,7 @@ async def tg_gban(update, context):
     except Exception as error:
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
         logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
+
 
 
 #TODO:MED: May be we need to make it more complicated (e.g. with ai embeddings) and move big part of it to separate auto_deply_helper
