@@ -93,7 +93,7 @@ async def train_spam_classifier():
                         message_length, 
                         message_data.spam_count, 
                         message_data.not_spam_count,
-                        len(message_data.is_forwarded or ''),
+                        float(message_data.is_forwarded or 0),
                         message_data.reply_to_message_id or 0  # Include reply_to_message_id (use 0 if None)
                     ]
                 ))
