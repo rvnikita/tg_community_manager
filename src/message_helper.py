@@ -58,8 +58,16 @@ def log_or_update_message(
             result = db_session.execute(on_conflict_stmt)
             db_session.commit()
 
-            row_id = result.fetchone()[0]  # Fetch the ID from the result
-            return row_id
+            # Log result for debugging purposes
+            logger.info(f"Executed SQL Result: {result.rowcount} rows affected.")
+
+            if result.rowcount > 0:
+                row_id = result.fetchone()[0]  # Fetch the ID from the result
+                logger.info(f"Message log id: {row_id}")
+                return row_id
+            else:
+                logger.warning(f"No rows were affected when inserting/updating the message log for message_id {message_id} and chat_id {chat_id}.")
+                return None
 
     except Exception as e:
         logger.error(f"Error processing message log: {e}. Traceback: {traceback.format_exc()}")
