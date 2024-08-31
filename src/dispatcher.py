@@ -723,7 +723,7 @@ async def tg_ai_spamcheck(update, context):
 
     user_id = message.from_user.id
     chat_id = message.chat.id
-    #TODO:MED: let's take the photo content, send it to the OpenAI to describe and attach it to message_content so it could be used in spam prediction 
+    # TODO:MED: let's take the photo content, send it to the OpenAI to describe and attach it to message_content so it could be used in spam prediction 
     message_content = message.text or message.caption or "Non-text message"
     reply_to_message_id = message.reply_to_message.message_id if message.reply_to_message else None
 
@@ -744,6 +744,7 @@ async def tg_ai_spamcheck(update, context):
             is_forwarded=is_forwarded
         )
 
+        # Correctly call the synchronous function without using await
         message_log_id = message_helper.log_or_update_message(
             user_id=user_id,
             user_nickname=message.from_user.first_name,
@@ -762,7 +763,7 @@ async def tg_ai_spamcheck(update, context):
         delete_threshold = float(config['ANTISPAM']['DELETE_THRESHOLD'])
         mute_threshold = float(config['ANTISPAM']['MUTE_THRESHOLD'])
 
-        #TODO:LOW: It would be nice to be able to reply to Spam/Not spam message so we can change spam status in db (as well as manually_verified) for future retraining
+        # Log whether the message is spam or not
         if spam_proba < delete_threshold:
             logger.info(f"Not Spam. Probability: {spam_proba:.5f}. Threshold: {delete_threshold}. Message: {message_content}. Chat: {await chat_helper.get_chat_mention(bot, chat_id)}. User: {user_helper.get_user_mention(user_id, chat_id)}. Message log id: {message_log_id}")
             return
