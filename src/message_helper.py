@@ -14,6 +14,14 @@ def log_or_update_message(
     manually_verified=False, embedding=None, is_forwarded=None, reply_to_message_id=None, spam_prediction_probability=None):
     
     try:
+        # Convert spam_prediction_probability to float if it's not None
+        if spam_prediction_probability is not None:
+            try:
+                spam_prediction_probability = float(spam_prediction_probability)
+            except (ValueError, TypeError) as e:
+                logger.error(f"Invalid spam_prediction_probability value: {spam_prediction_probability}. Error: {e}")
+                spam_prediction_probability = None  # Reset to None if conversion fails
+
         with db_helper.session_scope() as db_session:
             # Prepare the insert statement with RETURNING clause
             insert_stmt = insert(db_helper.Message_Log).values(
@@ -50,7 +58,9 @@ def log_or_update_message(
                     'manually_verified': manually_verified,
                     'is_forwarded': is_forwarded,
                     'reply_to_message_id': reply_to_message_id,
-                    'spam_prediction_probability': spam_prediction_probability
+                    'spam_prediction_probability': spam_prediction_probability,  # Ensure this field is updated
+                    'embedding': embedding,  # Ensure embedding is also updated
+                    'user_current_rating': user_current_rating,  # Ensure this field is also updated
                 }
             ).returning(db_helper.Message_Log.id)  # Also return the ID on conflict
 
