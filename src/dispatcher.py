@@ -540,7 +540,7 @@ async def tg_gban(update, context):
         logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
 
 
-#TODO: MEDIUM: May be we need to make it more complicated (e.g. with ai embeddings) and move big part of it to separate auto_deply_helper
+#TODO:MED: May be we need to make it more complicated (e.g. with ai embeddings) and move big part of it to separate auto_deply_helper
 async def tg_auto_reply(update, context):
     try:
         if update.message and update.message.text:  # Check if the message and its text exist

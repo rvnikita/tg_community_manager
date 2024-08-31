@@ -51,7 +51,7 @@ class User(Base):
 
     id = Column(BigInteger, primary_key=True)
     created_at = Column(DateTime(True), server_default=text('now()'))
-    #TODO:MID: split name into first_name and last_name
+    #TODO:MED: split name into first_name and last_name
     first_name = Column(String)
     last_name = Column(String)
     username = Column(String)
