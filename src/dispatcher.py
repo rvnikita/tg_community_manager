@@ -690,7 +690,8 @@ async def tg_ai_spamcheck(update, context):
 
     user_id = message.from_user.id
     chat_id = message.chat.id
-    message_text = message.text
+    #TODO:MED: let's take the photo content, send it to the OpenAI to describe and attach it to message_content so it could be used in spam prediction 
+    message_content = message.text or message.caption or "Non-text message"
     reply_to_message_id = message.reply_to_message.message_id if message.reply_to_message else None
 
     # Initialize forwarded message data
@@ -698,13 +699,13 @@ async def tg_ai_spamcheck(update, context):
 
     try:
         # Generate the embedding once here
-        embedding = openai_helper.generate_embedding(message_text)
+        embedding = openai_helper.generate_embedding(message_content)
 
         # Use the embedding and other parameters for spam prediction
         spam_proba = await spamcheck_helper.predict_spam(
             user_id=user_id,
             chat_id=chat_id,
-            message_text=message_text,
+            message_content=message_content,
             embedding=embedding,
             reply_to_message_id=reply_to_message_id,
             is_forwarded=is_forwarded
@@ -714,14 +715,14 @@ async def tg_ai_spamcheck(update, context):
         mute_threshold = float(config['ANTISPAM']['MUTE_THRESHOLD'])
 
         if spam_proba < delete_threshold:
-            logger.info(f"Not Spam. Probability: {spam_proba:.5f}. Threshold: {delete_threshold}. Message: {message_text}. Chat: {await chat_helper.get_chat_mention(bot, chat_id)}. User: {user_helper.get_user_mention(user_id, chat_id)}")
+            logger.info(f"Not Spam. Probability: {spam_proba:.5f}. Threshold: {delete_threshold}. Message: {message_content}. Chat: {await chat_helper.get_chat_mention(bot, chat_id)}. User: {user_helper.get_user_mention(user_id, chat_id)}")
             return
 
         if spam_proba >= mute_threshold:
-            logger.info(f"‼️Spam (delete, mute) ‼️ Probability: {spam_proba:.5f}. Threshold: {mute_threshold}. Message: {message_text}. Chat: {await chat_helper.get_chat_mention(bot, chat_id)}. User: {user_helper.get_user_mention(user_id, chat_id)}")
+            logger.info(f"‼️Spam (delete, mute) ‼️ Probability: {spam_proba:.5f}. Threshold: {mute_threshold}. Message: {message_content}. Chat: {await chat_helper.get_chat_mention(bot, chat_id)}. User: {user_helper.get_user_mention(user_id, chat_id)}")
             await chat_helper.mute_user(bot, chat_id, user_id, 7 * 24)
         else:
-            logger.info(f"‼️Spam (delete) ‼️ Probability: {spam_proba:.5f}. Threshold: {delete_threshold}. Message: {message_text}. Chat: {await chat_helper.get_chat_mention(bot, chat_id)}. User: {user_helper.get_user_mention(user_id, chat_id)}")
+            logger.info(f"‼️Spam (delete) ‼️ Probability: {spam_proba:.5f}. Threshold: {delete_threshold}. Message: {message_content}. Chat: {await chat_helper.get_chat_mention(bot, chat_id)}. User: {user_helper.get_user_mention(user_id, chat_id)}")
 
         await chat_helper.delete_message(bot, chat_id, message.message_id)
         await message_helper.log_or_update_message(
@@ -729,7 +730,7 @@ async def tg_ai_spamcheck(update, context):
             user_nickname=message.from_user.first_name,
             user_current_rating=rating_helper.get_rating(user_id, chat_id),
             chat_id=chat_id,
-            message_content=message_text,
+            message_content=message_content,
             action_type="spam detection",
             reporting_id=context.bot.id,
             reporting_id_nickname="rv_tg_community_bot",
@@ -739,7 +740,7 @@ async def tg_ai_spamcheck(update, context):
         )
 
     except Exception as error:
-        logger.error(f"Error processing spam check for User ID: {user_id}, Chat ID: {chat_id}, Error: {error}, Message: {message_text}")
+        logger.error(f"Error processing spam check for User ID: {user_id}, Chat ID: {chat_id}, Error: {error}, Message: {message_content}")
 
 
 async def tg_thankyou(update, context):
