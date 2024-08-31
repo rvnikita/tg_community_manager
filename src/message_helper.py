@@ -8,7 +8,7 @@ import src.logging_helper as logging
 logger = logging.get_logger()
 
 # TODO: add non required parameter "spam prediction probability" that would be used when we we log with spam detection part of the code. That will easier to filter and manually verify in batch. Not going to use it in the prediction itself.
-async def log_or_update_message(
+def log_or_update_message(
     user_id, user_nickname, user_current_rating, chat_id, message_content, action_type, 
     reporting_id, reporting_id_nickname, reason_for_action, message_id, is_spam=False, 
     manually_verified=False, embedding=None, is_forwarded=None, reply_to_message_id=None, spam_prediction_probability=None):

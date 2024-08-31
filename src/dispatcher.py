@@ -139,7 +139,7 @@ async def tg_report(update, context):
             await chat_helper.delete_scheduled_messages(bot, chat_id, trigger_id=reported_message_id)
 
             # Log the ban action
-            await message_helper.log_or_update_message(
+            message_helper.log_or_update_message(
                 reported_user_id,
                 reported_user_mention,
                 rating_helper.get_rating(reported_user_id, chat_id),
@@ -462,7 +462,7 @@ async def tg_ban(update, context):
             await chat_helper.ban_user(bot, chat_id, ban_user_id)
 
             # Log the ban action
-            await message_helper.log_or_update_message(
+            message_helper.log_or_update_message(
                 user_id=ban_user_id,
                 user_nickname=user_helper.get_user_mention(ban_user_id, chat_id),
                 user_current_rating=rating_helper.get_rating(ban_user_id, chat_id),
@@ -551,7 +551,7 @@ async def tg_gban(update, context):
             await chat_helper.ban_user(bot, ban_chat_id, ban_user_id, True, reason=ban_reason)
 
             # Log the ban action
-            await message_helper.log_or_update_message(
+            message_helper.log_or_update_message(
                 user_id=ban_user_id,
                 user_nickname=user_helper.get_user_mention(ban_user_id, chat_id),
                 user_current_rating=rating_helper.get_rating(ban_user_id, chat_id),
@@ -629,7 +629,7 @@ async def tg_log_message(update, context):
             embedding = openai_helper.generate_embedding(message_content)
 
             # Log the message, treating forwarded messages differently if needed
-            success = await message_helper.log_or_update_message(
+            message_log_id = message_helper.log_or_update_message(
                 user_id=user_id,
                 user_nickname=user_nickname,
                 user_current_rating=user_current_rating,
@@ -646,7 +646,7 @@ async def tg_log_message(update, context):
                 is_forwarded=is_forwarded
             )
 
-            if not success:
+            if not message_log_id:
                 update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
                 logger.error(f"Failed to log the message in the database: {traceback.format_exc()} | Update: {update_str}")
     except Exception as error:
@@ -744,7 +744,7 @@ async def tg_ai_spamcheck(update, context):
             is_forwarded=is_forwarded
         )
 
-        message_log_id = await message_helper.log_or_update_message(
+        message_log_id = message_helper.log_or_update_message(
             user_id=user_id,
             user_nickname=message.from_user.first_name,
             user_current_rating=rating_helper.get_rating(user_id, chat_id),
