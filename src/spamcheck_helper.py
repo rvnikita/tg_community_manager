@@ -88,9 +88,6 @@ async def generate_features(user_id, chat_id, message_text=None, embedding=None,
                 float(reply_to_message_id)
             ])
 
-            # Log the shape of the feature array
-            logger.info(f"Generated feature array with shape: {feature_array.shape}")
-
             return feature_array
     except Exception as e:
         logger.error(f"An error occurred during feature generation: {traceback.format_exc()}")

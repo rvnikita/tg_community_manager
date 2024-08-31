@@ -746,8 +746,6 @@ async def tg_ai_spamcheck(update, context):
             is_forwarded=is_forwarded
         )
 
-        logger.info(f"Spam prediction probability: {spam_proba:.5f}. Message: {message_content}. Chat: {await chat_helper.get_chat_mention(bot, chat_id)}. User: {user_helper.get_user_mention(user_id, chat_id)}")
-
         # Correctly call the synchronous function without using await
         message_log_id = message_helper.log_or_update_message(
             user_id=user_id,
@@ -763,8 +761,6 @@ async def tg_ai_spamcheck(update, context):
             is_spam=True,
             spam_prediction_probability=spam_proba
         )
-
-        logger.info(f"A Returned message log id after function call: {message_log_id}")
 
         delete_threshold = float(config['ANTISPAM']['DELETE_THRESHOLD'])
         mute_threshold = float(config['ANTISPAM']['MUTE_THRESHOLD'])

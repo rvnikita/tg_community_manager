@@ -73,7 +73,6 @@ def log_or_update_message(
 
             if row:
                 row_id = row[0]  # Get the ID from the first column of the result
-                logger.info(f"Message log id: {row_id}")
                 return row_id
             else:
                 logger.warning(f"No rows were affected when inserting/updating the message log for message_id {message_id} and chat_id {chat_id}.")
