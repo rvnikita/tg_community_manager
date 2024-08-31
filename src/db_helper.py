@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, BigInteger, Boolean, Column, DateTime, Identity, Integer, JSON, PrimaryKeyConstraint, String, Text, UniqueConstraint, text, ForeignKey, Index, Time
+from sqlalchemy import create_engine, BigInteger, Boolean, Column, DateTime, Identity, Integer, Float, JSON, PrimaryKeyConstraint, String, Text, UniqueConstraint, text, ForeignKey, Index, Time
 from sqlalchemy.orm import Session, DeclarativeBase, declared_attr, relationship, backref
 from sqlalchemy.sql.sqltypes import NullType
 from sqlalchemy.orm import sessionmaker
@@ -276,6 +276,7 @@ class Message_Log(Base):
     manually_verified = Column(Boolean, default=False, nullable=False)
     is_forwarded = Column(Boolean, nullable=True)  # Column to store is message is forwarded
     reply_to_message_id = Column(BigInteger, nullable=True)  # Column to store reply-to message ID
+    spam_prediction_probability = Column(Float, nullable=True)  # Column to store spam prediction probability. We are not going to use that for spam prediction itself, but for logging purposes and easier filtering of messages for manual verification
 
     # Relationships
     user = relationship("User", foreign_keys=[user_id], backref="message_logs")

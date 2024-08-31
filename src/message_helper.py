@@ -11,7 +11,7 @@ logger = logging.get_logger()
 async def log_or_update_message(
     user_id, user_nickname, user_current_rating, chat_id, message_content, action_type, 
     reporting_id, reporting_id_nickname, reason_for_action, message_id, is_spam=False, 
-    manually_verified=False, embedding=None, is_forwarded=None, reply_to_message_id=None):
+    manually_verified=False, embedding=None, is_forwarded=None, reply_to_message_id=None, spam_prediction_probability=None):
     
     try:
         with db_helper.session_scope() as db_session:
@@ -33,7 +33,8 @@ async def log_or_update_message(
                 embedding=embedding,
                 manually_verified=manually_verified,
                 is_forwarded=is_forwarded,
-                reply_to_message_id=reply_to_message_id
+                reply_to_message_id=reply_to_message_id,
+                spam_prediction_probability=spam_prediction_probability
             ).returning(db_helper.Message_Log.id)  # Return the ID of the row
 
             # Handle conflicts on 'message_id' and 'chat_id'
@@ -48,7 +49,8 @@ async def log_or_update_message(
                     'message_timestamp': datetime.datetime.now(),
                     'manually_verified': manually_verified,
                     'is_forwarded': is_forwarded,
-                    'reply_to_message_id': reply_to_message_id
+                    'reply_to_message_id': reply_to_message_id,
+                    'spam_prediction_probability': spam_prediction_probability
                 }
             ).returning(db_helper.Message_Log.id)  # Also return the ID on conflict
 

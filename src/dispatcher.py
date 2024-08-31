@@ -755,7 +755,8 @@ async def tg_ai_spamcheck(update, context):
             reporting_id_nickname="rv_tg_community_bot",
             reason_for_action="Automated spam detection",
             message_id=message.message_id,
-            is_spam=True
+            is_spam=True,
+            spam_prediction_probability=spam_proba
         )
 
         delete_threshold = float(config['ANTISPAM']['DELETE_THRESHOLD'])
