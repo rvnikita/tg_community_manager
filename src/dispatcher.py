@@ -1085,11 +1085,11 @@ class BotManager:
             # delete new member message
             self.application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, tg_new_member), group=1)
 
-            self.application.add_handler(MessageHandler(filters.TEXT & filters.ChatType.GROUPS, tg_update_user_status), group=2)  # filters.ChatType.GROUPS to get only chat messages
+            self.application.add_handler(MessageHandler(filters.ALL & filters.ChatType.GROUPS, tg_update_user_status), group=2)  # filters.ChatType.GROUPS to get only chat messages
             self.application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, tg_update_user_status), group=2)
 
             # checking if user says thank you.
-            self.application.add_handler(MessageHandler(filters.TEXT, tg_thankyou), group=3)
+            self.application.add_handler(MessageHandler((filters.TEXT | filters.CAPTION), tg_thankyou), group=3)
 
             # reporting
             self.application.add_handler(CommandHandler(['report', 'r'], tg_report, filters.ChatType.GROUPS), group=4)
@@ -1115,7 +1115,7 @@ class BotManager:
 
             self.application.add_handler(CommandHandler(['help', 'h'], tg_help), group=10)
 
-            self.application.add_handler(MessageHandler(filters.TEXT, tg_auto_reply), group=11)
+            self.application.add_handler(MessageHandler((filters.TEXT | filters.CAPTION), tg_auto_reply), group=11)
 
             # Set up the graceful shutdown mechanism
             signal.signal(signal.SIGTERM, self.signal_handler)
