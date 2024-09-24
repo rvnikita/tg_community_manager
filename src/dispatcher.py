@@ -617,8 +617,9 @@ async def tg_handle_forwarded_messages(update, context):
         if not chat_helper.get_chat_config(message.chat.id, "handle_forwarded_messages"):
             return
 
-        # Check if the message is a forwarded message from a channel
-        if message.forward_from_chat and message.forward_from_chat.type == 'channel':
+        # Safely access 'forward_from_chat' using getattr
+        forward_from_chat = getattr(message, 'forward_from_chat', None)
+        if forward_from_chat and forward_from_chat.type == 'channel':
             # Delete the original message
             await context.bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
 
@@ -632,10 +633,16 @@ async def tg_handle_forwarded_messages(update, context):
             await context.bot.send_message(
                 chat_id=message.chat.id,
                 text=new_message
-                # No parse_mode specified
+            )
+
+            # Log the action
+            logger.info(
+                f"Forwarded message from channel handled. "
+                f"User: {user_mention}, Chat ID: {message.chat.id}, Original Message ID: {message.message_id}"
             )
     except Exception as e:
         logger.error(f"Error in tg_handle_forwarded_messages: {traceback.format_exc()}")
+
 
 
 
