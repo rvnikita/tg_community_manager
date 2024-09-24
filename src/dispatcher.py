@@ -601,6 +601,44 @@ async def tg_auto_reply(update, context):
     except Exception as error:
         logger.error(f"tg_auto_reply error: {traceback.format_exc()}")
 
+async def tg_handle_forwarded_messages(update, context):
+    try:
+        message = update.message
+        if not message:
+            return
+
+        # Check if the user is an admin; if so, don't process their messages
+        chat_administrators = await context.bot.get_chat_administrators(message.chat.id)
+        is_admin = any(admin.user.id == message.from_user.id for admin in chat_administrators)
+        if is_admin:
+            return
+
+        # Check if the feature is enabled for the chat
+        if not chat_helper.get_chat_config(message.chat.id, "handle_forwarded_messages"):
+            return
+
+        # Check if the message is a forwarded message from a channel
+        if message.forward_from_chat and message.forward_from_chat.type == 'channel':
+            # Delete the original message
+            await context.bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
+
+            # Prepare the new message content using your user_helper.get_user_mention function
+            user_mention = user_helper.get_user_mention(message.from_user.id, message.chat.id)
+            original_content = message.text or message.caption or ""
+
+            new_message = f"{user_mention} shared: {original_content}"
+
+            # Send the new message as admin without specifying parse_mode
+            await context.bot.send_message(
+                chat_id=message.chat.id,
+                text=new_message
+                # No parse_mode specified
+            )
+    except Exception as e:
+        logger.error(f"Error in tg_handle_forwarded_messages: {traceback.format_exc()}")
+
+
+
 async def tg_log_message(update, context):
     try:
         message = update.message
@@ -1055,6 +1093,7 @@ async def tg_update_user_status(update, context):
 #We need this function to coordinate different function working with all text messages
 async def tg_wiretapping(update, context):
     try:
+        await tg_handle_forwarded_messages(update, context)
         await tg_log_message(update, context)
         await tg_spam_check(update, context)
         await tg_ai_spamcheck(update, context)
