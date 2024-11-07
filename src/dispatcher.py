@@ -1034,53 +1034,36 @@ async def tg_join_request(update, context):
 async def tg_new_member(update, context):
     try:
         logger.info(f"New member joined chat {update.effective_chat.id} ({update.effective_chat.title})")
-        new_user_id = update.message.api_kwargs['new_chat_participant']['id']
 
         delete_new_chat_members_message = chat_helper.get_chat_config(update.effective_chat.id, "delete_new_chat_members_message")
 
         if delete_new_chat_members_message == True:
-            await bot.delete_message(update.message.chat.id,update.message.id)
-
-            logger.info(f"Joining message deleted from chat {await chat_helper.get_chat_mention(bot, update.message.chat.id)} for user @{update.message.from_user.username} [{update.message.from_user.id})")
-
-        with db_helper.session_scope() as db_session:
-            #check user in global ban list User_Global_Ban
-            user_global_ban = db_session.query(db_helper.User_Global_Ban).filter(db_helper.User_Global_Ban.user_id == new_user_id).first()
-            if user_global_ban is not None:
-                logger.info(f"User {new_user_id} is in global ban list. Kicking from chat {update.message.chat.title} ({update.message.chat.id})")
-                await chat_helper.ban_user(bot, update.message.chat.id, new_user_id, reason="User is in global ban list")
-                await chat_helper.send_message(bot, update.message.chat.id, f"User {new_user_id} is in global ban list. Kicking from chat {update.message.chat.title} ({update.message.chat.id})", delete_after=120)
-                return
+            await bot.delete_message(update.message.chat.id, update.message.id)
+            logger.info(f"Joining message deleted from chat {await chat_helper.get_chat_mention(bot, update.message.chat.id)} for user @{update.message.from_user.username} [{update.message.from_user.id}]")
 
         mute_new_users_duration = int(chat_helper.get_chat_config(update.effective_chat.id, "mute_new_users_duration", default=0))
 
         logger.info(f"Mute new users duration: {mute_new_users_duration}")
 
-        if mute_new_users_duration > 0:
-                permissions = ChatPermissions(
-                    can_send_messages=False,
-                    can_send_media_messages=False,
-                    can_send_polls=False,
-                    can_send_other_messages=False,
-                    can_add_web_page_previews=False,
-                    can_change_info=False,
-                    can_invite_users=False,
-                    can_pin_messages=False
-                )
-                until_date = datetime.now(timezone.utc) + timedelta(seconds=mute_new_users_duration)
+        for new_member in update.message.new_chat_members:
+            new_user_id = new_member.id
 
-                await bot.restrict_chat_member(
-                    chat_id=update.effective_chat.id,
-                    user_id=new_user_id,
-                    permissions=permissions,
-                    until_date=until_date
-                )
+            with db_helper.session_scope() as db_session:
+                # Check if the user is in the global ban list
+                user_global_ban = db_session.query(db_helper.User_Global_Ban).filter(db_helper.User_Global_Ban.user_id == new_user_id).first()
+                if user_global_ban is not None:
+                    logger.info(f"User {new_user_id} is in global ban list. Kicking from chat {update.effective_chat.title} ({update.effective_chat.id})")
+                    await chat_helper.ban_user(bot, update.effective_chat.id, new_user_id, reason="User is in global ban list")
+                    await chat_helper.send_message(bot, update.effective_chat.id, f"User {new_user_id} is in global ban list. Kicking from chat {update.effective_chat.title} ({update.effective_chat.id})", delete_after=120)
+                    continue  # Skip to the next new member
+
+            if mute_new_users_duration > 0:
+                await chat_helper.mute_user(bot, update.effective_chat.id, new_user_id, duration_in_seconds=mute_new_users_duration)
                 logger.info(f"Muted new user {new_user_id} in chat {update.effective_chat.id} for {mute_new_users_duration} seconds.")
 
         welcome_message = chat_helper.get_chat_config(update.effective_chat.id, "welcome_message")
 
-        if welcome_message is not None and welcome_message != "":
-            #TODO:MED: Add user mention (with smart approachthrough function get_user_mention. But we need to put it inside message, so use template vars)
+        if welcome_message:
             await chat_helper.send_message(bot, update.effective_chat.id, welcome_message, disable_web_page_preview=True)
 
     except Exception as e:
