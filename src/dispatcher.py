@@ -1,5 +1,5 @@
 import os
-from telegram import Bot
+from telegram import Bot, ChatPermissions
 from telegram.ext import Application, MessageHandler, CommandHandler, filters, ChatJoinRequestHandler
 from telegram.request import HTTPXRequest
 from telegram.error import TelegramError
@@ -15,6 +15,7 @@ from re import findall
 
 from langdetect import detect
 import langdetect
+from datetime import datetime, timedelta, timezone
 
 import src.logging_helper as logging
 import src.openai_helper as openai_helper
@@ -1049,6 +1050,29 @@ async def tg_new_member(update, context):
                 await chat_helper.ban_user(bot, update.message.chat.id, new_user_id, reason="User is in global ban list")
                 await chat_helper.send_message(bot, update.message.chat.id, f"User {new_user_id} is in global ban list. Kicking from chat {update.message.chat.title} ({update.message.chat.id})", delete_after=120)
                 return
+
+        mute_new_users_duration = chat_helper.get_chat_config(update.effective_chat.id, "mute_new_users_duration", default=0)
+
+        if mute_new_users_duration > 0:
+                permissions = ChatPermissions(
+                    can_send_messages=False,
+                    can_send_media_messages=False,
+                    can_send_polls=False,
+                    can_send_other_messages=False,
+                    can_add_web_page_previews=False,
+                    can_change_info=False,
+                    can_invite_users=False,
+                    can_pin_messages=False
+                )
+                until_date = datetime.now(timezone.utc) + timedelta(seconds=mute_new_users_duration)
+
+                await bot.restrict_chat_member(
+                    chat_id=update.effective_chat.id,
+                    user_id=new_user_id,
+                    permissions=permissions,
+                    until_date=until_date
+                )
+                logger.info(f"Muted new user {new_user_id} in chat {update.effective_chat.id} for {mute_new_users_duration} seconds.")
 
         welcome_message = chat_helper.get_chat_config(update.effective_chat.id, "welcome_message")
 
