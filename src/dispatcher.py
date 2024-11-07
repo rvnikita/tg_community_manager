@@ -1052,7 +1052,7 @@ async def tg_new_member(update, context):
                 await chat_helper.send_message(bot, update.message.chat.id, f"User {new_user_id} is in global ban list. Kicking from chat {update.message.chat.title} ({update.message.chat.id})", delete_after=120)
                 return
 
-        mute_new_users_duration = chat_helper.get_chat_config(update.effective_chat.id, "mute_new_users_duration", default=0)
+        mute_new_users_duration = int(chat_helper.get_chat_config(update.effective_chat.id, "mute_new_users_duration", default=0))
 
         logger.info(f"Mute new users duration: {mute_new_users_duration}")
 
