@@ -1033,6 +1033,7 @@ async def tg_join_request(update, context):
 
 async def tg_new_member(update, context):
     try:
+        logger.info(f"New member joined chat {update.effective_chat.id} ({update.effective_chat.title})")
         new_user_id = update.message.api_kwargs['new_chat_participant']['id']
 
         delete_new_chat_members_message = chat_helper.get_chat_config(update.effective_chat.id, "delete_new_chat_members_message")
@@ -1052,6 +1053,8 @@ async def tg_new_member(update, context):
                 return
 
         mute_new_users_duration = chat_helper.get_chat_config(update.effective_chat.id, "mute_new_users_duration", default=0)
+
+        logger.info(f"Mute new users duration: {mute_new_users_duration}")
 
         if mute_new_users_duration > 0:
                 permissions = ChatPermissions(
