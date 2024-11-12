@@ -302,6 +302,7 @@ class Auto_Reply(Base):
     reply_delay = Column(Integer, nullable=True)  # Delay in seconds
     usage_count = Column(Integer, default=0)  # New column to track usage count
 
+#TODO:MED: split this table into two tables: one for scheduled messages and one for scheduled tasks
 class Scheduled_Message(Base):
     __table_args__ = (
         PrimaryKeyConstraint('id', name='scheduled_message_pkey'),
