@@ -8,20 +8,18 @@ import traceback
 from datetime import datetime, timezone
 import openai
 
-
-
-
+# Add the project root directory to sys.path
 current_dir = os.path.dirname(os.path.abspath(__file__))  # src/cron
 project_root = os.path.dirname(os.path.dirname(current_dir))  # tg_community_manager
 sys.path.insert(0, project_root)
 
 # Import your helper modules
-import src.logging_helper as logging_helper
-import src.config_helper as config_helper
-import src.openai_helper as openai_helper
-import src.db_helper as db_helper
-import src.spamcheck_helper as spamcheck_helper  # Assuming generate_features is in this module
-import src.rating_helper as rating_helper
+from src import logging_helper
+from src import config_helper
+from src import openai_helper
+from src import db_helper
+from src import spamcheck_helper  # Assuming generate_features is in this module
+from src import rating_helper
 
 # Configure logger and load config
 logger = logging_helper.get_logger()
@@ -42,15 +40,22 @@ async def update_embeddings():
         )
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
+        # Get total number of messages to process
+        cur.execute("SELECT COUNT(*) FROM tg_message_log WHERE embedding IS NULL AND message_content IS NOT NULL")
+        total_messages = cur.fetchone()['count']
+        logger.info(f"Total messages to process: {total_messages}")
+        remaining_messages = total_messages
+
         batch_size = 100
         processed_count = 0
 
-        while True:
-            # Fetch up to 100 messages without embeddings
+        while remaining_messages > 0:
+            # Fetch up to 100 messages without embeddings, randomly
             sql_select = """
                 SELECT id, user_id, chat_id, message_content, is_forwarded, reply_to_message_id
                 FROM tg_message_log
                 WHERE embedding IS NULL AND message_content IS NOT NULL
+                ORDER BY RANDOM()
                 LIMIT %s
             """
             cur.execute(sql_select, (batch_size,))
@@ -105,18 +110,14 @@ async def update_embeddings():
                     cur.execute(sql_update, (embedding_list, message_id))
                     conn.commit()
 
-                    # logger.info(f"Updated embedding for message ID {message_id}.")
                     processed_count += 1
-
-                except openai.error.OpenAIError as e:
-                    logger.error(f"OpenAI API error for message ID {message_id}: {e}")
-                    # Optionally, implement a retry mechanism or exponential backoff here
+                    remaining_messages -= 1
 
                 except Exception as e:
                     logger.error(f"Error processing message ID {message_id}: {traceback.format_exc()}")
-                    # Optionally, handle specific exceptions or log them
+                    # Continue to next message
 
-            logger.info(f"Batch processing completed. Total messages processed so far: {processed_count}")
+            logger.info(f"Batch processing completed. Total messages processed so far: {processed_count}. Messages remaining: {remaining_messages}")
 
         logger.info("Embedding update process completed.")
 
