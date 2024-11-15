@@ -10,3 +10,4 @@ langdetect
 pytz
 pgvector
 scikit-learn
+python-dotenv[cli]
