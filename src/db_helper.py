@@ -288,7 +288,7 @@ class Message_Log(Base):
 
 
 
-
+#TODO: MED: I think we need to refactor this to split between trigger+reply and other configs. As a result we don't copy the same trigger+reply for each chat
 class Auto_Reply(Base):
     __table_args__ = (
         PrimaryKeyConstraint('id', name='auto_reply_pkey'),
