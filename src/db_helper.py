@@ -302,25 +302,52 @@ class Auto_Reply(Base):
     reply_delay = Column(Integer, nullable=True)  # Delay in seconds
     usage_count = Column(Integer, default=0)  # New column to track usage count
 
-#TODO:MED: split this table into two tables: one for scheduled messages and one for scheduled tasks
-class Scheduled_Message(Base):
+
+class Scheduled_Message_Content(Base):
     __table_args__ = (
-        PrimaryKeyConstraint('id', name='scheduled_message_pkey'),
+        PrimaryKeyConstraint('id', name='scheduled_message_content_pkey'),
     )
 
     id = Column(BigInteger, Identity(start=1, increment=1), primary_key=True)
-    chat_id = Column(BigInteger, ForeignKey(Chat.__table__.c.id), nullable=False)
-    message = Column(Text, nullable=False)
-    frequency_seconds = Column(Integer, nullable=False)  # Base frequency for message sending, in seconds
-    last_sent = Column(DateTime(True), nullable=True)  # Timestamp of when the message was last sent
-    time_of_the_day = Column(Time, nullable=True)  # Specific time of day to send the message
-    day_of_the_week = Column(Integer, nullable=True)  # Day of the week to send the message (0=Sunday, 6=Saturday)
-    day_of_the_month = Column(Integer, nullable=True)  # Day of the month to send the message (1-31)
-    active = Column(Boolean, default=True, nullable=False)  # Whether the scheduled message is active
-    #TODO:MED: change boolen active to status with values active, paused, error. Add error message field. Add error count field.
+    content = Column(Text, nullable=False)
+    parse_mode = Column(String, nullable=True)  # 'Markdown', 'HTML', or None
+
+    # Relationships
+    scheduled_message_configs = relationship('Scheduled_Message_Config', back_populates='message_content')
 
     def __repr__(self):
-        return f"<ScheduledMessage(id={self.id}, chat_id={self.chat_id}, message='{self.message[:20]}...', frequency_seconds={self.frequency_seconds}, time_of_the_day={self.time_of_the_day}, day_of_the_week={self.day_of_the_week}, day_of_the_month={self.day_of_the_month})>"
+        # Show only the first 20 characters to keep the output concise
+        content_preview = self.content[:20] + '...' if len(self.content) > 20 else self.content
+        return f"<ScheduledMessageContent(id={self.id}, content='{content_preview}', parse_mode='{self.parse_mode}')>"
+
+
+class Scheduled_Message_Config(Base):
+    __table_args__ = (
+        PrimaryKeyConstraint('id', name='scheduled_message_config_pkey'),
+    )
+
+    id = Column(BigInteger, Identity(start=1, increment=1), primary_key=True)
+    chat_id = Column(BigInteger, ForeignKey(Chat.id), nullable=False)
+    message_content_id = Column(BigInteger, ForeignKey(Scheduled_Message_Content.id), nullable=False)
+    frequency_seconds = Column(Integer, nullable=False)
+    last_sent = Column(DateTime(True), nullable=True)
+    time_of_the_day = Column(Time, nullable=True)
+    day_of_the_week = Column(Integer, nullable=True)
+    day_of_the_month = Column(Integer, nullable=True)
+    status = Column(String, default='active', nullable=False)
+    error_message = Column(Text, nullable=True)
+    error_count = Column(Integer, default=0, nullable=False)
+
+    # Relationships
+    message_content = relationship('Scheduled_Message_Content', back_populates='scheduled_message_configs')
+
+    def __repr__(self):
+        return (f"<ScheduledMessageConfig(id={self.id}, chat_id={self.chat_id}, "
+                f"message_content_id={self.message_content_id}, status='{self.status}', "
+                f"frequency_seconds={self.frequency_seconds}, time_of_the_day={self.time_of_the_day}, "
+                f"day_of_the_week={self.day_of_the_week}, day_of_the_month={self.day_of_the_month}, "
+                f"last_sent={self.last_sent}, error_count={self.error_count})>")
+
 
 
 

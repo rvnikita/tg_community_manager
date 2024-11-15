@@ -6,7 +6,9 @@ import asyncio
 import pytz
 
 from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy.sql import func, or_
+from sqlalchemy.sql import func, or_, text
+import sqlalchemy as sa
+
 
 from telegram import ChatPermissions
 from telegram.error import BadRequest, TelegramError
@@ -135,17 +137,22 @@ async def set_last_admin_permissions_check(chat_id, timestamp):
         logger.error(f"Error updating last admin permissions check for chat_id {chat_id}: {traceback.format_exc()}")
         return False
 
-async def send_message(bot, chat_id, text, reply_to_message_id = None, delete_after = None, disable_web_page_preview = True):
-    """
-    Send a message and optionally delete it after a specified delay.
-
-    :param bot: Bot instance.
-    :param chat_id: Chat ID where the message will be sent.
-    :param text: Text of the message to be sent.
-    :param reply_to_message_id: ID of the message to which the new message will reply.
-    :param delete_after: Duration (in seconds) after which the sent message will be deleted. If None, the message will not be deleted.
-    """
-    message = await bot.send_message(chat_id=chat_id, text=text, reply_to_message_id=reply_to_message_id, disable_web_page_preview=disable_web_page_preview)
+async def send_message(
+    bot,
+    chat_id,
+    text,
+    reply_to_message_id=None,
+    delete_after=None,
+    disable_web_page_preview=True,
+    parse_mode=None
+):
+    message = await bot.send_message(
+        chat_id=chat_id,
+        text=text,
+        reply_to_message_id=reply_to_message_id,
+        disable_web_page_preview=disable_web_page_preview,
+        parse_mode=parse_mode
+    )
 
     if delete_after is not None:
         asyncio.create_task(delete_message(bot, chat_id, message.message_id, delay_seconds=delete_after))
@@ -153,42 +160,72 @@ async def send_message(bot, chat_id, text, reply_to_message_id = None, delete_af
     return message
 
 
+
 async def send_scheduled_messages(bot):
     try:
         with db_helper.session_scope() as db_session:
-            # Ensure 'now' is timezone-aware, assuming UTC
             now = datetime.now(pytz.utc)
             current_day_of_week = now.weekday()  # Monday is 0 and Sunday is 6
             current_day_of_month = now.day
             current_time = now.time()
 
-            # TODO: MED: Better to rewrite so we don't have to fetch all messages, but only the ones that are due to be sent
-            potential_messages_to_send = db_session.query(db_helper.Scheduled_Message).filter(
-                db_helper.Scheduled_Message.active == True,
-                or_(db_helper.Scheduled_Message.time_of_the_day == None, db_helper.Scheduled_Message.time_of_the_day <= current_time),
-                or_(db_helper.Scheduled_Message.day_of_the_week == None, db_helper.Scheduled_Message.day_of_the_week == current_day_of_week),
-                or_(db_helper.Scheduled_Message.day_of_the_month == None, db_helper.Scheduled_Message.day_of_the_month == current_day_of_month)
+            # Construct the due condition
+            due_condition = or_(
+                db_helper.Scheduled_Message_Config.last_sent == None,
+                db_helper.Scheduled_Message_Config.last_sent + db_helper.Scheduled_Message_Config.frequency_seconds * text("INTERVAL '1 second'") <= now
+            )
+
+            potential_messages_to_send = db_session.query(db_helper.Scheduled_Message_Config).join(
+                db_helper.Scheduled_Message_Content
+            ).filter(
+                db_helper.Scheduled_Message_Config.status == 'active',
+                or_(
+                    db_helper.Scheduled_Message_Config.time_of_the_day == None,
+                    db_helper.Scheduled_Message_Config.time_of_the_day <= current_time
+                ),
+                or_(
+                    db_helper.Scheduled_Message_Config.day_of_the_week == None,
+                    db_helper.Scheduled_Message_Config.day_of_the_week == current_day_of_week
+                ),
+                or_(
+                    db_helper.Scheduled_Message_Config.day_of_the_month == None,
+                    db_helper.Scheduled_Message_Config.day_of_the_month == current_day_of_month
+                ),
+                due_condition
             ).all()
 
-            logger.info(f"send_scheduled_messages: Found {len(potential_messages_to_send)} potential messages to send.")
+            logger.info(f"Found {len(potential_messages_to_send)} messages due to be sent.")
 
-            for message in potential_messages_to_send:
-                # logger.info(f"send_scheduled_messages: Checking message: {message.id} - {message.message}")
+            for scheduled_config in potential_messages_to_send:
+                message_content = scheduled_config.message_content.content
+                parse_mode = scheduled_config.message_content.parse_mode
 
-                # Ensure comparison between timezone-aware datetimes
-                if message.last_sent is None or now >= message.last_sent.replace(tzinfo=pytz.utc) + timedelta(seconds=message.frequency_seconds):
-                    logger.info(f"send_scheduled_messages: Sending message: {message.id} - {message.message}")
-                    # Send the message and update 'last_sent' to now
-                    try:
-                        await chat_helper.send_message(bot, message.chat_id, message.message)
-                        message.last_sent = now  # Assuming 'last_sent' should also be stored as UTC
-                    except Exception as e:
-                        logger.error(f"Error sending scheduled message: {traceback.format_exc()}")
+                logger.info(f"Sending message ID {scheduled_config.id}: {message_content[:50]}...")
+
+                try:
+                    await send_message(
+                        bot,
+                        scheduled_config.chat_id,
+                        message_content,
+                        parse_mode=parse_mode
+                    )
+                    scheduled_config.last_sent = now
+                    scheduled_config.error_count = 0
+                    scheduled_config.error_message = None
+                except Exception as e:
+                    logger.error(f"Error sending scheduled message ID {scheduled_config.id}: {traceback.format_exc()}")
+                    scheduled_config.error_count += 1
+                    scheduled_config.error_message = str(e)
+                    ERROR_THRESHOLD = 3
+                    if scheduled_config.error_count >= ERROR_THRESHOLD:
+                        scheduled_config.status = 'error'
+                        logger.error(f"Scheduled message ID {scheduled_config.id} set to 'error' status after {ERROR_THRESHOLD} failures.")
 
             db_session.commit()
 
     except Exception as error:
         logger.error(f"Error while fetching and sending scheduled messages: {traceback.format_exc()}")
+
 
 
 async def warn_user(bot, chat_id: int, user_id: int) -> None:
