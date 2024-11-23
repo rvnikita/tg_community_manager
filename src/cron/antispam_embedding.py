@@ -35,7 +35,7 @@ def update_embeddings():
                     continue
 
                 # Retrieve embedding if not already present
-                embedding = openai_helper.get_openai_embedding(message.message_content)
+                embedding = openai_helper.generate_embedding(message.message_content)
                 if embedding:
                     message.embedding = embedding
                     session.commit()

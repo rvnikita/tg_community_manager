@@ -54,27 +54,6 @@ logger = get_logger()
 OPENAI_API_KEY = os.getenv('ENV_OPENAI_KEY')
 OPENAI_MODEL = os.getenv('ENV_OPENAI_MODEL')
 
-def get_openai_embedding(text):
-    """Call OpenAI API to get embeddings for the given text."""
-    headers = {
-        'Content-Type': 'application/json',
-        'Authorization': f'Bearer {OPENAI_API_KEY}'
-    }
-    response = requests.post(
-        'https://api.openai.com/v1/embeddings',
-        headers=headers,
-        json={
-            'input': text,
-            'model': OPENAI_MODEL
-        }
-    )
-    response_json = response.json()
-    if 'data' in response_json and len(response_json['data']) > 0:
-        return response_json['data'][0]['embedding']
-    else:
-        logger.error(f"Failed to retrieve embedding: {response_json.get('error', 'No error information available')}")
-        return None
-
 def generate_embedding(text):
     """Call OpenAI API to get embeddings for the given text."""
     headers = {
@@ -115,7 +94,7 @@ def update_embeddings():
                     continue
 
                 # Retrieve embedding if not already present
-                embedding = get_openai_embedding(message.message_content)
+                embedding = generate_embedding(message.message_content)
                 if embedding:
                     message.embedding = embedding
                     session.commit()
