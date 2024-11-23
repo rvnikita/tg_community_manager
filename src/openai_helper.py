@@ -52,7 +52,7 @@ logger = get_logger()
 
 # Load configuration
 OPENAI_API_KEY = os.getenv('ENV_OPENAI_KEY')
-OPENAI_MODEL = os.getenv('ENV_OPENAI_MODEL')
+OPENAI_MODEL = os.getenv('ENV_OPENAI_EMBEDDING_MODEL')
 
 def generate_embedding(text):
     """Call OpenAI API to get embeddings for the given text."""
