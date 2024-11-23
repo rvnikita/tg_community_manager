@@ -2,7 +2,6 @@ import sys
 sys.path.insert(0, '../')  # add parent directory to the path
 import src.db_helper as db_helper
 import src.chat_helper as chat_helper
-import src.config_helper as config_helper
 import src.logging_helper as logging_helper
 
 import os
@@ -15,13 +14,11 @@ import asyncio
 import psycopg2
 import psycopg2.extras
 
-config = config_helper.get_config()
-
 logger = logging_helper.get_logger()
 
-logger.info(f"Starting {__file__} in {config['BOT']['MODE']} mode at {os.uname()}")
+logger.info(f"Starting {__file__} in {os.getenv('ENV_BOT_MODE')} mode at {os.uname()}")
 
-bot = telegram.Bot(token=config['BOT']['KEY'],
+bot = telegram.Bot(token=os.getenv('ENV_BOT_KEY'),
                    request=HTTPXRequest(http_version="1.1"),  # we need this to fix bug https://github.com/python-telegram-bot/python-telegram-bot/issues/3556
                    get_updates_request=HTTPXRequest(http_version="1.1"))  # we need this to fix bug https://github.com/python-telegram-bot/python-telegram-bot/issues/3556
 

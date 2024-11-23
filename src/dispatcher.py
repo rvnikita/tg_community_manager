@@ -21,20 +21,17 @@ import src.logging_helper as logging
 import src.openai_helper as openai_helper
 import src.chat_helper as chat_helper
 import src.db_helper as db_helper
-import src.config_helper as config_helper
 import src.user_helper as user_helper
 import src.rating_helper as rating_helper
 import src.reporting_helper as reporting_helper
 import src.message_helper as message_helper
 import src.spamcheck_helper as spamcheck_helper
 
-config = config_helper.get_config()
-
 logger = logging.get_logger()
 
-logger.info(f"Starting {__file__} in {config['BOT']['MODE']} mode at {os.uname()}")
+logger.info(f"Starting {__file__} in {os.getenv('ENV_BOT_MODE')} mode at {os.uname()}")
 
-bot = Bot(config['BOT']['KEY'],
+bot = Bot(os.getenv('ENV_BOT_KEY'),
           request=HTTPXRequest(http_version="1.1"), #we need this to fix bug https://github.com/python-telegram-bot/python-telegram-bot/issues/3556
           get_updates_request=HTTPXRequest(http_version="1.1")) #we need this to fix bug https://github.com/python-telegram-bot/python-telegram-bot/issues/3556)
 
@@ -495,7 +492,7 @@ async def tg_gban(update, context):
 
             # Check if the command was sent by a global admin of the bot
             # TODO:MED: We should find the way how to identify admin if he answers from channel
-            if message.from_user.id != int(config['BOT']['ADMIN_ID']):
+            if message.from_user.id != int(os.getenv('ENV_BOT_ADMIN_ID')):
                 await message.reply_text("You must be a global bot admin to use this command.")
                 return
 
@@ -515,7 +512,7 @@ async def tg_gban(update, context):
                 else:
                     await message.reply_text("Invalid format. Use gban @username or gban user_id.")
                     return
-            elif chat_id == int(config['LOGGING']['INFO_CHAT_ID']) or chat_id == int(config['LOGGING']['ERROR_CHAT_ID']):
+            elif chat_id == int(os.getenv('ENV_INFO_CHAT_ID')) or chat_id == int(os.getenv('ENV_ERROR_CHAT_ID')):
                 ban_reason = f"User was globally banned by {message.text} command in info chat. Message: {message.reply_to_message.text}"
                 if not message.reply_to_message:
                     await message.reply_text("Please reply to a message containing usernames to ban.")
@@ -797,8 +794,8 @@ async def tg_ai_spamcheck(update, context):
         )
 
         # Fetch thresholds for deleting and muting messages
-        delete_threshold = float(config['ANTISPAM']['DELETE_THRESHOLD'])
-        mute_threshold = float(config['ANTISPAM']['MUTE_THRESHOLD'])
+        delete_threshold = float(os.getenv('ENV_ANTISPAM_DELETE_THRESHOLD'))
+        mute_threshold = float(os.getenv('ENV_ANTISPAM_MUTE_THRESHOLD'))
 
         # Determine if the message is spam based on the delete threshold
         is_spam = spam_proba >= delete_threshold
@@ -1136,7 +1133,7 @@ class BotManager:
 
     def run(self):
         try:
-            self.application = Application.builder().token(config['BOT']['KEY']).build()
+            self.application = Application.builder().token(os.getenv('ENV_BOT_KEY')).build()
 
             # delete new member message
             self.application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, tg_new_member), group=1)

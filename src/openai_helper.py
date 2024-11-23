@@ -5,19 +5,17 @@ import configparser
 import traceback
 import asyncio
 import openai
+import os
 
 import src.logging_helper as logging_helper
-import src.config_helper as config_helper
-
-config = config_helper.get_config()
 
 logger = logging_helper.get_logger()
 
 # For asynchronous API calls
-async_client = AsyncOpenAI(api_key=config['OPENAI']['KEY'])
+async_client = AsyncOpenAI(api_key=os.getenv('ENV_OPENAI_KEY'))
 
 # For synchronous API calls
-client = OpenAI(api_key=config['OPENAI']['KEY'])
+client = OpenAI(api_key=os.getenv('ENV_OPENAI_KEY'))
 
 
 async def chat_completion_create(messages, model="gpt-3.5-turbo"):
@@ -46,7 +44,6 @@ async def chat_completion_create(messages, model="gpt-3.5-turbo"):
 import requests
 import traceback
 
-from src.config_helper import get_config
 from src.db_helper import session_scope, Message_Log
 from src.logging_helper import get_logger
 
@@ -54,9 +51,29 @@ from src.logging_helper import get_logger
 logger = get_logger()
 
 # Load configuration
-config = get_config()
-OPENAI_API_KEY = config['OPENAI']['KEY']
-OPENAI_MODEL = config['OPENAI']['EMBEDDING_MODEL']
+OPENAI_API_KEY = os.getenv('ENV_OPENAI_KEY')
+OPENAI_MODEL = os.getenv('ENV_OPENAI_MODEL')
+
+def get_openai_embedding(text):
+    """Call OpenAI API to get embeddings for the given text."""
+    headers = {
+        'Content-Type': 'application/json',
+        'Authorization': f'Bearer {OPENAI_API_KEY}'
+    }
+    response = requests.post(
+        'https://api.openai.com/v1/embeddings',
+        headers=headers,
+        json={
+            'input': text,
+            'model': OPENAI_MODEL
+        }
+    )
+    response_json = response.json()
+    if 'data' in response_json and len(response_json['data']) > 0:
+        return response_json['data'][0]['embedding']
+    else:
+        logger.error(f"Failed to retrieve embedding: {response_json.get('error', 'No error information available')}")
+        return None
 
 def generate_embedding(text):
     """Call OpenAI API to get embeddings for the given text."""

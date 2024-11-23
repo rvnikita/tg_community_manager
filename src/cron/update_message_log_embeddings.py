@@ -15,7 +15,6 @@ sys.path.insert(0, project_root)
 
 # Import your helper modules
 from src import logging_helper
-from src import config_helper
 from src import openai_helper
 from src import db_helper
 from src import spamcheck_helper  # Assuming generate_features is in this module
@@ -23,20 +22,19 @@ from src import rating_helper
 
 # Configure logger and load config
 logger = logging_helper.get_logger()
-config = config_helper.get_config()
 
 # Set OpenAI API key
-openai.api_key = config['OPENAI']['KEY']
+openai.api_key = os.getenv('ENV_OPENAI_KEY')
 
 async def update_embeddings():
     conn = None
     try:
         conn = psycopg2.connect(
-            user=config['DB']['DB_USER'],
-            password=config['DB']['DB_PASSWORD'],
-            host=config['DB']['DB_HOST'],
-            port=config['DB']['DB_PORT'],
-            database=config['DB']['DB_DATABASE']
+            user=os.getenv('ENV_DB_USER'),
+            password=os.getenv('ENV_DB_PASSWORD'),
+            host=os.getenv('ENV_DB_HOST'),
+            port=os.getenv('ENV_DB_PORT'),
+            database=os.getenv('ENV_DB_NAME')
         )
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 

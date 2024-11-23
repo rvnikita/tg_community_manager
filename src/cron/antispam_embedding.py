@@ -1,40 +1,20 @@
 import requests
 import traceback
+import os
 
-from src.config_helper import get_config
 from src.db_helper import session_scope, Message_Log
 from src.logging_helper import get_logger
+import src.openai_helper as openai_helper
 
 # Configure logger
 logger = get_logger()
 
-# Load configuration
-config = get_config()
-OPENAI_API_KEY = config.get('OPENAI', 'KEY')
-OPENAI_MODEL = config.get('OPENAI', 'EMBEDDING_MODEL')
+OPENAI_API_KEY = os.getenv('ENV_OPENAI_KEY')
+OPENAI_MODEL = os.getenv('ENV_OPENAI_MODEL')
 
 #TODO:MED We should rewrite this script with the use of openai_helper.py and better db_helper.py usage
 
-def get_openai_embedding(text):
-    """Call OpenAI API to get embeddings for the given text."""
-    headers = {
-        'Content-Type': 'application/json',
-        'Authorization': f'Bearer {OPENAI_API_KEY}'
-    }
-    response = requests.post(
-        'https://api.openai.com/v1/embeddings',
-        headers=headers,
-        json={
-            'input': text,
-            'model': OPENAI_MODEL
-        }
-    )
-    response_json = response.json()
-    if 'data' in response_json and len(response_json['data']) > 0:
-        return response_json['data'][0]['embedding']
-    else:
-        logger.error(f"Failed to retrieve embedding: {response_json.get('error', 'No error information available')}")
-        return None
+
 
 def update_embeddings():
     """Update embeddings for messages without embeddings and non-empty content."""
@@ -55,7 +35,7 @@ def update_embeddings():
                     continue
 
                 # Retrieve embedding if not already present
-                embedding = get_openai_embedding(message.message_content)
+                embedding = openai_helper.get_openai_embedding(message.message_content)
                 if embedding:
                     message.embedding = embedding
                     session.commit()

@@ -10,17 +10,15 @@ import traceback
 
 sys.path.append('../../../')
 
-import src.config_helper as config_helper
 import src.logging_helper as logging_helper
 import src.db_helper as db_helper
 import src.user_helper as user_helper
 
-config = config_helper.get_config()
 logger = logging_helper.get_logger()
 
-logger.info(f"Starting {__file__} in {config['BOT']['MODE']} mode at {os.uname()}")
+logger.info(f"Starting {__file__} in {os.getenv('ENV_BOT_MODE')} mode at {os.uname()}")
 
-bot = telegram.Bot(token=config['BOT']['KEY'],
+bot = telegram.Bot(token=os.getenv('ENV_BOT_KEY'),
                    request=HTTPXRequest(http_version="1.1"),
                    get_updates_request=HTTPXRequest(http_version="1.1"))
 

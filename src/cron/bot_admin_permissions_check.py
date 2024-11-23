@@ -8,15 +8,15 @@ from telegram.error import BadRequest, Forbidden
 import traceback
 import psycopg2
 import psycopg2.extras
+import os
+
 import src.db_helper as db_helper
 import src.chat_helper as chat_helper
-import src.config_helper as config_helper
 import src.logging_helper as logging_helper
 
 # Setup configuration and logger as before
-config = config_helper.get_config()
 logger = logging_helper.get_logger()
-bot = telegram.Bot(token=config['BOT']['KEY'])
+bot = telegram.Bot(token=os.getenv('ENV_BOT_KEY'))
 
 async def admin_permissions_check():
     logger.info("Starting admin permissions check cron script")

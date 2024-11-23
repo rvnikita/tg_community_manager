@@ -1,9 +1,7 @@
 from time import time
 
-from src.config_helper import get_config
 from src.logging_helper import get_logger
 
-config = get_config()
 logger = get_logger()
 
 # In-memory cache dictionary

@@ -1,5 +1,6 @@
 import numpy as np
 import traceback
+import os
 from joblib import load
 from datetime import datetime, timezone
 from telegram.request import HTTPXRequest
@@ -10,19 +11,14 @@ import src.db_helper as db_helper
 import src.logging_helper as logging
 import src.openai_helper as openai_helper
 import src.rating_helper as rating_helper
-import src.config_helper as config_helper
 import src.chat_helper as chat_helper
 import src.user_helper as user_helper
 
 # Configure logger
 logger = logging.get_logger()
-config = config_helper.get_config()
-bot = Bot(config['BOT']['KEY'],
+bot = Bot(os.getenv('ENV_BOT_KEY'),
           request=HTTPXRequest(http_version="1.1"),
           get_updates_request=HTTPXRequest(http_version="1.1"))
-
-# Load the pre-trained SVM model
-import os
 
 current_path = os.getcwd()
 print("Current Working Directory:", current_path)

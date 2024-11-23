@@ -6,18 +6,16 @@ sys.path.insert(0, '../')  # Add the parent directory to the path for module imp
 import asyncio
 import src.db_helper as db_helper
 import src.chat_helper as chat_helper
-import src.config_helper as config_helper
 import src.logging_helper as logging_helper
 import telegram
 from telegram.request import HTTPXRequest
 
 # Configuration and logging setup
-config = config_helper.get_config()
 logger = logging_helper.get_logger()
-logger.info(f"Starting {__file__} in {config['BOT']['MODE']} mode at {os.uname()}")
+logger.info(f"Starting {__file__} in {os.getenv('ENV_BOT_MODE')} mode at {os.uname()}")
 
 # Initialize Telegram Bot
-bot = telegram.Bot(token=config['BOT']['KEY'],
+bot = telegram.Bot(token=os.getenv('ENV_BOT_KEY'),
                    request=HTTPXRequest(http_version="1.1"))  # Fix for known bug
 
 async def send_scheduled_messages():
