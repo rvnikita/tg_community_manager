@@ -11,3 +11,6 @@ pytz
 pgvector
 scikit-learn
 python-dotenv[cli]
+pytest
+pytest-asyncio
+python-telegram-bot[rate-limiter]

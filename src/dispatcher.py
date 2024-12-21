@@ -1123,60 +1123,47 @@ class BotManager:
         self.application = None
 
     def signal_handler(self, signum, frame):
-        logger.error(f"Signal {signum} received, exiting...") #TODO:MED: log as an error for now, we will change it to info later
-
-        # If your library supports stopping the polling:
+        logger.error(f"Signal {signum} received, exiting...")
         if self.application:
             self.application.stop()
-
         sys.exit(0)
 
     def run(self):
         try:
-            self.application = Application.builder().token(os.getenv('ENV_BOT_KEY')).build()
-
-            # delete new member message
-            self.application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, tg_new_member), group=1)
-
-            self.application.add_handler(MessageHandler(filters.ALL & filters.ChatType.GROUPS, tg_update_user_status), group=2)  # filters.ChatType.GROUPS to get only chat messages
-            self.application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, tg_update_user_status), group=2)
-
-            # checking if user says thank you.
-            self.application.add_handler(MessageHandler((filters.TEXT | filters.CAPTION), tg_thankyou), group=3)
-
-            # reporting
-            self.application.add_handler(CommandHandler(['report', 'r'], tg_report, filters.ChatType.GROUPS), group=4)
-            self.application.add_handler(CommandHandler(['warn', 'w'], tg_warn, filters.ChatType.GROUPS), group=4)
-            self.application.add_handler(CommandHandler(['offtop', 'o'], tg_offtop, filters.ChatType.GROUPS), group=4)
-
-            self.application.add_handler(CommandHandler(['set_rating'], tg_set_rating, filters.ChatType.GROUPS), group=4)
-            self.application.add_handler(CommandHandler(['set_report'], tg_set_report, filters.ChatType.GROUPS), group=4)
-
-            self.application.add_handler(CommandHandler(['get_rating', 'gr'], tg_get_rating, filters.ChatType.GROUPS), group=4)
-
-            # Add a handler for chat join requests
-            self.application.add_handler(ChatJoinRequestHandler(tg_join_request), group=5)
-
-            self.application.add_handler(CommandHandler(['ban', 'b'], tg_ban, filters.ChatType.GROUPS), group=6)
-            self.application.add_handler(CommandHandler(['gban', 'g', 'gb'], tg_gban), group=6)
-
-            #wiretapping
-            self.application.add_handler(MessageHandler(filters.TEXT | (filters.PHOTO & filters.CAPTION) | (filters.VIDEO & filters.CAPTION) | filters.Document.ALL, tg_wiretapping), group=7)
-
-            self.application.add_handler(CommandHandler(['pin', 'p'], tg_pin, filters.ChatType.GROUPS), group=9)
-            self.application.add_handler(CommandHandler(['unpin', 'up'], tg_unpin, filters.ChatType.GROUPS), group=9)
-
-            self.application.add_handler(CommandHandler(['help', 'h'], tg_help), group=10)
-
-            self.application.add_handler(MessageHandler((filters.TEXT | filters.CAPTION), tg_auto_reply), group=11)
-
-            # Set up the graceful shutdown mechanism
-            signal.signal(signal.SIGTERM, self.signal_handler)
-
-            # Start the Bot
+            self.application = create_application()
             self.application.run_polling()
         except Exception as e:
             logger.error(f"Error: {traceback.format_exc()}")
+
+def create_application():
+    application = Application.builder().token(os.getenv('ENV_BOT_KEY')).build()
+
+    # Add handlers
+    application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, tg_new_member), group=1)
+    application.add_handler(MessageHandler(filters.ALL & filters.ChatType.GROUPS, tg_update_user_status), group=2)
+    application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, tg_update_user_status), group=2)
+    application.add_handler(MessageHandler((filters.TEXT | filters.CAPTION), tg_thankyou), group=3)
+    application.add_handler(CommandHandler(['report', 'r'], tg_report, filters.ChatType.GROUPS), group=4)
+    application.add_handler(CommandHandler(['warn', 'w'], tg_warn, filters.ChatType.GROUPS), group=4)
+    application.add_handler(CommandHandler(['offtop', 'o'], tg_offtop, filters.ChatType.GROUPS), group=4)
+    application.add_handler(CommandHandler(['set_rating'], tg_set_rating, filters.ChatType.GROUPS), group=4)
+    application.add_handler(CommandHandler(['set_report'], tg_set_report, filters.ChatType.GROUPS), group=4)
+    application.add_handler(CommandHandler(['get_rating', 'gr'], tg_get_rating, filters.ChatType.GROUPS), group=4)
+    application.add_handler(ChatJoinRequestHandler(tg_join_request), group=5)
+    application.add_handler(CommandHandler(['ban', 'b'], tg_ban, filters.ChatType.GROUPS), group=6)
+    application.add_handler(CommandHandler(['gban', 'g', 'gb'], tg_gban), group=6)
+    application.add_handler(MessageHandler(filters.TEXT | (filters.PHOTO & filters.CAPTION) | (filters.VIDEO & filters.CAPTION) | filters.Document.ALL, tg_wiretapping), group=7)
+    application.add_handler(CommandHandler(['pin', 'p'], tg_pin, filters.ChatType.GROUPS), group=9)
+    application.add_handler(CommandHandler(['unpin', 'up'], tg_unpin, filters.ChatType.GROUPS), group=9)
+    application.add_handler(CommandHandler(['help', 'h'], tg_help), group=10)
+    application.add_handler(MessageHandler((filters.TEXT | filters.CAPTION), tg_auto_reply), group=11)
+
+    signal.signal(signal.SIGTERM, lambda s, f: application.stop())
+    return application
+
+if __name__ == '__main__':
+    manager = BotManager()
+    manager.run()
 
 if __name__ == '__main__':
     manager = BotManager()
