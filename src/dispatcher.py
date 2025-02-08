@@ -813,7 +813,8 @@ async def tg_ai_spamcheck(update, context):
             reason_for_action="Automated spam detection",
             message_id=message.message_id,
             is_spam=is_spam,
-            spam_prediction_probability=spam_proba
+            spam_prediction_probability=spam_proba,
+            embedding=embedding
         )
 
         # Get the chat mention and user mention for logging
