@@ -138,16 +138,16 @@ async def tg_report(update, context):
 
             # Log the ban action
             message_helper.log_or_update_message(
-                reported_user_id,
-                reported_user_mention,
-                rating_helper.get_rating(reported_user_id, chat_id),
-                chat_id,
-                reported_message_content,
-                "report & ban",
-                reporting_user_id,
-                user_helper.get_user_mention(reporting_user_id, chat_id),
-                f"User {reported_user_mention} was banned in chat {chat_mention} due to {report_sum}/{number_of_reports_to_ban} reports.",
-                reported_message_id,
+                chat_id=chat_id,
+                message_id=reported_message_id,
+                user_id=reported_user_id,
+                user_nickname=reported_user_mention,
+                user_current_rating=rating_helper.get_rating(reported_user_id, chat_id),
+                message_content=reported_message_content,
+                action_type="report & ban",
+                reporting_id=reporting_user_id,
+                reporting_id_nickname=user_helper.get_user_mention(reporting_user_id, chat_id),
+                reason_for_action=f"User {reported_user_mention} was banned in chat {chat_mention} due to {report_sum}/{number_of_reports_to_ban} reports.",
                 is_spam=True
             )
 
@@ -461,16 +461,16 @@ async def tg_ban(update, context):
 
             # Log the ban action
             message_helper.log_or_update_message(
+                chat_id=chat_id,
+                message_id=message.reply_to_message.message_id,
                 user_id=ban_user_id,
                 user_nickname=user_helper.get_user_mention(ban_user_id, chat_id),
                 user_current_rating=rating_helper.get_rating(ban_user_id, chat_id),
-                chat_id=chat_id,
                 message_content=reported_message_content,
                 action_type="ban",
                 reporting_id=message.from_user.id,
                 reporting_id_nickname=user_helper.get_user_mention(message.from_user.id, chat_id),
                 reason_for_action=f"User {user_helper.get_user_mention(ban_user_id, chat_id)} was banned in chat {await chat_helper.get_chat_mention(bot, chat_id)}. Reason: {message.text}",
-                message_id=message.reply_to_message.message_id,
                 is_spam=False
             )
 
@@ -550,19 +550,20 @@ async def tg_gban(update, context):
 
             # Log the ban action
             message_helper.log_or_update_message(
+                chat_id=chat_id,
+                message_id=message.reply_to_message.message_id,
                 user_id=ban_user_id,
                 user_nickname=user_helper.get_user_mention(ban_user_id, chat_id),
                 user_current_rating=rating_helper.get_rating(ban_user_id, chat_id),
-                chat_id=chat_id,
                 message_content=reported_message_content,
                 action_type="gban",
                 reporting_id=message.from_user.id,
                 reporting_id_nickname=user_helper.get_user_mention(message.from_user.id, chat_id),
                 reason_for_action=f"User {user_helper.get_user_mention(ban_user_id, chat_id)} was banned in chat {await chat_helper.get_chat_mention(bot, chat_id)}. Reason: {message.text}",
-                message_id=message.reply_to_message.message_id,
                 is_spam=True,
-                manually_verified=True 
+                manually_verified=True
             )
+
 
     except Exception as error:
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
@@ -675,16 +676,16 @@ async def tg_log_message(update, context):
 
             # Log the message, treating forwarded messages differently if needed
             message_log_id = message_helper.log_or_update_message(
+                chat_id=chat_id,
+                message_id=message_id,
                 user_id=user_id,
                 user_nickname=user_nickname,
                 user_current_rating=user_current_rating,
-                chat_id=chat_id,
                 message_content=message_content,
                 action_type=action_type,
                 reporting_id=user_id,
                 reporting_id_nickname=user_nickname,
                 reason_for_action=reason_for_action,
-                message_id=message_id,
                 is_spam=False,
                 embedding=embedding,
                 reply_to_message_id=message.reply_to_message.message_id if message.reply_to_message else None,
@@ -804,20 +805,21 @@ async def tg_ai_spamcheck(update, context):
 
         # Log the message
         message_log_id = message_helper.log_or_update_message(
+            chat_id=chat_id,
+            message_id=message.message_id,
             user_id=user_id,
             user_nickname=message.from_user.first_name,
             user_current_rating=rating_helper.get_rating(user_id, chat_id),
-            chat_id=chat_id,
             message_content=message_content,
             action_type="spam detection",
             reporting_id=context.bot.id,
             reporting_id_nickname="rv_tg_community_bot",
             reason_for_action="Automated spam detection",
-            message_id=message.message_id,
             is_spam=is_spam,
             spam_prediction_probability=spam_proba,
             embedding=embedding
         )
+
 
         # Get the chat mention and user mention for logging
         chat_mention = await chat_helper.get_chat_mention(context.bot, chat_id)
