@@ -669,7 +669,9 @@ async def tg_log_message(update, context):
                 pass
                 # logger.info("No 'forward_origin' in message or sender_user data is missing.")
 
+            #TODO:LOW: Maybe we don't need to calculate embedding and insert it in DB here as we will recalculate it later in tg_ai_spamcheck. But we should be careful as it seems like sometimes tg_ai_spamcheck is not called (or maybe called but not updating the message log in DB is there is something wrong with the probability calculation)
             embedding = openai_helper.generate_embedding(message_content)
+
 
             # Log the message, treating forwarded messages differently if needed
             message_log_id = message_helper.log_or_update_message(
