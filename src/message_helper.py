@@ -1,6 +1,7 @@
 import datetime
 import traceback
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy import func
 
 import src.db_helper as db_helper
 import src.logging_helper as logging
@@ -59,7 +60,7 @@ def log_or_update_message(
                     'is_forwarded': is_forwarded,
                     'reply_to_message_id': reply_to_message_id,
                     'spam_prediction_probability': spam_prediction_probability,  # Ensure this field is updated
-                    'embedding': embedding,  # Ensure embedding is also updated
+                    'embedding': func.coalesce(insert_stmt.excluded.embedding, db_helper.Message_Log.embedding), # Update embedding only if new one is provided
                     'user_current_rating': user_current_rating,  # Ensure this field is also updated
                 }
             ).returning(db_helper.Message_Log.id)  # Also return the ID on conflict
