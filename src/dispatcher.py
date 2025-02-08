@@ -1151,6 +1151,8 @@ def create_application():
     application.add_handler(CommandHandler(['get_rating', 'gr'], tg_get_rating, filters.ChatType.GROUPS), group=4)
     application.add_handler(ChatJoinRequestHandler(tg_join_request), group=5)
     application.add_handler(CommandHandler(['ban', 'b'], tg_ban, filters.ChatType.GROUPS), group=6)
+    
+    #TODO:HIGH create separate spam command that is similar to gban, but also put manualyverifyied = true to this message and all previous messages from this user
     application.add_handler(CommandHandler(['gban', 'g', 'gb'], tg_gban), group=6)
     application.add_handler(MessageHandler(filters.TEXT | (filters.PHOTO & filters.CAPTION) | (filters.VIDEO & filters.CAPTION) | filters.Document.ALL, tg_wiretapping), group=7)
     application.add_handler(CommandHandler(['pin', 'p'], tg_pin, filters.ChatType.GROUPS), group=9)
