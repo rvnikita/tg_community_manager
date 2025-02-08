@@ -688,6 +688,7 @@ async def tg_log_message(update, context):
                 reason_for_action=reason_for_action,
                 is_spam=False,
                 embedding=embedding,
+                manually_verified=False,
                 reply_to_message_id=message.reply_to_message.message_id if message.reply_to_message else None,
                 is_forwarded=is_forwarded
             )
@@ -816,6 +817,7 @@ async def tg_ai_spamcheck(update, context):
             reporting_id_nickname="rv_tg_community_bot",
             reason_for_action="Automated spam detection",
             is_spam=is_spam,
+            manually_verified=False,
             spam_prediction_probability=spam_proba,
             embedding=embedding
         )
