@@ -490,6 +490,8 @@ async def tg_spam(update, context):
         command_parts = message.text.split()
         if message.reply_to_message:
             target_user_id = message.reply_to_message.from_user.id
+            await chat_helper.delete_message(bot, chat_id, message.reply_to_message.message_id)
+
         elif len(command_parts) > 1:
             if command_parts[1].isdigit():
                 target_user_id = int(command_parts[1])
