@@ -247,16 +247,21 @@ async def unmute_user(bot, chat_id, user_to_unmute, global_unmute=False):
     Unmute a user by restoring full chat permissions.
     If global_unmute is True, the user is unmuted in all chats.
     """
-    # Define default full permissions.
+    # Define default full permissions using all individual media parameters.
     default_perms = ChatPermissions(
         can_send_messages=True,
-        can_send_media_messages=True,
         can_send_polls=True,
         can_send_other_messages=True,
         can_add_web_page_previews=True,
         can_change_info=True,
         can_invite_users=True,
-        can_pin_messages=True
+        can_pin_messages=True,
+        can_send_audios=True,
+        can_send_documents=True,
+        can_send_photos=True,
+        can_send_videos=True,
+        can_send_video_notes=True,
+        can_send_voice_notes=True
     )
     try:
         # Determine the list of chat IDs to process.
@@ -266,7 +271,6 @@ async def unmute_user(bot, chat_id, user_to_unmute, global_unmute=False):
                 chat_ids = [chat.id for chat in all_chats]
             else:
                 chat_ids = [chat_id]
-
         # For each chat, try to restore permissions (i.e. unmute).
         for cid in chat_ids:
             try:
@@ -280,7 +284,6 @@ async def unmute_user(bot, chat_id, user_to_unmute, global_unmute=False):
                 logger.error(f"Unexpected error during unmute in chat {cid}: {e}. Traceback: {traceback.format_exc()}")
     except Exception as e:
         logger.error(f"General error in unmute_user function: {e}. Traceback: {traceback.format_exc()}")
-
 
 
 
@@ -396,7 +399,7 @@ async def unban_user(bot, chat_id, user_to_unban, global_unban=False):
         for cid in chat_ids:
             try:
                 await bot.unban_chat_member(cid, user_to_unban)
-                logger.info(f"User {user_to_unban} unbanned from chat {cid}")
+                # logger.info(f"User {user_to_unban} unbanned from chat {cid}")
             except BadRequest as e:
                 logger.error(f"BadRequest in chat {cid} during unban: {e.message}")
             except TelegramError as e:
