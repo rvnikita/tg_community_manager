@@ -277,7 +277,12 @@ async def unmute_user(bot, chat_id, user_to_unmute, global_unmute=False):
                 await bot.restrict_chat_member(cid, user_to_unmute, permissions=default_perms)
                 logger.info(f"User {user_to_unmute} unmuted (permissions restored) in chat {cid}")
             except BadRequest as e:
-                logger.error(f"BadRequest in chat {cid} during unmute: {e.message}")
+                if e.message == "Method is available only for supergroups":
+                    continue
+                elif e.message == "Chat not found":
+                    continue
+                else:
+                    logger.error(f"BadRequest in chat {cid} during unmute: {e.message}")
             except TelegramError as e:
                 logger.error(f"Telegram error in chat {cid} during unmute: {e.message}")
             except Exception as e:
@@ -401,7 +406,12 @@ async def unban_user(bot, chat_id, user_to_unban, global_unban=False):
                 await bot.unban_chat_member(cid, user_to_unban)
                 # logger.info(f"User {user_to_unban} unbanned from chat {cid}")
             except BadRequest as e:
-                logger.error(f"BadRequest in chat {cid} during unban: {e.message}")
+                if e.message == "Method is available only for supergroups":
+                    continue
+                elif e.message == "Chat not found":
+                    continue
+                else:
+                    logger.error(f"BadRequest in chat {cid} during unban: {e.message}")
             except TelegramError as e:
                 logger.error(f"Telegram error in chat {cid} during unban: {e.message}")
             except Exception as e:
