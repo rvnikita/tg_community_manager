@@ -275,7 +275,7 @@ async def unmute_user(bot, chat_id, user_to_unmute, global_unmute=False):
         for cid in chat_ids:
             try:
                 await bot.restrict_chat_member(cid, user_to_unmute, permissions=default_perms)
-                logger.info(f"User {user_to_unmute} unmuted (permissions restored) in chat {cid}")
+                # logger.info(f"User {user_to_unmute} unmuted (permissions restored) in chat {cid}")
             except BadRequest as e:
                 if e.message == "Method is available only for supergroups":
                     continue
