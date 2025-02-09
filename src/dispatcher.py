@@ -1019,6 +1019,9 @@ async def tg_ai_spamcheck(update, context):
                 f"Not Spam. Probability: {spam_proba:.5f}. Threshold: {delete_threshold}. "
                 f"Message: {message_content}. Chat: {chat_mention}. "
                 f"User: {user_mention}. Message log id: {message_log_id}"
+                f"User current rating: {rating_helper.get_rating(user_id, chat_id)}"
+                f"Reply to message id: {reply_to_message_id}"
+                f"Is forwarded: {is_forwarded}"
             )
             return
 
@@ -1027,6 +1030,9 @@ async def tg_ai_spamcheck(update, context):
                 f"‼️Spam (delete, mute) ‼️ Probability: {spam_proba:.5f}. Threshold: {mute_threshold}. "
                 f"Message: {message_content}. Chat: {chat_mention}. "
                 f"User: {user_mention} Message log id: {message_log_id}"
+                f"User current rating: {rating_helper.get_rating(user_id, chat_id)}"
+                f"Reply to message id: {reply_to_message_id}"
+                f"Is forwarded: {is_forwarded}"
             )
             await chat_helper.mute_user(context.bot, chat_id, user_id, 7 * 24)
         else:
@@ -1034,6 +1040,9 @@ async def tg_ai_spamcheck(update, context):
                 f"‼️Spam (delete) ‼️ Probability: {spam_proba:.5f}. Threshold: {delete_threshold}. "
                 f"Message: {message_content}. Chat: {chat_mention}. "
                 f"User: {user_mention} Message log id: {message_log_id}"
+                f"User current rating: {rating_helper.get_rating(user_id, chat_id)}"
+                f"Reply to message id: {reply_to_message_id}"
+                f"Is forwarded: {is_forwarded}"
             )
 
         await chat_helper.delete_message(context.bot, chat_id, message.message_id)
