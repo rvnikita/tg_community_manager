@@ -242,6 +242,47 @@ async def mute_user(bot, chat_id: int, user_id: int, duration_in_hours = None) -
         await bot.restrict_chat_member(chat_id, user_id, permissions)
 
 
+async def unmute_user(bot, chat_id, user_to_unmute, global_unmute=False):
+    """
+    Unmute a user by restoring full chat permissions.
+    If global_unmute is True, the user is unmuted in all chats.
+    """
+    # Define default full permissions.
+    default_perms = ChatPermissions(
+        can_send_messages=True,
+        can_send_media_messages=True,
+        can_send_polls=True,
+        can_send_other_messages=True,
+        can_add_web_page_previews=True,
+        can_change_info=True,
+        can_invite_users=True,
+        can_pin_messages=True
+    )
+    try:
+        # Determine the list of chat IDs to process.
+        with db_helper.session_scope() as session:
+            if global_unmute:
+                all_chats = session.query(db_helper.Chat.id).filter(db_helper.Chat.id != 0).all()
+                chat_ids = [chat.id for chat in all_chats]
+            else:
+                chat_ids = [chat_id]
+
+        # For each chat, try to restore permissions (i.e. unmute).
+        for cid in chat_ids:
+            try:
+                await bot.restrict_chat_member(cid, user_to_unmute, permissions=default_perms)
+                logger.info(f"User {user_to_unmute} unmuted (permissions restored) in chat {cid}")
+            except BadRequest as e:
+                logger.error(f"BadRequest in chat {cid} during unmute: {e.message}")
+            except TelegramError as e:
+                logger.error(f"Telegram error in chat {cid} during unmute: {e.message}")
+            except Exception as e:
+                logger.error(f"Unexpected error during unmute in chat {cid}: {e}. Traceback: {traceback.format_exc()}")
+    except Exception as e:
+        logger.error(f"General error in unmute_user function: {e}. Traceback: {traceback.format_exc()}")
+
+
+
 
 async def ban_user(bot, chat_id, user_to_ban, global_ban=False, reason=None):
     with db_helper.session_scope() as db_session:
@@ -339,34 +380,32 @@ async def ban_user(bot, chat_id, user_to_ban, global_ban=False, reason=None):
             return None
 
 async def unban_user(bot, chat_id, user_to_unban, global_unban=False):
+    """
+    Unban a user from a chat or, if global_unban is True, from all chats in the database.
+    """
     try:
-        with db_helper.session_scope() as db_session:
-            # List of chats to process
+        # Determine the list of chat IDs to process.
+        with db_helper.session_scope() as session:
             if global_unban:
-                # If global unban is enabled, fetch all chat IDs where the bot is a member
-                all_chats = db_session.query(db_helper.Chat.id).filter(db_helper.Chat.id != 0).all()
+                all_chats = session.query(db_helper.Chat.id).filter(db_helper.Chat.id != 0).all()
                 chat_ids = [chat.id for chat in all_chats]
             else:
-                # Otherwise, only include the provided chat ID
                 chat_ids = [chat_id]
 
-            for chat_id in chat_ids:
-                try:
-                    # Attempt to unban the user in each chat
-                    await bot.unban_chat_member(chat_id, user_to_unban)
-                    logger.info(f"User {user_to_unban} unbanned from chat {chat_id}")
-                except BadRequest as e:
-                    # Handle specific bad request errors such as "user not found" or "user not a member"
-                    logger.error(f"BadRequest in chat {chat_id} during unban: {e.message}")
-                except TelegramError as e:
-                    # Handle generic Telegram errors
-                    logger.error(f"Telegram error in chat {chat_id} during unban: {e.message}")
-                except Exception as e:
-                    # Catch-all for any other unexpected errors
-                    logger.error(f"Unexpected error during unban in chat {chat_id}: {e}")
-
+        # For each chat, try to unban the user.
+        for cid in chat_ids:
+            try:
+                await bot.unban_chat_member(cid, user_to_unban)
+                logger.info(f"User {user_to_unban} unbanned from chat {cid}")
+            except BadRequest as e:
+                logger.error(f"BadRequest in chat {cid} during unban: {e.message}")
+            except TelegramError as e:
+                logger.error(f"Telegram error in chat {cid} during unban: {e.message}")
+            except Exception as e:
+                logger.error(f"Unexpected error during unban in chat {cid}: {e}. Traceback: {traceback.format_exc()}")
     except Exception as e:
-        logger.error(f"General error in unban_user function: {e}")
+        logger.error(f"General error in unban_user function: {e}. Traceback: {traceback.format_exc()}")
+
 
 
 async def delete_message(bot, chat_id: int, message_id: int, delay_seconds: int = None) -> None:

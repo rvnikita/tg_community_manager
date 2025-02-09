@@ -137,7 +137,7 @@ async def tg_report(update, context):
             await chat_helper.delete_scheduled_messages(bot, chat_id, trigger_id=reported_message_id)
 
             # Log the ban action
-            message_helper.log_or_update_message(
+            message_helper.insert_or_update_message_log(
                 chat_id=chat_id,
                 message_id=reported_message_id,
                 user_id=reported_user_id,
@@ -460,7 +460,7 @@ async def tg_ban(update, context):
             await chat_helper.ban_user(bot, chat_id, ban_user_id)
 
             # Log the ban action
-            message_helper.log_or_update_message(
+            message_helper.insert_or_update_message_log(
                 chat_id=chat_id,
                 message_id=message.reply_to_message.message_id,
                 user_id=ban_user_id,
@@ -479,6 +479,190 @@ async def tg_ban(update, context):
     except Exception as error:
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
         logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
+
+async def tg_spam(update, context):
+    try:
+        message = update.message
+        chat_id = update.effective_chat.id
+
+        # 1. Determine target user.
+        target_user_id = None
+        command_parts = message.text.split()
+        if message.reply_to_message:
+            target_user_id = message.reply_to_message.from_user.id
+        elif len(command_parts) > 1:
+            if command_parts[1].isdigit():
+                target_user_id = int(command_parts[1])
+            elif command_parts[1].startswith('@'):
+                target_user_id = user_helper.get_user_id(username=command_parts[1][1:])
+            else:
+                await chat_helper.send_message(
+                    context.bot,
+                    chat_id,
+                    "Invalid format. Use /spam @username or /spam user_id, or reply to a message.",
+                    reply_to_message_id=message.message_id
+                )
+                return
+        else:
+            await chat_helper.send_message(
+                context.bot,
+                chat_id,
+                "Please reply to a user's message or specify a user to spam.",
+                reply_to_message_id=message.message_id
+            )
+            return
+
+        # 2. Globally ban the user.
+        await chat_helper.ban_user(
+            context.bot,
+            chat_id,
+            target_user_id,
+            global_ban=True,
+            reason="Spam command issued by global admin"
+        )
+
+        # 3. Retrieve all message logs for the target user and update them.
+        with db_helper.session_scope() as session:
+            logs = session.query(db_helper.Message_Log).filter(
+                db_helper.Message_Log.user_id == target_user_id
+            ).all()
+            logs_data = [
+                {"chat_id": log.chat_id, "message_id": log.message_id}
+                for log in logs
+            ]
+        for log_data in logs_data:
+            message_helper.insert_or_update_message_log(
+                chat_id=log_data["chat_id"],
+                message_id=log_data["message_id"],
+                user_id=target_user_id,
+                is_spam=True,
+                manually_verified=True
+            )
+
+        # 4. For messages less than 24 hours old, delete them from all chats.
+        cutoff = datetime.now() - timedelta(hours=24)
+        with db_helper.session_scope() as session:
+            recent_logs = session.query(db_helper.Message_Log).filter(
+                db_helper.Message_Log.user_id == target_user_id,
+                db_helper.Message_Log.created_at >= cutoff
+            ).all()
+            recent_logs_data = [
+                {"chat_id": log.chat_id, "message_id": log.message_id}
+                for log in recent_logs
+            ]
+        for log_data in recent_logs_data:
+            try:
+                await chat_helper.delete_message(context.bot, log_data["chat_id"], log_data["message_id"])
+            except Exception as exc:
+                logger.error(f"Error deleting message {log_data['message_id']} in chat {log_data['chat_id']}: {exc}")
+
+        target_mention = user_helper.get_user_mention(target_user_id, chat_id)
+        await chat_helper.send_message(
+            context.bot,
+            chat_id,
+            f"User {target_mention} has been spammed: globally banned, message logs updated, and recent messages deleted.",
+            reply_to_message_id=message.message_id
+        )
+    except Exception as e:
+        update_str = json.dumps(
+            update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'},
+            indent=4, sort_keys=True, default=str
+        )
+        logger.error(f"Error in tg_spam: {traceback.format_exc()} | Update: {update_str}")
+        await chat_helper.send_message(
+            context.bot,
+            chat_id,
+            "An error occurred while processing the spam command.",
+            reply_to_message_id=message.message_id
+        )
+
+
+async def tg_unspam(update, context):
+    try:
+        message = update.message
+        chat_id = update.effective_chat.id
+
+        # Only allow global admin to run this command.
+        if message.from_user.id != int(os.getenv('ENV_BOT_ADMIN_ID')):
+            await chat_helper.send_message(
+                context.bot,
+                chat_id,
+                "You must be a global admin to use this command.",
+                reply_to_message_id=message.message_id
+            )
+            return
+
+        # Determine target user: use the replied message if available; otherwise, expect an argument.
+        target_user_id = None
+        command_parts = message.text.split()
+        if message.reply_to_message:
+            target_user_id = message.reply_to_message.from_user.id
+        elif len(command_parts) > 1:
+            if command_parts[1].isdigit():
+                target_user_id = int(command_parts[1])
+            elif command_parts[1].startswith('@'):
+                target_user_id = user_helper.get_user_id(username=command_parts[1][1:])
+            else:
+                await chat_helper.send_message(
+                    context.bot,
+                    chat_id,
+                    "Invalid format. Use /unspam @username or /unspam user_id, or reply to a message.",
+                    reply_to_message_id=message.message_id
+                )
+                return
+        else:
+            await chat_helper.send_message(
+                context.bot,
+                chat_id,
+                "Please reply to a user's message or specify a user to unspam.",
+                reply_to_message_id=message.message_id
+            )
+            return
+
+        # Step 1: Unban the user from all chats.
+        await chat_helper.unban_user(context.bot, chat_id, target_user_id, global_unban=True)
+
+        # Step 2: Unmute the user in all chats.
+        await chat_helper.unmute_user(context.bot, chat_id, target_user_id, global_unmute=True)
+
+        # Step 3: Update all message logs for the user.
+        # Materialize the log values from a session before closing it.
+        with db_helper.session_scope() as session:
+            logs = session.query(db_helper.Message_Log).filter(
+                db_helper.Message_Log.user_id == target_user_id
+            ).all()
+            logs_data = [
+                {"chat_id": log.chat_id, "message_id": log.message_id}
+                for log in logs
+            ]
+        # Now update each log without needing the detached ORM objects.
+        for log_data in logs_data:
+            message_helper.insert_or_update_message_log(
+                chat_id=log_data["chat_id"],
+                message_id=log_data["message_id"],
+                is_spam=False,
+                manually_verified=True
+            )
+
+        target_mention = user_helper.get_user_mention(target_user_id, chat_id)
+        await chat_helper.send_message(
+            context.bot,
+            chat_id,
+            f"User {target_mention} has been unspammed (unbanned, unmuted, and message logs updated).",
+            reply_to_message_id=message.message_id
+        )
+    except Exception as e:
+        update_str = json.dumps(
+            update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'},
+            indent=4, sort_keys=True, default=str
+        )
+        logger.error(f"Error in tg_unspam: {traceback.format_exc()} | Update: {update_str}")
+        await chat_helper.send_message(
+            context.bot,
+            chat_id,
+            "An error occurred while processing the unspam command.",
+            reply_to_message_id=message.message_id
+        )
 
 
 async def tg_gban(update, context):
@@ -549,7 +733,7 @@ async def tg_gban(update, context):
             await chat_helper.ban_user(bot, ban_chat_id, ban_user_id, True, reason=ban_reason)
 
             # Log the ban action
-            message_helper.log_or_update_message(
+            message_helper.insert_or_update_message_log(
                 chat_id=chat_id,
                 message_id=message.reply_to_message.message_id,
                 user_id=ban_user_id,
@@ -560,8 +744,7 @@ async def tg_gban(update, context):
                 reporting_id=message.from_user.id,
                 reporting_id_nickname=user_helper.get_user_mention(message.from_user.id, chat_id),
                 reason_for_action=f"User {user_helper.get_user_mention(ban_user_id, chat_id)} was banned in chat {await chat_helper.get_chat_mention(bot, chat_id)}. Reason: {message.text}",
-                is_spam=True,
-                manually_verified=True
+                manually_verified=False
             )
 
 
@@ -675,7 +858,7 @@ async def tg_log_message(update, context):
 
 
             # Log the message, treating forwarded messages differently if needed
-            message_log_id = message_helper.log_or_update_message(
+            message_log_id = message_helper.insert_or_update_message_log(
                 chat_id=chat_id,
                 message_id=message_id,
                 user_id=user_id,
@@ -805,7 +988,7 @@ async def tg_ai_spamcheck(update, context):
         is_spam = spam_proba >= delete_threshold
 
         # Log the message
-        message_log_id = message_helper.log_or_update_message(
+        message_log_id = message_helper.insert_or_update_message_log(
             chat_id=chat_id,
             message_id=message.message_id,
             user_id=user_id,
@@ -1158,9 +1341,9 @@ def create_application():
     application.add_handler(CommandHandler(['get_rating', 'gr'], tg_get_rating, filters.ChatType.GROUPS), group=4)
     application.add_handler(ChatJoinRequestHandler(tg_join_request), group=5)
     application.add_handler(CommandHandler(['ban', 'b'], tg_ban, filters.ChatType.GROUPS), group=6)
-    
-    #TODO:HIGH create separate spam command that is similar to gban, but also put manualyverifyied = true to this message and all previous messages from this user
     application.add_handler(CommandHandler(['gban', 'g', 'gb'], tg_gban), group=6)
+    application.add_handler(CommandHandler(['spam', 's'], tg_spam), group=6)
+    application.add_handler(CommandHandler(['unspam', 'us'], tg_unspam), group=6)
     application.add_handler(MessageHandler(filters.TEXT | (filters.PHOTO & filters.CAPTION) | (filters.VIDEO & filters.CAPTION) | filters.Document.ALL, tg_wiretapping), group=7)
     application.add_handler(CommandHandler(['pin', 'p'], tg_pin, filters.ChatType.GROUPS), group=9)
     application.add_handler(CommandHandler(['unpin', 'up'], tg_unpin, filters.ChatType.GROUPS), group=9)

@@ -35,7 +35,7 @@ import src.logging_helper as logging
 
 logger = logging.get_logger()
 
-def log_or_update_message(
+def insert_or_update_message_log(
     chat_id,                 # mandatory
     message_id,              # mandatory
     user_id=None,
@@ -113,3 +113,66 @@ def log_or_update_message(
         logger.error(f"Error processing message log: {e}. Traceback: {traceback.format_exc()}")
         return None
 
+def get_message_logs(
+    chat_id=None,
+    message_id=None,
+    user_id=None,
+    user_nickname=None,
+    user_current_rating=None,
+    message_content=None,
+    action_type=None,
+    reporting_id=None,
+    reporting_id_nickname=None,
+    reason_for_action=None,
+    is_spam=None,
+    manually_verified=None,
+    embedding=None,
+    is_forwarded=None,
+    reply_to_message_id=None,
+    spam_prediction_probability=None
+):
+    """
+    Retrieve all Message_Log records matching the provided filter parameters.
+    Any parameter that is not None is applied as an equality filter.
+    
+    Returns a list of Message_Log objects or an empty list if no records match.
+    """
+    try:
+        with db_helper.session_scope() as session:
+            query = session.query(db_helper.Message_Log)
+            if chat_id is not None:
+                query = query.filter(db_helper.Message_Log.chat_id == chat_id)
+            if message_id is not None:
+                query = query.filter(db_helper.Message_Log.message_id == message_id)
+            if user_id is not None:
+                query = query.filter(db_helper.Message_Log.user_id == user_id)
+            if user_nickname is not None:
+                query = query.filter(db_helper.Message_Log.user_nickname == user_nickname)
+            if user_current_rating is not None:
+                query = query.filter(db_helper.Message_Log.user_current_rating == user_current_rating)
+            if message_content is not None:
+                query = query.filter(db_helper.Message_Log.message_content == message_content)
+            if action_type is not None:
+                query = query.filter(db_helper.Message_Log.action_type == action_type)
+            if reporting_id is not None:
+                query = query.filter(db_helper.Message_Log.reporting_id == reporting_id)
+            if reporting_id_nickname is not None:
+                query = query.filter(db_helper.Message_Log.reporting_id_nickname == reporting_id_nickname)
+            if reason_for_action is not None:
+                query = query.filter(db_helper.Message_Log.reason_for_action == reason_for_action)
+            if is_spam is not None:
+                query = query.filter(db_helper.Message_Log.is_spam == is_spam)
+            if manually_verified is not None:
+                query = query.filter(db_helper.Message_Log.manually_verified == manually_verified)
+            if embedding is not None:
+                query = query.filter(db_helper.Message_Log.embedding == embedding)
+            if is_forwarded is not None:
+                query = query.filter(db_helper.Message_Log.is_forwarded == is_forwarded)
+            if reply_to_message_id is not None:
+                query = query.filter(db_helper.Message_Log.reply_to_message_id == reply_to_message_id)
+            if spam_prediction_probability is not None:
+                query = query.filter(db_helper.Message_Log.spam_prediction_probability == spam_prediction_probability)
+            return query.all()
+    except Exception as e:
+        logger.error(f"Error retrieving message logs: {traceback.format_exc()}")
+        return []
