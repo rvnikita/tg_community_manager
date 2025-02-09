@@ -8,6 +8,8 @@ from telegram.ext import Application
 from src.dispatcher import create_application  # your function returning a PTB Application
 from src.db_helper import session_scope, Message_Log  # assuming these are accessible
 
+#TODO:HIGH: We need to create separate DB for tests so only 1-2 chats are running, small amount of message_log etc + we don't mess production data with test data
+
 @pytest.mark.asyncio
 async def test_tg_integration_telethon():
     """
@@ -16,8 +18,10 @@ async def test_tg_integration_telethon():
     message was logged.
     """
     # 1) Read environment variables
-    telethon_api_id = int(os.getenv("TELETHON_API_ID", "0"))
-    telethon_api_hash = os.getenv("TELETHON_API_HASH", "")
+    #TODO:HIGH: We need to put this in one file so all tests use the same credentials (or maybe having them in the .env file is fine)
+    telethon_api_id = int(os.getenv("TELETHON1_API_ID", "0"))
+    telethon_api_hash = os.getenv("TELETHON1_API_HASH", "")
+    telethon_session = os.getenv("TELETHON1_SESSION", "")
     debug_chat_id = int(os.getenv("ENV_INFO_CHAT_ID", "0"))
     
     # 2) Create the PTB application
@@ -32,7 +36,7 @@ async def test_tg_integration_telethon():
     unique_hash = str(uuid.uuid4())
     test_message_text = f"Hello from Telethon (manual start)! {unique_hash}"
     
-    async with TelegramClient("test_session", telethon_api_id, telethon_api_hash) as client:
+    async with TelegramClient(telethon_session, telethon_api_id, telethon_api_hash) as client:
         await client.send_message(debug_chat_id, test_message_text)
         await asyncio.sleep(5)  # give the bot time to receive and process the message
     
