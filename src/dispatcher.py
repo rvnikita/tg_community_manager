@@ -485,6 +485,8 @@ async def tg_spam(update, context):
         message = update.message
         chat_id = update.effective_chat.id
 
+        await chat_helper.delete_message(bot, chat_id, message.message_id)  # clean up the command message
+
         # 1. Determine target user.
         target_user_id = None
         command_parts = message.text.split()
