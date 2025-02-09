@@ -284,7 +284,14 @@ async def unmute_user(bot, chat_id, user_to_unmute, global_unmute=False):
                 else:
                     logger.error(f"BadRequest in chat {cid} during unmute: {e.message}")
             except TelegramError as e:
-                logger.error(f"Telegram error in chat {cid} during unmute: {e.message}")
+                if e.message == "Forbidden: bot is not a member of the group chat":
+                    continue
+                if e.message == "Forbidden: bot was kicked from the group chat":
+                    continue
+                if e.message == "Forbidden: user is deactivated":
+                    continue
+                else:
+                    logger.error(f"Telegram error in chat {cid} during unban: {e.message}")
             except Exception as e:
                 logger.error(f"Unexpected error during unmute in chat {cid}: {e}. Traceback: {traceback.format_exc()}")
     except Exception as e:
@@ -415,7 +422,14 @@ async def unban_user(bot, chat_id, user_to_unban, global_unban=False):
                 else:
                     logger.error(f"BadRequest in chat {cid} during unban: {e.message}")
             except TelegramError as e:
-                logger.error(f"Telegram error in chat {cid} during unban: {e.message}")
+                if e.message == "Forbidden: bot is not a member of the group chat":
+                    continue
+                if e.message == "Forbidden: bot was kicked from the group chat":
+                    continue
+                if e.message == "Forbidden: user is deactivated":
+                    continue
+                else:
+                    logger.error(f"Telegram error in chat {cid} during unban: {e.message}")
             except Exception as e:
                 logger.error(f"Unexpected error during unban in chat {cid}: {e}. Traceback: {traceback.format_exc()}")
     except Exception as e:

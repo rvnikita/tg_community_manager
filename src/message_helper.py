@@ -61,45 +61,66 @@ def insert_or_update_message_log(
             except (ValueError, TypeError) as e:
                 logger.error(f"Invalid spam_prediction_probability value: {spam_prediction_probability}. Error: {e}")
                 spam_prediction_probability = None
+
         with db_helper.session_scope() as db_session:
-            insert_stmt = insert(db_helper.Message_Log).values(
-                message_id=message_id,
-                chat_id=chat_id,
-                message_content=message_content,
-                user_id=user_id,
-                user_nickname=user_nickname,
-                user_current_rating=user_current_rating,
-                message_timestamp=datetime.datetime.now(),
-                is_spam=is_spam,
-                action_type=action_type,
-                reporting_id=reporting_id,
-                reporting_id_nickname=reporting_id_nickname,
-                reason_for_action=reason_for_action,
-                created_at=datetime.datetime.now(),
-                embedding=embedding,
-                manually_verified=manually_verified,
-                is_forwarded=is_forwarded,
-                reply_to_message_id=reply_to_message_id,
-                spam_prediction_probability=spam_prediction_probability
-            ).returning(db_helper.Message_Log.id)
+            # Build a dictionary for the values to insert.
+            insert_values = {
+                'message_id': message_id,
+                'chat_id': chat_id,
+                'message_content': message_content,
+                'user_id': user_id,
+                'user_nickname': user_nickname,
+                'user_current_rating': user_current_rating,
+                'message_timestamp': datetime.datetime.now(),
+                'is_spam': is_spam,
+                'action_type': action_type,
+                'reporting_id': reporting_id,
+                'reporting_id_nickname': reporting_id_nickname,
+                'reason_for_action': reason_for_action,
+                'created_at': datetime.datetime.now(),
+                'embedding': embedding,
+                'manually_verified': manually_verified,
+                'is_forwarded': is_forwarded,
+                'reply_to_message_id': reply_to_message_id,
+                'spam_prediction_probability': spam_prediction_probability
+            }
+
+            # Try to get an existing row.
+            existing = db_session.query(db_helper.Message_Log).filter_by(
+                message_id=message_id, chat_id=chat_id
+            ).one_or_none()
+
+            # If a row exists, for any key that is still None, fill in from the existing row.
+            if existing is not None:
+                # For required columns (e.g. user_id), if not provided, use the current value.
+                for key in ('user_id', 'user_nickname', 'user_current_rating', 'message_content',
+                            'action_type', 'reporting_id', 'reporting_id_nickname',
+                            'reason_for_action', 'is_spam', 'manually_verified', 'is_forwarded',
+                            'reply_to_message_id', 'spam_prediction_probability', 'embedding'):
+                    if insert_values.get(key) is None:
+                        insert_values[key] = getattr(existing, key)
+            else:
+                # If no row exists, then a required field like user_id must be provided.
+                if insert_values.get('user_id') is None:
+                    raise ValueError("user_id must be provided when inserting a new message log row.")
+
+            # Build the update dictionary using only keys whose value is not None.
+            update_dict = {}
+            for key in (
+                'message_content', 'user_id', 'user_nickname', 'user_current_rating',
+                'is_spam', 'action_type', 'reporting_id', 'reporting_id_nickname',
+                'reason_for_action', 'embedding', 'manually_verified', 'is_forwarded',
+                'reply_to_message_id', 'spam_prediction_probability'
+            ):
+                if insert_values.get(key) is not None:
+                    update_dict[key] = insert_values.get(key)
+
+            # Prepare the insert statement with a RETURNING clause.
+            insert_stmt = insert(db_helper.Message_Log).values(**insert_values).returning(db_helper.Message_Log.id)
+            # Use on_conflict_do_update with our update dictionary.
             on_conflict_stmt = insert_stmt.on_conflict_do_update(
                 index_elements=['message_id', 'chat_id'],
-                set_={
-                    'message_content': func.coalesce(insert_stmt.excluded.message_content, db_helper.Message_Log.message_content),
-                    'user_id': func.coalesce(insert_stmt.excluded.user_id, db_helper.Message_Log.user_id),
-                    'user_nickname': func.coalesce(insert_stmt.excluded.user_nickname, db_helper.Message_Log.user_nickname),
-                    'user_current_rating': func.coalesce(insert_stmt.excluded.user_current_rating, db_helper.Message_Log.user_current_rating),
-                    'is_spam': func.coalesce(insert_stmt.excluded.is_spam, db_helper.Message_Log.is_spam),
-                    'action_type': func.coalesce(insert_stmt.excluded.action_type, db_helper.Message_Log.action_type),
-                    'reporting_id': func.coalesce(insert_stmt.excluded.reporting_id, db_helper.Message_Log.reporting_id),
-                    'reporting_id_nickname': func.coalesce(insert_stmt.excluded.reporting_id_nickname, db_helper.Message_Log.reporting_id_nickname),
-                    'reason_for_action': func.coalesce(insert_stmt.excluded.reason_for_action, db_helper.Message_Log.reason_for_action),
-                    'manually_verified': func.coalesce(insert_stmt.excluded.manually_verified, db_helper.Message_Log.manually_verified),
-                    'is_forwarded': func.coalesce(insert_stmt.excluded.is_forwarded, db_helper.Message_Log.is_forwarded),
-                    'reply_to_message_id': func.coalesce(insert_stmt.excluded.reply_to_message_id, db_helper.Message_Log.reply_to_message_id),
-                    'spam_prediction_probability': func.coalesce(insert_stmt.excluded.spam_prediction_probability, db_helper.Message_Log.spam_prediction_probability),
-                    'embedding': func.coalesce(insert_stmt.excluded.embedding, db_helper.Message_Log.embedding)
-                }
+                set_=update_dict
             ).returning(db_helper.Message_Log.id)
             result = db_session.execute(on_conflict_stmt)
             db_session.commit()
@@ -112,6 +133,8 @@ def insert_or_update_message_log(
     except Exception as e:
         logger.error(f"Error processing message log: {e}. Traceback: {traceback.format_exc()}")
         return None
+
+
 
 def get_message_logs(
     chat_id=None,

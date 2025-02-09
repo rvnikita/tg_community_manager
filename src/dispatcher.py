@@ -621,15 +621,18 @@ async def tg_unspam(update, context):
 
         # Step 1: Unban the user from all chats.
         await chat_helper.unban_user(context.bot, chat_id, target_user_id, global_unban=True)
+        logger.info(f"User {target_user_id} has been unbanned globally.")
 
         # Step 2: Unmute the user in all chats.
         await chat_helper.unmute_user(context.bot, chat_id, target_user_id, global_unmute=True)
+        logger.info(f"User {target_user_id} has been unmuted globally.")
 
         # Step 3: Update all message logs for the user.
         # Materialize the log values from a session before closing it.
         with db_helper.session_scope() as session:
             logs = session.query(db_helper.Message_Log).filter(
-                db_helper.Message_Log.user_id == target_user_id
+                db_helper.Message_Log.user_id == target_user_id,
+                db_helper.Message_Log.manually_verified == False
             ).all()
             logs_data = [
                 {"chat_id": log.chat_id, "message_id": log.message_id}
