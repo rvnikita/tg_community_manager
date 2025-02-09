@@ -408,6 +408,8 @@ async def unban_user(bot, chat_id, user_to_unban, global_unban=False):
             except BadRequest as e:
                 if e.message == "Method is available only for supergroups":
                     continue
+                if e.message == "Method is available for supergroup and channel chats only":
+                    continue
                 elif e.message == "Chat not found":
                     continue
                 else:
