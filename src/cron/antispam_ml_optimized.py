@@ -9,6 +9,7 @@ from sklearn.svm import SVC
 import traceback
 from joblib import dump
 import asyncio
+import re
 
 import src.spamcheck_helper as spamcheck_helper
 import src.db_helper as db_helper
@@ -73,9 +74,14 @@ async def train_spam_classifier():
 
             logger.info("Processing messages data for feature extraction...")
             for message_data in messages_data:
+                # Use the status creation time if available, otherwise use the user creation time.
                 joined_date = message_data.status_created_at if message_data.status_created_at else message_data.user_created_at
-                time_difference = (datetime.now(timezone.utc) - joined_date).days
+                # Now compute the time difference in seconds
+                time_difference = (datetime.now(timezone.utc) - joined_date).total_seconds()
                 message_length = len(message_data.message_content)
+                # New feature: check if the message contains a Telegram username (e.g. @rvnikita)
+                has_telegram_nick = 1.0 if re.search(r'@\w+', message_data.message_content) else 0.0
+
                 feature_array = np.concatenate((
                     message_data.embedding,
                     [
@@ -87,7 +93,8 @@ async def train_spam_classifier():
                         message_data.spam_count,
                         message_data.not_spam_count,
                         float(message_data.is_forwarded or 0),
-                        message_data.reply_to_message_id or 0
+                        message_data.reply_to_message_id or 0,
+                        has_telegram_nick
                     ]
                 ))
                 features.append(feature_array)
@@ -121,7 +128,7 @@ async def train_spam_classifier():
             X_train = scaler.transform(X_train)
             X_test = scaler.transform(X_test)
 
-            model = SVC(kernel='linear', probability=True)
+            model = SVC(kernel='rbf', probability=True, C=1.0, gamma='scale')
             model.fit(X_train, y_train)
 
             accuracy = model.score(X_test, y_test)
