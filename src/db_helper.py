@@ -257,6 +257,7 @@ class Message_Log(Base):
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     message_id = Column(BigInteger, index=True)
     chat_id = Column(BigInteger, ForeignKey(Chat.__table__.c.id), nullable=False)
+    raw_message = Column(JSON, nullable=True)
     message_content = Column(Text)
     user_id = Column(BigInteger, ForeignKey(User.__table__.c.id), nullable=False)
     user_nickname = Column(Text)
@@ -274,6 +275,7 @@ class Message_Log(Base):
     is_forwarded = Column(Boolean, nullable=True)  # Column to store is message is forwarded
     reply_to_message_id = Column(BigInteger, nullable=True)  # Column to store reply-to message ID
     spam_prediction_probability = Column(Float, nullable=True)  # Column to store spam prediction probability. We are not going to use that for spam prediction itself, but for logging purposes and easier filtering of messages for manual verification
+
 
     # Relationships
     user = relationship("User", foreign_keys=[user_id], backref="message_logs")

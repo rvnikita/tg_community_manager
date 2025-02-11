@@ -880,7 +880,8 @@ async def tg_log_message(update, context):
                 embedding=embedding,
                 manually_verified=False,
                 reply_to_message_id=message.reply_to_message.message_id if message.reply_to_message else None,
-                is_forwarded=is_forwarded
+                is_forwarded=is_forwarded,
+                raw_message=update.message.to_dict() if hasattr(update.message, 'to_dict') else None
             )
 
             logger.info(f"B Returned message log id after function call: {message_log_id}")

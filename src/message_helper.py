@@ -51,7 +51,8 @@ def insert_or_update_message_log(
     embedding=None,
     is_forwarded=None,
     reply_to_message_id=None,
-    spam_prediction_probability=None
+    spam_prediction_probability=None,
+    raw_message=None
 ):
     try:
         # Convert spam_prediction_probability to float if provided.
@@ -82,7 +83,8 @@ def insert_or_update_message_log(
                 'manually_verified': manually_verified,
                 'is_forwarded': is_forwarded,
                 'reply_to_message_id': reply_to_message_id,
-                'spam_prediction_probability': spam_prediction_probability
+                'spam_prediction_probability': spam_prediction_probability,
+                'raw_message': raw_message
             }
 
             # Try to get an existing row.
@@ -92,11 +94,12 @@ def insert_or_update_message_log(
 
             # If a row exists, for any key that is still None, fill in from the existing row.
             if existing is not None:
-                # For required columns (e.g. user_id), if not provided, use the current value.
-                for key in ('user_id', 'user_nickname', 'user_current_rating', 'message_content',
-                            'action_type', 'reporting_id', 'reporting_id_nickname',
-                            'reason_for_action', 'is_spam', 'manually_verified', 'is_forwarded',
-                            'reply_to_message_id', 'spam_prediction_probability', 'embedding'):
+                for key in (
+                    'user_id', 'user_nickname', 'user_current_rating', 'message_content',
+                    'action_type', 'reporting_id', 'reporting_id_nickname',
+                    'reason_for_action', 'is_spam', 'manually_verified', 'is_forwarded',
+                    'reply_to_message_id', 'spam_prediction_probability', 'embedding', 'raw_message'
+                ):
                     if insert_values.get(key) is None:
                         insert_values[key] = getattr(existing, key)
             else:
@@ -110,7 +113,7 @@ def insert_or_update_message_log(
                 'message_content', 'user_id', 'user_nickname', 'user_current_rating',
                 'is_spam', 'action_type', 'reporting_id', 'reporting_id_nickname',
                 'reason_for_action', 'embedding', 'manually_verified', 'is_forwarded',
-                'reply_to_message_id', 'spam_prediction_probability'
+                'reply_to_message_id', 'spam_prediction_probability', 'raw_message'
             ):
                 if insert_values.get(key) is not None:
                     update_dict[key] = insert_values.get(key)
@@ -133,6 +136,7 @@ def insert_or_update_message_log(
     except Exception as e:
         logger.error(f"Error processing message log: {e}. Traceback: {traceback.format_exc()}")
         return None
+
 
 
 
