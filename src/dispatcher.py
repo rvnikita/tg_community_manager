@@ -1286,10 +1286,12 @@ async def tg_update_user_status(update, context):
             if config_update_user_status == True:
                 if len(update.message.new_chat_members) > 0: #user added
                     #TODO:HIGH: We need to rewrite this so we can also add full name
-                    user_helper.db_upsert_user(update.message.new_chat_members[0].id, update.message.chat.id,  update.message.new_chat_members[0].username, datetime.now(), update.message.new_chat_members[0].first_name, update.message.new_chat_members[0].last_name)
+                    raw_user = update.message.new_chat_members[0].to_dict() if hasattr(update.message.new_chat_members[0], 'to_dict') else None
+                    user_helper.db_upsert_user(update.message.new_chat_members[0].id, update.message.chat.id,  update.message.new_chat_members[0].username, datetime.now(), update.message.new_chat_members[0].first_name, update.message.new_chat_members[0].last_name, raw_user)
                 else:
                     # TODO:HIGH: We need to rewrite this so we can also add full name
-                    user_helper.db_upsert_user(update.message.from_user.id, update.message.chat.id, update.message.from_user.username, datetime.now(), update.message.from_user.first_name, update.message.from_user.last_name)
+                    raw_user = update.message.from_user.to_dict() if hasattr(update.message.from_user, 'to_dict') else None
+                    user_helper.db_upsert_user(update.message.from_user.id, update.message.chat.id, update.message.from_user.username, datetime.now(), update.message.from_user.first_name, update.message.from_user.last_name, raw_user=raw_user)
 
                 #logger.info(f"User status updated for user {update.message.from_user.id} in chat {update.message.chat.id} ({update.message.chat.title})")
 

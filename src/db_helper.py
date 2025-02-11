@@ -54,6 +54,7 @@ class User(Base):
     username = Column(String)
     is_bot = Column(Boolean)
     is_anonymous = Column(Boolean)
+    user_raw = Column(JSON, nullable=True)
 
     user_statuses = relationship('User_Status', back_populates='user')
 
