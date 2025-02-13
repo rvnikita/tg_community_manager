@@ -561,12 +561,6 @@ async def tg_spam(update, context):
                 logger.error(f"Error deleting message {log_data['message_id']} in chat {log_data['chat_id']}: {exc}")
 
         target_mention = user_helper.get_user_mention(target_user_id, chat_id)
-        await chat_helper.send_message(
-            context.bot,
-            chat_id,
-            f"User {target_mention} has been spammed: globally banned, message logs updated, and recent messages deleted.",
-            reply_to_message_id=message.message_id
-        )
     except Exception as e:
         update_str = json.dumps(
             update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'},
