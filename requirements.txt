@@ -14,3 +14,4 @@ python-dotenv[cli]
 pytest
 pytest-asyncio
 python-telegram-bot[rate-limiter]
+aiohttp
