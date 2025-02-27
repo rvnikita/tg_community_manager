@@ -1082,8 +1082,9 @@ async def tg_cas_spamcheck(update, context):
 
                 # Construct CAS API URL and perform the check.
                 url = f"https://api.cas.chat/check?user_id={user_id}"
+                proxy_url = f"34.110.150.54:3128"
                 async with aiohttp.ClientSession() as session:
-                    async with session.get(url) as response:
+                    async with session.get(url, proxy=proxy_url) as response:
                         if response.status != 200:
                             logger.error(f"CAS API returned status {response.status} for user {user_id}")
                             continue
@@ -1132,8 +1133,9 @@ async def tg_cas_spamcheck(update, context):
                 return
 
             url = f"https://api.cas.chat/check?user_id={user_id}"
+            proxy_url = f"34.110.150.54:3128"
             async with aiohttp.ClientSession() as session:
-                async with session.get(url) as response:
+                async with session.get(url, proxy=proxy_url) as response:
                     if response.status != 200:
                         logger.error(f"CAS API returned status {response.status} for user {user_id}")
                         return
