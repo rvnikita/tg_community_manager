@@ -1090,7 +1090,7 @@ async def tg_cas_spamcheck(update, context):
                         data = await response.json()
 
                 if not data.get("ok", False):
-                    logger.error(f"CAS API error for user {user_id}: {data.get('description', 'No description')}")
+                    logger.info(f"User {user_id} is not CAS banned.")
                     continue
 
                 cas_banned = data.get("result", False)
@@ -1140,7 +1140,7 @@ async def tg_cas_spamcheck(update, context):
                     data = await response.json()
 
             if not data.get("ok", False):
-                logger.error(f"CAS API error for user {user_id}: {data.get('description', 'No description')}")
+                logger.info(f"User {user_id} is not CAS banned.")
                 return
 
             cas_banned = data.get("result", False)
