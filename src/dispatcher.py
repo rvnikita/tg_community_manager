@@ -773,8 +773,14 @@ async def tg_auto_reply(update, context):
         message_words = set(findall(r'\b\w+\b', message_text))
 
         for auto_reply in auto_replies:
-            # Decode the JSON-encoded list of triggers
-            triggers = json.loads(auto_reply['trigger'].lower())
+            try:
+                triggers_raw = auto_reply['trigger']
+                triggers = json.loads(triggers_raw)
+                triggers = [trigger.lower() for trigger in triggers]
+            except json.JSONDecodeError:
+                logger.warning(f"Failed to parse auto-reply trigger: {auto_reply['trigger']}")
+                continue
+
 
             # Check if any of the triggers is a whole word in the message text
             if any(findall(r'\b' + re.escape(trigger) + r'\b', message_text) for trigger in triggers):
