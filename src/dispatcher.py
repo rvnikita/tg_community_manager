@@ -760,17 +760,14 @@ async def tg_gban(update, context):
 #TODO:MED: May be we need to make it more complicated (e.g. with ai embeddings) and move big part of it to separate auto_deply_helper
 async def tg_auto_reply(update, context):
     try:
-        if update.message and update.message.text:  # Check if the message and its text exist
+        if update.message and update.message.text:
             chat_id = update.effective_chat.id
-            message_text = update.message.text.lower()  # Continue with the rest of your function...
+            message_text = update.message.text.lower()
         else:
             return  # Skip processing if there's no text message
 
         # Fetch auto replies that are not currently delayed
         auto_replies = await chat_helper.get_auto_replies(chat_id, filter_delayed=True)
-
-        # Extract whole words from the message using regular expression.
-        message_words = set(findall(r'\b\w+\b', message_text))
 
         for auto_reply in auto_replies:
             try:
@@ -781,16 +778,32 @@ async def tg_auto_reply(update, context):
                 logger.warning(f"Failed to parse auto-reply trigger: {auto_reply['trigger']}")
                 continue
 
+            matched = False
+            for trigger in triggers:
+                if trigger.startswith("#"):
+                    # Match hashtags using simple space split (handles "#успех", not "#успех!" or "#успех.")
+                    if trigger in message_text.split():
+                        matched = True
+                        break
+                else:
+                    if findall(r'\b' + re.escape(trigger) + r'\b', message_text):
+                        matched = True
+                        break
 
-            # Check if any of the triggers is a whole word in the message text
-            if any(findall(r'\b' + re.escape(trigger) + r'\b', message_text) for trigger in triggers):
-                # Send the auto-reply message and update the last reply time
-                await chat_helper.send_message(context.bot, chat_id, auto_reply['reply'], reply_to_message_id=update.message.message_id)
-                await chat_helper.update_last_reply_time_and_increment_count(chat_id, auto_reply['id'], datetime.now(timezone.utc))
-                logger.info(f"Auto-reply sent in chat {chat_id} for triggers '{', '.join(triggers)}': {auto_reply['reply']}")  # If you still want multiple replies remove the break  # break
+            if matched:
+                await chat_helper.send_message(
+                    context.bot, chat_id, auto_reply['reply'],
+                    reply_to_message_id=update.message.message_id
+                )
+                await chat_helper.update_last_reply_time_and_increment_count(
+                    chat_id, auto_reply['id'], datetime.now(timezone.utc)
+                )
+                logger.info(f"Auto-reply sent in chat {chat_id} for triggers '{', '.join(triggers)}': {auto_reply['reply']}")
+                break  # Stop after first match to avoid sending multiple replies
 
     except Exception as error:
         logger.error(f"tg_auto_reply error: {traceback.format_exc()}")
+
 
 async def tg_handle_forwarded_messages(update, context):
     try:
