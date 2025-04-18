@@ -200,7 +200,7 @@ async def tg_info(update, context):
         message = update.message
 
         #delete the command message after 120 seconds
-        asyncio.create_task(chat_helper.delete_message(context.bot, chat_id, message.message_id, delay_seconds=120))
+        asyncio.create_task(chat_helper.delete_message(context.bot, chat_id, message.message_id, delay_seconds=60))
 
         # determine target_user_id
         if message.reply_to_message:
@@ -267,7 +267,8 @@ async def tg_info(update, context):
 
         await chat_helper.send_message(
             context.bot, chat_id, info_text,
-            reply_to_message_id=message.message_id
+            reply_to_message_id=message.message_id,
+            delete_after=200
         )
     except Exception as error:
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
