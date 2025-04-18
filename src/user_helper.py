@@ -10,6 +10,11 @@ import src.rating_helper as rating_helper
 
 logger = logging.get_logger()
 
+def get_user_id(username: str):
+    with db_helper.session_scope() as session:
+        u = session.query(db_helper.User).filter_by(username=username).first()
+        return u.id if u else None
+
 def get_user_mention(user_id: int, chat_id: int | None = None) -> str:
     """
     Build a mention string including:

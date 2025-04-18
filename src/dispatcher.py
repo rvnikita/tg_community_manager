@@ -187,6 +187,88 @@ async def tg_report(update, context):
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
         logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
 
+from datetime import datetime, timezone
+from sqlalchemy import func
+import src.db_helper as db_helper
+from src.user_helper import get_user_id
+import src.chat_helper as chat_helper
+import src.rating_helper as rating_helper
+
+async def tg_info(update, context):
+    try:
+        chat_id = update.effective_chat.id
+        message = update.message
+
+        # determine target user
+        if message.reply_to_message:
+            target_user_id = message.reply_to_message.from_user.id
+        else:
+            parts = message.text.split()
+            target_user_id = None
+            if len(parts) >= 2:
+                arg = parts[1]
+                if arg.startswith('@'):
+                    target_user_id = get_user_id(arg[1:])
+                elif arg.isdigit():
+                    target_user_id = int(arg)
+
+        if not target_user_id:
+            await chat_helper.send_message(
+                context.bot, chat_id,
+                "Please specify a user by replying, @username, or user_id.",
+                reply_to_message_id=message.message_id,
+                delete_after=120
+            )
+            return
+
+        # fetch user record
+        with db_helper.session_scope() as session:
+            user = session.query(db_helper.User).filter_by(id=target_user_id).first()
+
+        if not user:
+            await chat_helper.send_message(
+                context.bot, chat_id,
+                f"No data for user {target_user_id}.",
+                reply_to_message_id=message.message_id,
+                delete_after=120
+            )
+            return
+
+        now = datetime.now(timezone.utc)
+        days_since = (now - (user.created_at or now)).days
+        rating = rating_helper.get_rating(target_user_id, chat_id)
+
+        # count messages
+        with db_helper.session_scope() as session:
+            chat_count = session.query(func.count(db_helper.Message_Log.id)) \
+                                .filter(db_helper.Message_Log.user_id == target_user_id,
+                                        db_helper.Message_Log.chat_id == chat_id) \
+                                .scalar() or 0
+            total_count = session.query(func.count(db_helper.Message_Log.id)) \
+                                 .filter(db_helper.Message_Log.user_id == target_user_id) \
+                                 .scalar() or 0
+
+        full_name = " ".join(filter(None, [user.first_name, user.last_name])) or '[no name]'
+
+        info_text = (
+            f"👤 {'@'+user.username if user.username else '[no username]'}\n"
+            f"🪪 {full_name}\n"
+            f"📅 Joined: {days_since} days ago\n"
+            f"⭐ Rating: {rating}\n"
+            f"✉️ Messages (this chat): {chat_count}\n"
+            f"✉️ Messages (all chats): {total_count}"
+        )
+
+        await chat_helper.send_message(
+            context.bot, chat_id, info_text,
+            reply_to_message_id=message.message_id
+        )
+    except Exception as error:
+        update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
+        logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
+
+
+
 async def tg_offtop(update, context):
     try:
         chat_id = update.effective_chat.id
@@ -1513,6 +1595,7 @@ def create_application():
     application.add_handler(CommandHandler(['unpin', 'up'], tg_unpin, filters.ChatType.GROUPS), group=9)
     application.add_handler(CommandHandler(['help', 'h'], tg_help), group=10)
     application.add_handler(MessageHandler((filters.TEXT | filters.CAPTION), tg_auto_reply), group=11)
+    application.add_handler(CommandHandler(['info', 'i'], tg_info), group=12)
 
     signal.signal(signal.SIGTERM, lambda s, f: application.stop())
     return application
