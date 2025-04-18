@@ -199,7 +199,7 @@ async def tg_info(update, context):
         chat_id = update.effective_chat.id
         message = update.message
 
-        # determine target user
+        # determine target_user_id
         if message.reply_to_message:
             target_user_id = message.reply_to_message.from_user.id
         else:
@@ -221,21 +221,24 @@ async def tg_info(update, context):
             )
             return
 
-        # fetch user record
+        # fetch and extract user fields inside session
         with db_helper.session_scope() as session:
-            user = session.query(db_helper.User).filter_by(id=target_user_id).first()
-
-        if not user:
-            await chat_helper.send_message(
-                context.bot, chat_id,
-                f"No data for user {target_user_id}.",
-                reply_to_message_id=message.message_id,
-                delete_after=120
-            )
-            return
+            u = session.query(db_helper.User).filter_by(id=target_user_id).first()
+            if not u:
+                await chat_helper.send_message(
+                    context.bot, chat_id,
+                    f"No data for user {target_user_id}.",
+                    reply_to_message_id=message.message_id,
+                    delete_after=120
+                )
+                return
+            created_at = u.created_at or datetime.now(timezone.utc)
+            first_name = u.first_name or ''
+            last_name = u.last_name or ''
+            username = u.username
 
         now = datetime.now(timezone.utc)
-        days_since = (now - (user.created_at or now)).days
+        days_since = (now - created_at).days
         rating = rating_helper.get_rating(target_user_id, chat_id)
 
         # count messages
@@ -248,10 +251,10 @@ async def tg_info(update, context):
                                  .filter(db_helper.Message_Log.user_id == target_user_id) \
                                  .scalar() or 0
 
-        full_name = " ".join(filter(None, [user.first_name, user.last_name])) or '[no name]'
+        full_name = (first_name + ' ' + last_name).strip() or '[no name]'
 
         info_text = (
-            f"👤 {'@'+user.username if user.username else '[no username]'}\n"
+            f"👤 {'@'+username if username else '[no username]'}\n"
             f"🪪 {full_name}\n"
             f"📅 Joined: {days_since} days ago\n"
             f"⭐ Rating: {rating}\n"
