@@ -1047,21 +1047,7 @@ async def tg_ai_spamcheck(update, context):
         # ───────────── pretty log ─────────────
         chat_name  = await chat_helper.get_chat_mention(context.bot, chat_id)
         user_ment  = user_helper.get_user_mention(user_id, chat_id)
-        user_obj   = user_helper.get_user_by_id(user_id)            # ORM   (may be None)
-        rating     = rating_helper.get_rating(user_id, chat_id)
         short_txt  = (text[:200] + "…") if len(text) > 203 else text
-
-        created_block = "unknown"
-        if user_obj is not None:
-            if hasattr(user_obj, "created_at"):
-                delta_days = (datetime.now(timezone.utc) - user_obj.created_at).days
-                created_block = f"{user_obj.created_at} ({delta_days} d)"
-            elif isinstance(user_obj, dict):
-                created_at = user_obj.get("created_at")
-                if created_at:
-                    delta_days = (datetime.now(timezone.utc) - created_at).days
-                    created_block = f"{created_at.strftime('%m-%d-%Y')} ({delta_days} d)"
-
         vis_emoji = "‼️" if action == "delete+mute" else "⚠️" if action == "delete" else "👌"
 
         log_lines = [
