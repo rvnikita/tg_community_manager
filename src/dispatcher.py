@@ -200,7 +200,7 @@ async def tg_info(update, context):
         message = update.message
 
         #delete the command message after 120 seconds
-        # await chat_helper.delete_message(context.bot, chat_id, message.message_id, delay_seconds=120)
+        asyncio.create_task(chat_helper.delete_message(context.bot, chat_id, message.message_id, delay_seconds=120))
 
         # determine target_user_id
         if message.reply_to_message:
