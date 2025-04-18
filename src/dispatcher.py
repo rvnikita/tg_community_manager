@@ -1060,7 +1060,7 @@ async def tg_ai_spamcheck(update, context):
                 created_at = user_obj.get("created_at")
                 if created_at:
                     delta_days = (datetime.now(timezone.utc) - created_at).days
-                    created_block = f"{created_at} ({delta_days} d)"
+                    created_block = f"{created_at.strftime('%m-%d-%Y')} ({delta_days} d)"
 
         vis_emoji = "‼️" if action == "delete+mute" else "⚠️" if action == "delete" else "👌"
 
@@ -1068,13 +1068,12 @@ async def tg_ai_spamcheck(update, context):
             "",
             "╔═ AI‑Spamcheck",
             f"║ Probability  : {vis_emoji} {spam_prob:.5f}  (del≥{delete_thr}, mute≥{mute_thr})",
+            f"║ Action       : {action}",
+            f"║ User         : {user_ment}",
             f"║ Chat         : {chat_name} ({chat_id})",
             f"║ Engine       : {engine}",
-            f"║ Msg‑ID       : {message.message_id}",
             f"║ Msg‑log‑ID   : {message_log_id}",
-            f"║ User         : {user_ment} | rating={rating} | created_at={created_block}",
             f"║ Fwd / Reply  : forwarded={forwarded}  reply_to={reply_to}",
-            f"║ Action       : {action}",
             f"╚═ Content     : {short_txt}",
             f"      ↳ message_log_id={message_log_id}",
             f"      ↳ raw_message={update.message.to_dict() if hasattr(update.message, 'to_dict') else None}",
