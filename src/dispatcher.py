@@ -966,34 +966,31 @@ async def tg_spam_check(update, context):
 
 async def tg_ai_spamcheck(update, context):
     """
-    Run the ML spam‑classifier (“legacy” or “raw”) on every non‑admin message
-    and take action (delete / mute) when the probability crosses the *chat‑level*
-    thresholds.  A rich, multi‑line log entry is written for every message.
+    ML‑based spam detector with per‑chat configuration.
 
-    Chat‑level settings (via chat_helper.get_chat_config):
-    ─────────────────────────────────────────────────────
-    • ai_spamcheck_enabled          – bool
-    • ai_spamcheck_engine           – "legacy" | "raw"           (default: "legacy")
-    • antispam_delete_threshold     – float                      (default: 0.80)
-    • antispam_mute_threshold       – float                      (default: 0.95)
+    Chat‑level settings (chat_helper.get_chat_config):
+        • ai_spamcheck_enabled      – bool
+        • ai_spamcheck_engine       – "legacy" | "raw"   (default = "legacy")
+        • antispam_delete_threshold – float              (default = 0.80)
+        • antispam_mute_threshold   – float              (default = 0.95)
     """
     try:
         message = update.message
         if not message or not message.from_user:
             return
 
-        chat_id   = message.chat.id
-        user_id   = message.from_user.id
+        chat_id = message.chat.id
+        user_id = message.from_user.id
 
-        # feature‑toggle
+        # ───────────── feature toggle ─────────────
         if chat_helper.get_chat_config(chat_id, "ai_spamcheck_enabled") is not True:
             return
 
-        # do not police admins
+        # skip admins
         if any(adm.user.id == user_id for adm in await context.bot.get_chat_administrators(chat_id)):
             return
 
-        # ───────────────────────── engine & thresholds (chat‑scoped) ─────────────────────────
+        # ───────────── engine & thresholds ─────────────
         engine = (chat_helper.get_chat_config(chat_id, "ai_spamcheck_engine") or "legacy").lower()
         if engine not in ("legacy", "raw"):
             engine = "legacy"
@@ -1001,73 +998,74 @@ async def tg_ai_spamcheck(update, context):
         delete_thr = float(chat_helper.get_chat_config(chat_id, "antispam_delete_threshold") or 0.80)
         mute_thr   = float(chat_helper.get_chat_config(chat_id, "antispam_mute_threshold")   or 0.95)
 
-        # ───────────────────────── gather message facts ─────────────────────────
-        text          = message.text or message.caption or "Non‑text message"
-        reply_to      = message.reply_to_message.message_id if message.reply_to_message else None
-        forwarded     = bool(getattr(message, "forward_from", None) or getattr(message, "forward_from_chat", None))
+        # ───────────── message facts ─────────────
+        text      = message.text or message.caption or "Non‑text message"
+        reply_to  = message.reply_to_message.message_id if message.reply_to_message else None
+        forwarded = bool(getattr(message, "forward_from", None) or getattr(message, "forward_from_chat", None))
 
-        # ───────────────────────── run the model ─────────────────────────
-        try:
-            embedding = openai_helper.generate_embedding(text)
+        # ───────────── model inference ─────────────
+        embedding = openai_helper.generate_embedding(text)
 
-            if engine == "raw":
-                spam_prob = await spamcheck_helper_raw.predict_spam(
-                    user_id=user_id,
-                    chat_id=chat_id,
-                    message_text=text,
-                    raw_message=message.to_dict(),
-                    embedding=embedding,
-                )
-            else:
-                spam_prob = await spamcheck_helper.predict_spam(
-                    user_id=user_id,
-                    chat_id=chat_id,
-                    message_content=text,
-                    embedding=embedding,
-                )
-        except Exception as model_err:
-            logger.error(f"[ai_spamcheck] model error: {model_err}")
-            return
+        if engine == "raw":
+            spam_prob = await spamcheck_helper_raw.predict_spam(
+                user_id=user_id,
+                chat_id=chat_id,
+                message_text=text,
+                raw_message=message.to_dict(),
+                embedding=embedding,
+            )
+        else:
+            spam_prob = await spamcheck_helper.predict_spam(
+                user_id=user_id,
+                chat_id=chat_id,
+                message_content=text,
+                embedding=embedding,
+            )
 
-        # ───────────────────────── record to DB ─────────────────────────
+        # ───────────── DB logging ─────────────
         message_log_id = message_helper.insert_or_update_message_log(
-            chat_id              = chat_id,
-            message_id           = message.message_id,
-            user_id              = user_id,
-            user_nickname        = message.from_user.first_name,
-            user_current_rating  = rating_helper.get_rating(user_id, chat_id),
-            message_content      = text,
-            action_type          = "spam detection",
-            reporting_id         = context.bot.id,
-            reporting_id_nickname= "rv_tg_community_bot",
-            reason_for_action    = "Automated spam detection",
-            is_spam              = spam_prob >= delete_thr,
-            manually_verified    = False,
+            chat_id                     = chat_id,
+            message_id                  = message.message_id,
+            user_id                     = user_id,
+            user_nickname               = message.from_user.first_name,
+            user_current_rating         = rating_helper.get_rating(user_id, chat_id),
+            message_content             = text,
+            action_type                 = "spam detection",
+            reporting_id                = context.bot.id,
+            reporting_id_nickname       = "rv_tg_community_bot",
+            reason_for_action           = "Automated spam detection",
+            is_spam                     = spam_prob >= delete_thr,
+            manually_verified           = False,
             spam_prediction_probability = spam_prob,
-            embedding            = embedding
+            embedding                   = embedding
         )
 
-        # ───────────────────────── take action ─────────────────────────
+        # ───────────── moderation action ─────────────
         action = "none"
-        try:
-            if spam_prob >= delete_thr:
-                await chat_helper.delete_message(context.bot, chat_id, message.message_id)
-                action = "delete"
+        if spam_prob >= delete_thr:
+            await chat_helper.delete_message(context.bot, chat_id, message.message_id)
+            action = "delete"
 
-                if spam_prob >= mute_thr:
-                    await chat_helper.mute_user(context.bot, chat_id, user_id, 7 * 24)  # 7 days
-                    action = "delete+mute"
-        except Exception as act_err:
-            logger.error(f"[ai_spamcheck] failed to apply action: {act_err}")
+            if spam_prob >= mute_thr:
+                await chat_helper.mute_user(context.bot, chat_id, user_id, 7 * 24)  # 7 days
+                action = "delete+mute"
 
-        # ───────────────────────── pretty log ─────────────────────────
-        chat_name  = await chat_helper.get_chat_mention(context.bot, chat_id)
-        user_ment  = user_helper.get_user_mention(user_id, chat_id)
-        rating     = rating_helper.get_rating(user_id, chat_id)
-        short_txt  = (text[:200] + "…") if len(text) > 203 else text   # cap length for log
+        # ───────────── pretty log ─────────────
+        chat_name = await chat_helper.get_chat_mention(context.bot, chat_id)
+        user_ment = user_helper.get_user_mention(user_id, chat_id)
+        rating    = rating_helper.get_rating(user_id, chat_id)
+        short_txt = (text[:200] + "…") if len(text) > 203 else text
+
+        # pick visibility emoji
+        if action == "delete+mute":
+            vis_emoji = "‼️"
+        elif action == "delete":
+            vis_emoji = "⚠️"
+        else:
+            vis_emoji = "👌"   # not spam
 
         log_lines = [
-            "╔═ AI‑Spamcheck ──────────────────────────────────────────────────────────",
+            f"{vis_emoji}╔═ AI‑Spamcheck",
             f"║ Chat         : {chat_name} ({chat_id})",
             f"║ Engine       : {engine}",
             f"║ Msg‑ID       : {message.message_id}",
@@ -1079,15 +1077,15 @@ async def tg_ai_spamcheck(update, context):
             f"      ↳ message_log_id={message_log_id}",
         ]
         logger.info("\n".join(log_lines))
-    except Exception as e:
-        update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
-        logger.error(f"Error in tg_ai_spamcheck: {traceback.format_exc()} | Update: {update_str}")
-        await chat_helper.send_message(
-            context.bot,
-            chat_id,
-            "An error occurred while processing the AI spam check.",
-            reply_to_message_id=message.message_id
+
+    except Exception:
+        # any unhandled error gets here
+        logger.error(
+            f"Error processing AI spamcheck | chat_id={update.effective_chat.id if update.effective_chat else 'N/A'} | "
+            f"user_id={update.effective_user.id if update.effective_user else 'N/A'} | "
+            f"traceback={traceback.format_exc()}"
         )
+
 
 
 # BrightData (formerly Luminati) proxy credentials.
