@@ -1065,7 +1065,9 @@ async def tg_ai_spamcheck(update, context):
             vis_emoji = "👌"   # not spam
 
         log_lines = [
-            f"{vis_emoji}╔═ AI‑Spamcheck",
+            f"",
+            f"╔═ AI‑Spamcheck",
+            f"║ TLDR         : {vis_emoji}",
             f"║ Chat         : {chat_name} ({chat_id})",
             f"║ Engine       : {engine}",
             f"║ Msg‑ID       : {message.message_id}",
@@ -1075,6 +1077,7 @@ async def tg_ai_spamcheck(update, context):
             f"║ Action       : {action}",
             f"╚═ Content     : {short_txt}",
             f"      ↳ message_log_id={message_log_id}",
+            f"      ↳ raw_message={update.message.to_dict() if hasattr(update.message, 'to_dict') else None}",
         ]
         logger.info("\n".join(log_lines))
 
