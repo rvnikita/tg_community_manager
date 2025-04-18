@@ -982,30 +982,25 @@ async def tg_ai_spamcheck(update, context):
         chat_id = message.chat.id
         user_id = message.from_user.id
 
-        # ───────────── feature toggle ─────────────
+        # ───────────── feature‑toggle / admin‑skip ─────────────
         if chat_helper.get_chat_config(chat_id, "ai_spamcheck_enabled") is not True:
             return
-
-        # skip admins
         if any(adm.user.id == user_id for adm in await context.bot.get_chat_administrators(chat_id)):
             return
 
         # ───────────── engine & thresholds ─────────────
-        engine = (chat_helper.get_chat_config(chat_id, "ai_spamcheck_engine") or "legacy").lower()
-        if engine not in ("legacy", "raw"):
-            engine = "legacy"
-
+        engine     = (chat_helper.get_chat_config(chat_id, "ai_spamcheck_engine") or "legacy").lower()
+        engine     = engine if engine in ("legacy", "raw") else "legacy"
         delete_thr = float(chat_helper.get_chat_config(chat_id, "antispam_delete_threshold") or 0.80)
         mute_thr   = float(chat_helper.get_chat_config(chat_id, "antispam_mute_threshold")   or 0.95)
 
         # ───────────── message facts ─────────────
-        text      = message.text or message.caption or "Non‑text message"
-        reply_to  = message.reply_to_message.message_id if message.reply_to_message else None
-        forwarded = bool(getattr(message, "forward_from", None) or getattr(message, "forward_from_chat", None))
+        text       = message.text or message.caption or "Non‑text message"
+        reply_to   = message.reply_to_message.message_id if message.reply_to_message else None
+        forwarded  = bool(getattr(message, "forward_from", None) or getattr(message, "forward_from_chat", None))
 
         # ───────────── model inference ─────────────
-        embedding = openai_helper.generate_embedding(text)
-
+        embedding  = openai_helper.generate_embedding(text)
         if engine == "raw":
             spam_prob = await spamcheck_helper_raw.predict_spam(
                 user_id=user_id,
@@ -1045,34 +1040,39 @@ async def tg_ai_spamcheck(update, context):
         if spam_prob >= delete_thr:
             await chat_helper.delete_message(context.bot, chat_id, message.message_id)
             action = "delete"
-
             if spam_prob >= mute_thr:
                 await chat_helper.mute_user(context.bot, chat_id, user_id, 7 * 24)  # 7 days
                 action = "delete+mute"
 
         # ───────────── pretty log ─────────────
-        chat_name = await chat_helper.get_chat_mention(context.bot, chat_id)
-        user_ment = user_helper.get_user_mention(user_id, chat_id)
-        user = user_helper.get_user_by_id(user_id)
-        rating    = rating_helper.get_rating(user_id, chat_id)
-        short_txt = (text[:200] + "…") if len(text) > 203 else text
+        chat_name  = await chat_helper.get_chat_mention(context.bot, chat_id)
+        user_ment  = user_helper.get_user_mention(user_id, chat_id)
+        user_obj   = user_helper.get_user_by_id(user_id)            # ORM   (may be None)
+        rating     = rating_helper.get_rating(user_id, chat_id)
+        short_txt  = (text[:200] + "…") if len(text) > 203 else text
 
-        # pick visibility emoji
-        if action == "delete+mute":
-            vis_emoji = "‼️"
-        elif action == "delete":
-            vis_emoji = "⚠️"
-        else:
-            vis_emoji = "👌"   # not spam
+        created_block = "unknown"
+        if user_obj is not None:
+            if hasattr(user_obj, "created_at"):
+                delta_days = (datetime.now(timezone.utc) - user_obj.created_at).days
+                created_block = f"{user_obj.created_at} ({delta_days} d)"
+            elif isinstance(user_obj, dict):
+                created_at = user_obj.get("created_at")
+                if created_at:
+                    delta_days = (datetime.now(timezone.utc) - created_at).days
+                    created_block = f"{created_at} ({delta_days} d)"
+
+        vis_emoji = "‼️" if action == "delete+mute" else "⚠️" if action == "delete" else "👌"
 
         log_lines = [
-            f"",
-            f"╔═ AI‑Spamcheck",
-            f"║ Probability  : {vis_emoji} {spam_prob:.5f} (del≥{delete_thr}, mute≥{mute_thr})"
+            "",
+            "╔═ AI‑Spamcheck",
+            f"║ Probability  : {vis_emoji} {spam_prob:.5f}  (del≥{delete_thr}, mute≥{mute_thr})",
             f"║ Chat         : {chat_name} ({chat_id})",
             f"║ Engine       : {engine}",
-            f"║ Msg-log-ID   : {message_log_id}",
-            f"║ User         : {user_ment} | rating={rating} | created_at = {user.created_at} ({(datetime.now(timezone.utc) - user.created_at).days})",
+            f"║ Msg‑ID       : {message.message_id}",
+            f"║ Msg‑log‑ID   : {message_log_id}",
+            f"║ User         : {user_ment} | rating={rating} | created_at={created_block}",
             f"║ Fwd / Reply  : forwarded={forwarded}  reply_to={reply_to}",
             f"║ Action       : {action}",
             f"╚═ Content     : {short_txt}",
@@ -1081,8 +1081,8 @@ async def tg_ai_spamcheck(update, context):
         ]
         logger.info("\n".join(log_lines))
 
+    # ───────────── top‑level fail‑safe ─────────────
     except Exception:
-        # any unhandled error gets here
         logger.error(
             f"Error processing AI spamcheck | chat_id={update.effective_chat.id if update.effective_chat else 'N/A'} | "
             f"user_id={update.effective_user.id if update.effective_user else 'N/A'} | "

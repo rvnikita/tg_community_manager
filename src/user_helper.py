@@ -9,17 +9,31 @@ import src.rating_helper as rating_helper
 
 logger = logging.get_logger()
 
-def get_user_id(username: str = None):
+def get_user_by_id(user_id: int):
+    """
+    Fetch a user row by id.
+
+    • If as_dict=False (default)  →  returns a detached SQLAlchemy object
+      (full model, all attributes).
+
+    • If as_dict=True             →  returns a plain dict
+      (handy for JSON serialisation, but has only a subset of fields).
+
+    On any error it logs and returns None.
+    """
     try:
-        with db_helper.session_scope() as db_session:
-            if username:
-                username = username.lstrip('@')
-                user = db_session.query(db_helper.User).filter_by(username=username).first()
-                if user:
-                    return user.id
-            return None
-    except Exception as e:
-        logger.error(f"Error: {traceback.format_exc()}")
+        with db_helper.session_scope() as session:
+            user = session.query(db_helper.User).filter_by(id=user_id).first()
+            if not user:
+                return None
+
+            # detach, so the object can be safely used after the session closes
+            session.expunge(user)
+            return user
+
+    except Exception:
+        logger.error(f"Error in get_user_by_id\n{traceback.format_exc()}")
+        return None
 
 def get_user_by_id(user_id: int):
     try:
