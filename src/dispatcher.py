@@ -1053,6 +1053,7 @@ async def tg_ai_spamcheck(update, context):
         # ───────────── pretty log ─────────────
         chat_name = await chat_helper.get_chat_mention(context.bot, chat_id)
         user_ment = user_helper.get_user_mention(user_id, chat_id)
+        user = user_helper.get_user_by_id(user_id)
         rating    = rating_helper.get_rating(user_id, chat_id)
         short_txt = (text[:200] + "…") if len(text) > 203 else text
 
@@ -1067,13 +1068,12 @@ async def tg_ai_spamcheck(update, context):
         log_lines = [
             f"",
             f"╔═ AI‑Spamcheck",
-            f"║ TLDR         : {vis_emoji}",
+            f"║ Probability  : {vis_emoji} {spam_prob:.5f} (del≥{delete_thr}, mute≥{mute_thr})"
             f"║ Chat         : {chat_name} ({chat_id})",
             f"║ Engine       : {engine}",
-            f"║ Msg‑ID       : {message.message_id}",
-            f"║ User         : {user_ment} ({user_id})  | rating={rating}",
+            f"║ Msg-log-ID   : {message_log_id}",
+            f"║ User         : {user_ment} | rating={rating} | created_at = {user.created_at} ({(datetime.now(timezone.utc) - user.created_at).days})",
             f"║ Fwd / Reply  : forwarded={forwarded}  reply_to={reply_to}",
-            f"║ Probability  : {spam_prob:.5f}   (del≥{delete_thr}, mute≥{mute_thr})",
             f"║ Action       : {action}",
             f"╚═ Content     : {short_txt}",
             f"      ↳ message_log_id={message_log_id}",

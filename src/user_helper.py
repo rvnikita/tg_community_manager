@@ -21,6 +21,23 @@ def get_user_id(username: str = None):
     except Exception as e:
         logger.error(f"Error: {traceback.format_exc()}")
 
+def get_user_by_id(user_id: int):
+    try:
+        with db_helper.session_scope() as db_session:
+            user = db_session.query(db_helper.User).filter_by(id=user_id).first()
+            if user:
+                return {
+                    "id": user.id,
+                    "username": user.username,
+                    "first_name": user.first_name,
+                    "last_name": user.last_name,
+                    "created_at": user.created_at
+                }
+            return None
+    except Exception as e:  
+        logger.error(f"Error: {traceback.format_exc()}")
+        return None
+
 
 def get_user_mention(user_id: int, chat_id: int = None) -> str:
     try:
