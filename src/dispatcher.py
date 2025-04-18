@@ -28,6 +28,8 @@ import src.rating_helper as rating_helper
 import src.reporting_helper as reporting_helper
 import src.message_helper as message_helper
 import src.spamcheck_helper as spamcheck_helper
+import src.spamcheck_helper_raw as spamcheck_helper_raw
+
 
 logger = logging.get_logger()
 
@@ -973,13 +975,20 @@ async def tg_ai_spamcheck(update, context):
     # Check if AI spam check is enabled for the chat
     if chat_helper.get_chat_config(message.chat.id, "ai_spamcheck_enabled") != True:
         return
+    
+    chat_id = message.chat.id
+
+    ai_spamcheck_engine = chat_helper.get_chat_config(chat_id, "ai_spamcheck_engine") \
+             or os.getenv("ENV_AISPAM_ENGINE", "legacy")   # NEW
+
+    if ai_spamcheck_engine not in ("legacy", "raw"):
+        ai_spamcheck_engine = "legacy"
 
     # Skip if the user is an admin
     if any(admin.user.id == message.from_user.id for admin in await context.bot.get_chat_administrators(message.chat.id)):
         return
 
     user_id = message.from_user.id
-    chat_id = message.chat.id
 
     # Extract message content
     # TODO:MED: let's take the photo content, send it to the OpenAI to describe and attach it to message_content so it could be used in spam prediction 
@@ -993,15 +1002,23 @@ async def tg_ai_spamcheck(update, context):
         # Generate the embedding once here
         embedding = openai_helper.generate_embedding(message_content)
 
-        # Use the embedding and other parameters for spam prediction
-        spam_proba = await spamcheck_helper.predict_spam(
-            user_id=user_id,
-            chat_id=chat_id,
-            message_content=message_content,
-            embedding=embedding,
-            reply_to_message_id=reply_to_message_id,
-            is_forwarded=is_forwarded
-        )
+        if ai_spamcheck_engine == "raw":
+            logger.info(f"Using raw AI spamcheck engine for chat {chat_id}")
+            spam_proba = await spamcheck_helper_raw.predict_spam(
+                user_id=user_id,
+                chat_id=chat_id,
+                message_text=message_content,
+                raw_message=message.to_dict(),
+                embedding=embedding,
+            )
+        else:  # legacy
+            spam_proba = await spamcheck_helper.predict_spam(
+                user_id=user_id,
+                chat_id=chat_id,
+                message_content=message_content,
+                embedding=embedding,
+                # legacy helper doesn't need raw JSON
+            )
 
         # Fetch thresholds for deleting and muting messages
         delete_threshold = float(os.getenv('ENV_ANTISPAM_DELETE_THRESHOLD'))
