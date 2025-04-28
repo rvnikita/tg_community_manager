@@ -72,6 +72,11 @@ def get_default_chat(config_param=None):
             return None
 
 def get_chat_config(chat_id=None, config_param=None, default=None):
+    
+    # skip DM chats
+    if chat_id > 0:
+        return default
+
     cache_key = f"chat_config:{chat_id}:{config_param}"
     config_value = cache_helper.get_key(cache_key)
 
