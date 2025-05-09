@@ -1010,6 +1010,9 @@ async def tg_spam_check(update, context):
         is_admin = any(admin.user.id == message.from_user.id for admin in chat_administrators)
         if is_admin:
             return
+        
+        if message.from_user.id == 777000:  # Telegram's own bot TODO:MED: Maybe we need to check this differently as users could post through 777000 bot
+            return
 
         if message:
             agressive_antispam = chat_helper.get_chat_config(message.chat.id, "agressive_antispam")
@@ -1075,6 +1078,8 @@ async def tg_ai_spamcheck(update, context):
         if chat_helper.get_chat_config(chat_id, "ai_spamcheck_enabled") is not True:
             return
         if any(adm.user.id == user_id for adm in await context.bot.get_chat_administrators(chat_id)):
+            return
+        if message.from_user.id == 777000:  # Telegram's own bot TODO:MED: Maybe we need to check this differently as users could post through 777000 bot
             return
 
         # ───────────── engine & thresholds ─────────────
