@@ -1183,112 +1183,78 @@ async def tg_cas_spamcheck(update, context):
     """
     Check if a user is CAS banned using the Combot Anti-Spam API.
 
-    This function works for both:
-      - New member events (update.message.new_chat_members exists): logs with message_id=0
-      - Regular message events: logs the check using the message details
+    - New members (update.message.new_chat_members): message_id=0
+    - Regular messages: message_id=message.message_id
 
-    If the CAS check indicates the user is banned, the user is muted.
+    “Record not found” from CAS is treated as “no info” (DEBUG), not an error.
     """
-    try:
-        if not update.message:
-            return
-
-        chat_id = update.effective_chat.id
-
-        # Only proceed if CAS is enabled in the chat configuration.
-        if not chat_helper.get_chat_config(chat_id, "cas_enabled", default=False):
-            return
-
-        async with aiohttp.ClientSession() as session:
-            # ----- CASE 1: New member(s) joining -----
-            if update.message.new_chat_members:
-                for new_member in update.message.new_chat_members:
-                    user_id = new_member.id
-
-                    # Skip CAS check for new members who are admins.
-                    chat_admins = await context.bot.get_chat_administrators(chat_id)
-                    if any(admin.user.id == user_id for admin in chat_admins):
-                        continue
-
-                    url = f"https://api.cas.chat/check?user_id={user_id}"
-                    async with session.get(url, proxy=BRIGHTDATA_PROXY, ssl=ssl_context) as response:
-                        if response.status != 200:
-                            logger.error(f"CAS API returned status {response.status} for user {user_id}")
-                            continue
-                        data = await response.json()
-
-                    if not data.get("ok", False):
-                        logger.info(f"CAS API not ok for user {user_id}: {data.get('description', '')}")
-                        continue
-
-                    if data.get("result", False):
-                        # Mute the user if CAS banned.
-                        await chat_helper.mute_user(context.bot, chat_id, user_id)
-                        # Log the action with message_id=0 (since there is no message to log)
-                        message_helper.insert_or_update_message_log(
-                            chat_id=chat_id,
-                            message_id=0,
-                            user_id=user_id,
-                            user_nickname=new_member.username or new_member.first_name,
-                            user_current_rating=rating_helper.get_rating(user_id, chat_id),
-                            message_content=None,
-                            action_type="CAS Spam Check (New Member)",
-                            reporting_id=user_id,
-                            reporting_id_nickname=new_member.username or new_member.first_name,
-                            reason_for_action=f"User {user_id} is CAS banned. {data.get('description', '')}",
-                            is_spam=True,
-                            manually_verified=True,
-                            embedding=None
-                        )
-                        logger.info(f"CAS check (new member): User {user_helper.get_user_mention(user_id, chat_id)} has been muted.")
-                return  # Done processing new members.
-
-            # ----- CASE 2: Regular message event -----
-            else:
-                message = update.message
-                user = message.from_user
-                user_id = user.id
-                message_id = message.message_id
-                message_content = message.text or message.caption or ""
-
-                # (Optional) Skip CAS check for admins:
-                chat_admins = await context.bot.get_chat_administrators(chat_id)
-                if any(admin.user.id == user_id for admin in chat_admins):
-                    return
-
-                url = f"https://api.cas.chat/check?user_id={user_id}"
-                async with session.get(url, proxy=BRIGHTDATA_PROXY, ssl=ssl_context) as response:
-                    if response.status != 200:
-                        logger.error(f"CAS API returned status {response.status} for user {user_id}")
-                        return
-                    data = await response.json()
-
-                if not data.get("ok", False):
-                    logger.info(f"CAS API not ok for user {user_id}: {data.get('description', '')}")
-                    return
-
-                if data.get("result", False):
-                    await chat_helper.mute_user(context.bot, chat_id, user_id)
-                    message_helper.insert_or_update_message_log(
-                        chat_id=chat_id,
-                        message_id=message_id,
-                        user_id=user_id,
-                        user_nickname=user.username or user.first_name,
-                        user_current_rating=rating_helper.get_rating(user_id, chat_id),
-                        message_content=message_content,
-                        action_type="CAS Spam Check",
-                        reporting_id=user_id,
-                        reporting_id_nickname=user.username or user.first_name,
-                        reason_for_action=f"User {user_id} is CAS banned. {data.get('description', '')}",
-                        is_spam=True,
-                        manually_verified=True,
-                        embedding=None
-                    )
-                    logger.info(f"CAS check: User {user_helper.get_user_mention(user_id, chat_id)} has been muted.")
-
+    if not update.message:
         return
-    except Exception as e:
-        logger.error(f"Error in tg_cas_spamcheck: {traceback.format_exc()}")
+
+    chat_id = update.effective_chat.id
+    if not chat_helper.get_chat_config(chat_id, "cas_enabled", default=False):
+        return
+
+    # Gather all (user, message_id, nickname) tuples we need to check.
+    checks = []
+    if update.message.new_chat_members:
+        for member in update.message.new_chat_members:
+            checks.append((member.id, 0, member.username or member.first_name))
+    else:
+        msg = update.message
+        checks.append((msg.from_user.id, msg.message_id, msg.from_user.username or msg.from_user.first_name))
+
+    async with aiohttp.ClientSession() as session:
+        for user_id, message_id, nickname in checks:
+            # skip admins
+            admins = await context.bot.get_chat_administrators(chat_id)
+            if any(a.user.id == user_id for a in admins):
+                continue
+
+            url = f"https://api.cas.chat/check?user_id={user_id}"
+            try:
+                resp = await session.get(url, proxy=BRIGHTDATA_PROXY, ssl=ssl_context)
+            except Exception as e:
+                logger.error(f"CAS API request failed for user {user_id}: {e}")
+                continue
+
+            if resp.status != 200:
+                logger.error(f"CAS API returned HTTP {resp.status} for user {user_id}")
+                continue
+
+            data = await resp.json()
+            desc = data.get("description", "")
+
+            if not data.get("ok", False):
+                # If there simply is no record, that's fine—just DEBUG.
+                if "Record not found" in desc:
+                    logger.debug(f"CAS API no record for user {user_id}")
+                else:
+                    logger.info(f"CAS API not ok for user {user_id}: {desc}")
+                continue
+
+            # API says “ok” — now check the actual ban result
+            if data.get("result", False):
+                # Mute the user
+                await chat_helper.mute_user(context.bot, chat_id, user_id)
+                # Log to our DB
+                message_helper.insert_or_update_message_log(
+                    chat_id=chat_id,
+                    message_id=message_id,
+                    user_id=user_id,
+                    user_nickname=nickname,
+                    user_current_rating=rating_helper.get_rating(user_id, chat_id),
+                    message_content=None if message_id == 0 else (update.message.text or update.message.caption),
+                    action_type="CAS Spam Check" + (" (New Member)" if message_id == 0 else ""),
+                    reporting_id=user_id,
+                    reporting_id_nickname=nickname,
+                    reason_for_action=f"User {user_id} is CAS banned. {desc}",
+                    is_spam=True,
+                    manually_verified=True,
+                    embedding=None
+                )
+                logger.info(f"CAS check: muted user {user_id} in chat {chat_id}")
+            # else: result==False → user is clean, nothing to do
 
 
 async def tg_thankyou(update, context):
