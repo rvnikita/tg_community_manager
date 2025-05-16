@@ -3,18 +3,19 @@ import re
 import asyncio
 
 import dotenv
-import telethon
+from telethon import TelegramClient, events
 import telegram
 import telegram.request
 
 import logging_helper
 import src.db_helper as db_helper
 import src.chat_helper as chat_helper
+import src.message_helper as message_helper
 
 dotenv.load_dotenv("config/.env")
 logger = logging_helper.get_logger()
 
-client = telethon.TelegramClient(
+client = TelegramClient(
     os.getenv("CAS_TELETHON_SESSION_NAME", "cas_telethon"),
     int(os.getenv("CAS_TELETHON_API_ID")),
     os.getenv("CAS_TELETHON_API_HASH"),
@@ -30,18 +31,51 @@ async def main():
     me = await client.get_me()
     logger.info(f"CAS listener logged in as {me.username} (id={me.id})")
 
-    @client.on(telethon.events.NewMessage(chats=os.getenv("CAS_FEED_CHANNEL", "cas_feed")))
+    @client.on(events.NewMessage(chats=os.getenv("CAS_FEED_CHANNEL", "cas_feed")))
     async def cas_handler(event):
         text = event.message.message or ""
         for uid in re.findall(r"#(\d+)", text):
             user_id = int(uid)
+
+            # find all chats where user has status
             with db_helper.session_scope() as session:
-                user = session.query(db_helper.User).filter_by(id=user_id).first()
-            if user:
-                await chat_helper.mute_user(bot, user.chat_id, user_id)
-                logger.info(f"Muted user {user_id} in chat {user.chat_id} due to CAS ban")
-            else:
-                logger.info(f"CAS ban for unknown user {user_id}")
+                rows = session.query(db_helper.User_Status.chat_id).filter_by(user_id=user_id).all()
+            chat_ids = [chat_id for (chat_id,) in rows]
+
+            # fallback: chats where user sent messages
+            if not chat_ids:
+                with db_helper.session_scope() as session:
+                    rows = session.query(db_helper.Message_Log.chat_id)\
+                                  .filter(db_helper.Message_Log.user_id == user_id)\
+                                  .distinct()\
+                                  .all()
+                chat_ids = [chat_id for (chat_id,) in rows]
+
+            if not chat_ids:
+                logger.info(f"No chats found for user {user_id}, skipping mute")
+                continue
+
+            # mute in each chat
+            for chat_id in chat_ids:
+                try:
+                    await chat_helper.mute_user(bot, chat_id, user_id)
+                    logger.info(f"Muted user {user_id} in chat {chat_id} due to CAS ban")
+                except Exception as e:
+                    logger.error(f"Failed to mute user {user_id} in chat {chat_id}: {e}")
+
+            # mark all their messages as spam
+            with db_helper.session_scope() as session:
+                logs = session.query(db_helper.Message_Log)\
+                              .filter(db_helper.Message_Log.user_id == user_id)\
+                              .all()
+            for log in logs:
+                message_helper.insert_or_update_message_log(
+                    chat_id=log.chat_id,
+                    message_id=log.message_id,
+                    is_spam=True,
+                    manually_verified=True
+                )
+                logger.info(f"Marked message {log.message_id} in chat {log.chat_id} as spam for user {user_id}")
 
     await client.run_until_disconnected()
 
