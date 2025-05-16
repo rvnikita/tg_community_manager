@@ -238,25 +238,18 @@ async def warn_user(bot, chat_id: int, user_id: int) -> None:
     pass
 
 async def mute_user(bot, chat_id: int, user_id: int, duration_in_hours: float = None) -> None:
-    # build a ChatPermissions that denies literally everything
-    perms = ChatPermissions(
-        can_send_messages=False,
-        can_send_media_messages=False,
-        can_send_other_messages=False,
-        can_add_web_page_previews=False
-    )
+    # build a ChatPermissions that denies every action
+    perms = ChatPermissions.no_permissions()
 
     if duration_in_hours is not None:
         until = datetime.now(timezone.utc) + timedelta(hours=duration_in_hours)
         desc = f"for {duration_in_hours:.2f}h (until {until.isoformat()})"
     else:
-        # indefinite
         until = None
         desc = "indefinitely"
 
     logger.info(f"mute_user: restricting user={user_id} in chat={chat_id} {desc}")
     try:
-        # pass the until_date kwarg explicitly
         await bot.restrict_chat_member(
             chat_id=chat_id,
             user_id=user_id,
@@ -266,7 +259,7 @@ async def mute_user(bot, chat_id: int, user_id: int, duration_in_hours: float = 
         logger.info(f"mute_user: SUCCESS user={user_id} in chat={chat_id}")
     except TelegramError as e:
         logger.error(f"mute_user: TELEGRAM ERROR muting user={user_id} in chat={chat_id}: {e.message}")
-    except Exception as e:
+    except Exception:
         logger.error(f"mute_user: UNEXPECTED ERROR muting user={user_id} in chat={chat_id}: {traceback.format_exc()}")
 
 
