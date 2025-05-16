@@ -12,6 +12,9 @@ logger = logging.get_logger()
 MODEL = load("ml_models/svm_spam_model_raw.joblib")
 SCALER = load("ml_models/scaler_raw.joblib")
 
+#TODO:MED: We should somehow use the whole raw message in the model (maybe through embedding)
+#TODO:HIGH: We should use amount of spam messages already sent by the user in the chat
+
 # ---------- helpers ----------------------------------------------------------
 def _extract_raw_features(raw_msg):
     ce_cnt = 0
