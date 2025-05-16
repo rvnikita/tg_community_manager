@@ -1058,9 +1058,9 @@ async def tg_spam_check(update, context):
 
 async def tg_ai_spamcheck(update, context):
     """
-    ML‑based spam detector with per‑chat configuration.
+    ML-based spam detector with per-chat configuration.
 
-    Chat‑level settings (chat_helper.get_chat_config):
+    Chat-level settings (chat_helper.get_chat_config):
         • ai_spamcheck_enabled      – bool
         • ai_spamcheck_engine       – "legacy" | "raw"   (default = "legacy")
         • antispam_delete_threshold – float              (default = 0.80)
@@ -1074,12 +1074,12 @@ async def tg_ai_spamcheck(update, context):
         chat_id = message.chat.id
         user_id = message.from_user.id
 
-        # ───────────── feature‑toggle / admin‑skip ─────────────
+        # ───────────── feature-toggle / admin-skip ─────────────
         if chat_helper.get_chat_config(chat_id, "ai_spamcheck_enabled") is not True:
             return
         if any(adm.user.id == user_id for adm in await context.bot.get_chat_administrators(chat_id)):
             return
-        if message.from_user.id == 777000:  # Telegram's own bot TODO:MED: Maybe we need to check this differently as users could post through 777000 bot
+        if user_id == 777000:
             return
 
         # ───────────── engine & thresholds ─────────────
@@ -1089,12 +1089,12 @@ async def tg_ai_spamcheck(update, context):
         mute_thr   = float(chat_helper.get_chat_config(chat_id, "antispam_mute_threshold")   or 0.95)
 
         # ───────────── message facts ─────────────
-        text       = message.text or message.caption or "Non‑text message"
-        reply_to   = message.reply_to_message.message_id if message.reply_to_message else None
-        forwarded  = bool(getattr(message, "forward_from", None) or getattr(message, "forward_from_chat", None))
+        text      = message.text or message.caption or "Non-text message"
+        reply_to  = message.reply_to_message.message_id if message.reply_to_message else None
+        forwarded = bool(getattr(message, "forward_from", None) or getattr(message, "forward_from_chat", None))
 
         # ───────────── model inference ─────────────
-        embedding  = openai_helper.generate_embedding(text)
+        embedding = openai_helper.generate_embedding(text)
         if engine == "raw":
             spam_prob = await spamcheck_helper_raw.predict_spam(
                 user_id=user_id,
@@ -1132,35 +1132,58 @@ async def tg_ai_spamcheck(update, context):
         # ───────────── moderation action ─────────────
         action = "none"
         if spam_prob >= delete_thr:
+            # always delete the offending message
             await chat_helper.delete_message(context.bot, chat_id, message.message_id)
             action = "delete"
+
             if spam_prob >= mute_thr:
-                await chat_helper.mute_user(context.bot, chat_id, user_id, 7 * 24)  # 7 days
+                # gather *all* chat_ids where we’ve seen this user
+                with db_helper.session_scope() as session:
+                    rows = session.query(db_helper.User_Status.chat_id) \
+                                  .filter_by(user_id=user_id) \
+                                  .all()
+                chat_ids = [cid for (cid,) in rows]
+
+                # fallback to message logs if no statuses
+                if not chat_ids:
+                    with db_helper.session_scope() as session:
+                        rows = session.query(db_helper.Message_Log.chat_id) \
+                                      .filter(db_helper.Message_Log.user_id == user_id) \
+                                      .distinct() \
+                                      .all()
+                    chat_ids = [cid for (cid,) in rows]
+
+                # mute in each chat indefinitely (or 7 days—adjust as you like)
+                for cid in chat_ids:
+                    try:
+                        await chat_helper.mute_user(context.bot, cid, user_id, duration_in_hours=7*24)
+                    except Exception as e:
+                        logger.error(f"mute_user failed for {user_id} in chat {cid}: {e}")
+
                 action = "delete+mute"
 
         # ───────────── pretty log ─────────────
-        chat_name  = await chat_helper.get_chat_mention(context.bot, chat_id)
-        user_ment  = user_helper.get_user_mention(user_id, chat_id)
-        short_txt  = (text[:200] + "…") if len(text) > 203 else text
-        vis_emoji = "‼️" if action == "delete+mute" else "⚠️" if action == "delete" else "👌"
+        chat_name = await chat_helper.get_chat_mention(context.bot, chat_id)
+        user_ment = user_helper.get_user_mention(user_id, chat_id)
+        short_txt = (text[:200] + "…") if len(text) > 203 else text
+        vis_emoji = "‼️" if action=="delete+mute" else "⚠️" if action=="delete" else "👌"
 
         log_lines = [
             "",
-            "╔═ AI‑Spamcheck",
+            "╔═ AI-Spamcheck",
             f"║ Probability  : {vis_emoji} {spam_prob:.5f}  (del≥{delete_thr}, mute≥{mute_thr})",
             f"║ Action       : {action}",
             f"║ User         : {user_ment}",
             f"║ Chat         : {chat_name} ({chat_id})",
             f"║ Engine       : {engine}",
-            f"║ Msg‑log‑ID   : {message_log_id}",
+            f"║ Msg-log-ID   : {message_log_id}",
             f"║ Fwd / Reply  : forwarded={forwarded}  reply_to={reply_to}",
             f"╚═ Content     : {short_txt}",
             f"      ↳ message_log_id={message_log_id}",
-            f"      ↳ raw_message={update.message.to_dict() if hasattr(update.message, 'to_dict') else None}",
+            f"      ↳ raw_message={message.to_dict() if hasattr(message, 'to_dict') else None}",
         ]
         logger.info("\n".join(log_lines))
 
-    # ───────────── top‑level fail‑safe ─────────────
     except Exception:
         logger.error(
             f"Error processing AI spamcheck | chat_id={update.effective_chat.id if update.effective_chat else 'N/A'} | "
