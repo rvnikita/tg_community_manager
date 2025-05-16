@@ -26,6 +26,8 @@ bot = telegram.Bot(
     request=telegram.request.HTTPXRequest(http_version="1.1"),
 )
 
+CAS_PATTERN = re.compile(r"User\s+#(\d+)\s+has been CAS banned\b", re.IGNORECASE)
+
 async def main():
     await client.start(os.getenv("CAS_TELETHON_PHONE_NUMBER"))
     me = await client.get_me()
@@ -34,13 +36,16 @@ async def main():
     @client.on(events.NewMessage(chats=os.getenv("CAS_FEED_CHANNEL", "cas_feed")))
     async def cas_handler(event):
         text = event.message.message or ""
-        for uid in re.findall(r"#(\d+)", text):
-            user_id = int(uid)
+        for match in CAS_PATTERN.finditer(text):
+            user_id = int(match.group(1))
+            logger.info(f"Extracted CAS-banned user id: {user_id}")
 
-            # find all chats where user has status
+            # find chats where user has status
             with db_helper.session_scope() as session:
-                rows = session.query(db_helper.User_Status.chat_id).filter_by(user_id=user_id).all()
-            chat_ids = [chat_id for (chat_id,) in rows]
+                rows = session.query(db_helper.User_Status.chat_id)\
+                              .filter_by(user_id=user_id)\
+                              .all()
+            chat_ids = [cid for (cid,) in rows]
 
             # fallback: chats where user sent messages
             if not chat_ids:
@@ -49,17 +54,16 @@ async def main():
                                   .filter(db_helper.Message_Log.user_id == user_id)\
                                   .distinct()\
                                   .all()
-                chat_ids = [chat_id for (chat_id,) in rows]
+                chat_ids = [cid for (cid,) in rows]
 
             if not chat_ids:
-                logger.info(f"No chats found for user {user_id}, skipping mute")
+                logger.info(f"No chats found for user {user_id}, skipping")
                 continue
 
-            # mute in each chat
             for chat_id in chat_ids:
                 try:
                     await chat_helper.mute_user(bot, chat_id, user_id)
-                    logger.info(f"Muted user {user_id} in chat {chat_id} due to CAS ban")
+                    logger.info(f"Muted user {user_id} in chat {chat_id}")
                 except Exception as e:
                     logger.error(f"Failed to mute user {user_id} in chat {chat_id}: {e}")
 
@@ -68,6 +72,8 @@ async def main():
                 logs = session.query(db_helper.Message_Log)\
                               .filter(db_helper.Message_Log.user_id == user_id)\
                               .all()
+
+            emoji = "🚨 " if logs else ""
             for log in logs:
                 message_helper.insert_or_update_message_log(
                     chat_id=log.chat_id,
@@ -75,7 +81,7 @@ async def main():
                     is_spam=True,
                     manually_verified=True
                 )
-                logger.info(f"Marked message {log.message_id} in chat {log.chat_id} as spam for user {user_id}")
+                logger.info(f"{emoji}Marked msg {log.message_id} in chat {log.chat_id} as spam")
 
     await client.run_until_disconnected()
 
