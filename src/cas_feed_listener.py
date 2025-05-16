@@ -56,10 +56,10 @@ async def main():
                 chat_ids = [cid for (cid,) in rows]
 
             if not chat_ids:
-                logger.info(f"Extracted CAS-banned user id: {user_id} - no chats found, skipping")
+                logger.info(f"CAS-banned user id: {user_id} - no chats found, skipping")
                 continue
 
-            logger.info(f"Extracted CAS-banned user id: {user_id} - muting in {len(chat_ids)} chats")
+            logger.info(f"CAS-banned user id: {user_id} - muting in {len(chat_ids)} chats")
             for chat_id in chat_ids:
                 try:
                     await chat_helper.mute_user(bot, chat_id, user_id)
