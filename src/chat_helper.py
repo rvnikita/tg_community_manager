@@ -248,7 +248,6 @@ async def mute_user(bot, chat_id: int, user_id: int, duration_in_hours: float = 
         until = None
         desc = "indefinitely"
 
-    logger.info(f"mute_user: restricting user={user_id} in chat={chat_id} {desc}")
     try:
         await bot.restrict_chat_member(
             chat_id=chat_id,
@@ -256,7 +255,7 @@ async def mute_user(bot, chat_id: int, user_id: int, duration_in_hours: float = 
             permissions=perms,
             until_date=until
         )
-        logger.info(f"mute_user: SUCCESS user={user_id} in chat={chat_id}")
+        logger.info(f"mute_user: SUCCESS user={user_id} in chat={chat_id} {desc}")
     except TelegramError as e:
         logger.error(f"mute_user: TELEGRAM ERROR muting user={user_id} in chat={chat_id}: {e.message}")
     except Exception:

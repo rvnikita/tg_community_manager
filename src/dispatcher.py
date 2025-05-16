@@ -1508,8 +1508,6 @@ async def tg_new_member(update, context):
 
         mute_new_users_duration = int(chat_helper.get_chat_config(update.effective_chat.id, "mute_new_users_duration", default=0))
 
-        logger.info(f"Mute new users duration: {mute_new_users_duration}")
-
         for new_member in update.message.new_chat_members:
             new_user_id = new_member.id
 
