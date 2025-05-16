@@ -38,9 +38,8 @@ async def main():
         text = event.message.message or ""
         for match in CAS_PATTERN.finditer(text):
             user_id = int(match.group(1))
-            logger.info(f"Extracted CAS-banned user id: {user_id}")
 
-            # find chats where user has status
+            # collect chats where user has a status
             with db_helper.session_scope() as session:
                 rows = session.query(db_helper.User_Status.chat_id)\
                               .filter_by(user_id=user_id)\
@@ -57,13 +56,13 @@ async def main():
                 chat_ids = [cid for (cid,) in rows]
 
             if not chat_ids:
-                logger.info(f"No chats found for user {user_id}, skipping")
+                logger.info(f"Extracted CAS-banned user id: {user_id} - no chats found, skipping")
                 continue
 
+            logger.info(f"Extracted CAS-banned user id: {user_id} - muting in {len(chat_ids)} chats")
             for chat_id in chat_ids:
                 try:
                     await chat_helper.mute_user(bot, chat_id, user_id)
-                    logger.info(f"Muted user {user_id} in chat {chat_id}")
                 except Exception as e:
                     logger.error(f"Failed to mute user {user_id} in chat {chat_id}: {e}")
 
@@ -73,15 +72,15 @@ async def main():
                               .filter(db_helper.Message_Log.user_id == user_id)\
                               .all()
 
-            emoji = "🚨 " if logs else ""
-            for log in logs:
-                message_helper.insert_or_update_message_log(
-                    chat_id=log.chat_id,
-                    message_id=log.message_id,
-                    is_spam=True,
-                    manually_verified=True
-                )
-                logger.info(f"{emoji}Marked msg {log.message_id} in chat {log.chat_id} as spam")
+            if logs:
+                for log in logs:
+                    message_helper.insert_or_update_message_log(
+                        chat_id=log.chat_id,
+                        message_id=log.message_id,
+                        is_spam=True,
+                        manually_verified=True
+                    )
+                logger.info(f"Marked {len(logs)} messages as spam for user {user_id}")
 
     await client.run_until_disconnected()
 
