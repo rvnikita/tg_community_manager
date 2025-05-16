@@ -1473,7 +1473,7 @@ async def tg_join_request(update, context):
 
 async def tg_new_member(update, context):
     try:
-        logger.info(f"New member joined chat {update.effective_chat.id} ({update.effective_chat.title})")
+        logger.info(f"New member {update.effective_user.id} joined chat {update.effective_chat.id} ({update.effective_chat.title})")
 
         delete_new_chat_members_message = chat_helper.get_chat_config(update.effective_chat.id, "delete_new_chat_members_message")
 
