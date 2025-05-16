@@ -1293,56 +1293,81 @@ async def tg_cas_spamcheck(update, context):
 
 async def tg_thankyou(update, context):
     try:
-        with db_helper.session_scope() as db_session:
+        msg = update.message
+        # Require a reply-to and skip self-replies
+        if not msg or not msg.reply_to_message or msg.reply_to_message.from_user.id == msg.from_user.id:
+            return
 
-            if update.message is not None \
-                    and update.message.reply_to_message is not None \
-                    and update.message.reply_to_message.from_user.id != update.message.from_user.id:
+        # Telegram forum topics send an invisible “forum_topic_created” reply; skip those
+        if getattr(msg.reply_to_message, "forum_topic_created", None) is not None:
+            return
 
-                # there is a strange behaviour when user send message in topic Telegram show it as a reply to forum_topic_created invisible message. We don't need to process it
-                if update.message.reply_to_message.forum_topic_created is not None:
+        # Get the actual text to scan: either .text or .caption
+        content = msg.text if msg.text is not None else msg.caption
+        if not content:
+            return
+
+        # Load lists (might be None)
+        like_words    = chat_helper.get_chat_config(msg.chat.id, "like_words")    or []
+        dislike_words = chat_helper.get_chat_config(msg.chat.id, "dislike_words") or []
+
+        for category, word_list in (("like_words", like_words), ("dislike_words", dislike_words)):
+            for word in word_list:
+                if not word:
+                    continue
+                if word.lower() in content.lower():
+                    # Ensure the replied-to user exists in our DB
+                    with db_helper.session_scope() as db_session:
+                        target = msg.reply_to_message.from_user
+                        user = db_session.query(db_helper.User).get(target.id)
+                        if user is None:
+                            user = db_helper.User(
+                                id=target.id,
+                                first_name=target.first_name or "",
+                                last_name=target.last_name  or "",
+                                username=target.username   or ""
+                            )
+                            db_session.add(user)
+                        # Ensure the reacting user exists
+                        reactor = msg.from_user
+                        judge = db_session.query(db_helper.User).get(reactor.id)
+                        if judge is None:
+                            judge = db_helper.User(
+                                id=reactor.id,
+                                first_name=reactor.first_name or "",
+                                last_name=reactor.last_name  or "",
+                                username=reactor.username   or ""
+                            )
+                            db_session.add(judge)
+
+                    # Apply rating change
+                    if category == "like_words":
+                        await rating_helper.change_rating(
+                            msg.reply_to_message.from_user.id,
+                            msg.from_user.id,
+                            msg.chat.id,
+                            +1,
+                            msg.message_id,
+                            delete_message_delay=5*60
+                        )
+                    else:  # dislike_words
+                        await rating_helper.change_rating(
+                            msg.reply_to_message.from_user.id,
+                            msg.from_user.id,
+                            msg.chat.id,
+                            -1,
+                            msg.message_id,
+                            delete_message_delay=5*60
+                        )
                     return
-
-                like_words = chat_helper.get_chat_config(update.message.chat.id, "like_words")
-                dislike_words = chat_helper.get_chat_config(update.message.chat.id, "dislike_words")
-
-                for category, word_list in {'like_words': like_words, 'dislike_words': dislike_words}.items():
-                    if word_list is not None:
-                        for word in word_list:
-                             #check without case if word in update message
-                            if word.lower() in update.message.text.lower():
-
-                                user = db_session.query(db_helper.User).filter(
-                                    db_helper.User.id == update.message.reply_to_message.from_user.id).first()
-                                if user is None:
-                                    user = db_helper.User(id=update.message.reply_to_message.from_user.id,
-                                                          first_name=update.message.reply_to_message.from_user.first_name,
-                                                          last_name=update.message.reply_to_message.from_user.last_name,
-                                                          username=update.message.reply_to_message.from_user.username)
-                                    db_session.add(user)
-                                    db_session.commit()
-
-                                judge = db_session.query(db_helper.User).filter(
-                                    db_helper.User.id == update.message.from_user.id).first()
-                                if judge is None:
-                                    judge = db_helper.User(id=update.message.from_user.id,
-                                                           name=update.message.from_user.first_name)
-                                    db_session.add(judge)
-                                    db_session.commit()
-
-                                if category == "like_words":
-                                    await rating_helper.change_rating(update.message.reply_to_message.from_user.id, update.message.from_user.id, update.message.chat.id, 1, update.message.message_id, delete_message_delay=5*60)
-                                elif category == "dislike_words":
-                                    await rating_helper.change_rating(update.message.reply_to_message.from_user.id, update.message.from_user.id, update.message.chat.id, -1, update.message.message_id, delete_message_delay=5*60)
-
-                                db_session.close()
-
-                                return
-            else:
-                pass
     except Exception as error:
-        update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
-        logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
+        update_str = (
+            json.dumps(update.to_dict(), indent=2, sort_keys=True)
+            if hasattr(update, "to_dict")
+            else "<no update.to_dict()>"
+        )
+        logger.error(f"Error in tg_thankyou: {traceback.format_exc()} | Update: {update_str}")
+
 
 async def tg_set_rating(update, context):
     try:
