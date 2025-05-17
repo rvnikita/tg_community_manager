@@ -1,8 +1,8 @@
 import os
 import re
 import asyncio
-
 import dotenv
+
 from telethon import TelegramClient, events
 import telegram
 import telegram.request
@@ -39,14 +39,25 @@ async def main():
         for match in CAS_PATTERN.finditer(text):
             user_id = int(match.group(1))
 
-            # collect chats where user has a status
+            # 1) Add to global-ban table (if not already present)
+            with db_helper.session_scope() as session:
+                existing = session.query(db_helper.User_Global_Ban)\
+                                  .filter_by(user_id=user_id)\
+                                  .one_or_none()
+                if existing is None:
+                    session.add(db_helper.User_Global_Ban(
+                        user_id=user_id,
+                        reason="cas"
+                    ))
+                    logger.info(f"📌 Added user {user_id} to User_Global_Ban (reason=cas)")
+
+            # 2) Gather chats where they’re known (status or past messages)
             with db_helper.session_scope() as session:
                 rows = session.query(db_helper.User_Status.chat_id)\
                               .filter_by(user_id=user_id)\
                               .all()
             chat_ids = [cid for (cid,) in rows]
 
-            # fallback: chats where user sent messages
             if not chat_ids:
                 with db_helper.session_scope() as session:
                     rows = session.query(db_helper.Message_Log.chat_id)\
@@ -58,16 +69,16 @@ async def main():
             if not chat_ids:
                 logger.info(f"CAS-banned user id: {user_id} - no chats found, skipping")
                 continue
-            
-            #TODO:MED: Switch from info to debug when we decide it is working correctly.
+
             logger.info(f"🚨 CAS-banned user id: {user_id} - muting in {len(chat_ids)} chats")
             for chat_id in chat_ids:
                 try:
+                    # here you keep your existing behavior of just muting
                     await chat_helper.mute_user(bot, chat_id, user_id)
                 except Exception as e:
                     logger.error(f"Failed to mute user {user_id} in chat {chat_id}: {e}")
 
-            # mark all their messages as spam
+            # 3) Mark *all* their past messages as spam
             with db_helper.session_scope() as session:
                 logs = session.query(db_helper.Message_Log)\
                               .filter(db_helper.Message_Log.user_id == user_id)\
@@ -76,10 +87,10 @@ async def main():
             if logs:
                 for log in logs:
                     message_helper.insert_or_update_message_log(
-                        chat_id=log.chat_id,
-                        message_id=log.message_id,
-                        is_spam=True,
-                        manually_verified=True
+                        chat_id        = log.chat_id,
+                        message_id     = log.message_id,
+                        is_spam        = True,
+                        manually_verified = True
                     )
                 logger.info(f"Marked {len(logs)} messages as spam for user {user_id}")
 
