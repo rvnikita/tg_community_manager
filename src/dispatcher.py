@@ -990,7 +990,8 @@ async def tg_log_message(update, context):
                 raw_message=update.message.to_dict() if hasattr(update.message, 'to_dict') else None
             )
 
-            logger.info(f"B Returned message log id after function call: {message_log_id}")
+            logger.info(f"Message logged with ID: {message_log_id} in chat {chat_id}.")
+
 
             if not message_log_id:
                 update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
