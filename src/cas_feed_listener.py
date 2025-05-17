@@ -39,7 +39,7 @@ async def main():
         for match in CAS_PATTERN.finditer(text):
             user_id = int(match.group(1))
 
-            # 1) Add to global-ban table (if not already present)
+            # 1) Add to global-ban table (if not already present) *and commit*
             with db_helper.session_scope() as session:
                 existing = session.query(db_helper.User_Global_Ban)\
                                   .filter_by(user_id=user_id)\
@@ -49,6 +49,7 @@ async def main():
                         user_id=user_id,
                         reason="cas"
                     ))
+                    session.commit()  # <-- make sure to commit the insert
                     logger.info(f"📌 Added user {user_id} to User_Global_Ban (reason=cas)")
 
             # 2) Gather chats where they’re known (status or past messages)
@@ -70,15 +71,15 @@ async def main():
                 logger.info(f"CAS-banned user id: {user_id} - no chats found, skipping")
                 continue
 
+            # 3) Mute them in every chat we know about
             logger.info(f"🚨 CAS-banned user id: {user_id} - muting in {len(chat_ids)} chats")
             for chat_id in chat_ids:
                 try:
-                    # here you keep your existing behavior of just muting
                     await chat_helper.mute_user(bot, chat_id, user_id)
                 except Exception as e:
                     logger.error(f"Failed to mute user {user_id} in chat {chat_id}: {e}")
 
-            # 3) Mark *all* their past messages as spam
+            # 4) Mark *all* their past messages as spam
             with db_helper.session_scope() as session:
                 logs = session.query(db_helper.Message_Log)\
                               .filter(db_helper.Message_Log.user_id == user_id)\
@@ -87,9 +88,9 @@ async def main():
             if logs:
                 for log in logs:
                     message_helper.insert_or_update_message_log(
-                        chat_id        = log.chat_id,
-                        message_id     = log.message_id,
-                        is_spam        = True,
+                        chat_id           = log.chat_id,
+                        message_id        = log.message_id,
+                        is_spam           = True,
                         manually_verified = True
                     )
                 logger.info(f"Marked {len(logs)} messages as spam for user {user_id}")
