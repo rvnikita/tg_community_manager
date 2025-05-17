@@ -1251,13 +1251,15 @@ async def tg_cas_spamcheck(update, context):
             if not data.get("ok", False):
                 # If there simply is no record, that's fine—just DEBUG.
                 if "Record not found" in desc:
-                    logger.debug(f"CAS API no record for user {user_id}")
+                    logger.info(f"CAS API no record for user {user_id}")
                 else:
                     logger.info(f"CAS API not ok for user {user_id}: {desc}")
                 continue
 
             # API says “ok” — now check the actual ban result
             if data.get("result", False):
+                logger.info(f"CAS API found user {user_id} is CAS banned: {desc}")
+
                 # Mute the user
                 await chat_helper.mute_user(context.bot, chat_id, user_id)
                 # Log to our DB
