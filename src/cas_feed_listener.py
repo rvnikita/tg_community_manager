@@ -39,6 +39,8 @@ async def main():
         for match in CAS_PATTERN.finditer(text):
             user_id = int(match.group(1))
 
+            logger.info(f"CAS-banned user id: {user_id}")
+
             # 1) Add to global-ban table (if not already present) *and commit*
             with db_helper.session_scope() as session:
                 existing = session.query(db_helper.User_Global_Ban)\
