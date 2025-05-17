@@ -1591,7 +1591,10 @@ class BotManager:
             self.application = create_application()
             self.application.run_polling()
         except Exception as e:
-            logger.error(f"Error: {traceback.format_exc()}")
+            if 'Event loop is closed' in str(e):
+                logger.info('Received shutdown signal, exiting gracefully')
+            else:
+                logger.error(f"Error: {traceback.format_exc()}")
 
 def create_application():
     application = Application.builder().token(os.getenv('ENV_BOT_KEY')).build()
