@@ -68,28 +68,28 @@ async def status_update():
 
                     if status != user_status_row['status']:
                         updates.append((status, user_id, chat_id))
-                        logger.info(f"(get_chat_member) Status change detected for user {'@' if not (isinstance(user_display, int) or user_display.isdigit()) else ''}{user_display} in chat {chat_id} to {status}")
+                        logger.debug(f"(get_chat_member) Status change detected for user {'@' if not (isinstance(user_display, int) or user_display.isdigit()) else ''}{user_display} in chat {chat_id} to {status}")
                 except BadRequest as bad_request_error:
                     error_message = str(bad_request_error)
                     where = f"(get_chat_member, chat_id={chat_id}, user_id={user_id})"
                     if "User not found" in error_message:
                         updates.append(("User not found", user_id, chat_id))
-                        logger.info(f"{where} User not found: {error_message}")
+                        logger.debug(f"{where} User not found: {error_message}")
                     elif "Chat not found" in error_message:
-                        logger.info(f"{where} Chat not found: {error_message}")
+                        logger.debug(f"{where} Chat not found: {error_message}")
                     elif "Member not found" in error_message:
                         updates.append(("Member not found", user_id, chat_id))
-                        logger.info(f"{where} Member not found: {error_message}")
+                        logger.debug(f"{where} Member not found: {error_message}")
                     elif "Participant_id_invalid" in error_message:
                         updates.append(("Participant ID invalid", user_id, chat_id))
-                        logger.info(f"{where} Participant ID invalid: {error_message}")
+                        logger.debug(f"{where} Participant ID invalid: {error_message}")
                     elif "Chat_admin_required" in error_message:
-                        logger.info(f"{where} Chat_admin_required - not an error: {error_message}")
+                        logger.debug(f"{where} Chat_admin_required - not an error: {error_message}")
                     else:
                         logger.error(f"{where} BadRequest error: {traceback.format_exc()}")
                 except Forbidden as forbidden_error:
                     where = f"(get_chat_member, chat_id={chat_id}, user_id={user_id})"
-                    logger.info(f"{where} Forbidden: {forbidden_error}")
+                    logger.debug(f"{where} Forbidden: {forbidden_error}")
                 except Exception:
                     where = f"(get_chat_member, chat_id={chat_id}, user_id={user_id})"
                     logger.error(f"{where} Exception: {traceback.format_exc()}")
