@@ -22,6 +22,7 @@ bot = telegram.Bot(token=os.getenv('ENV_BOT_KEY'),
                    request=HTTPXRequest(http_version="1.1"),
                    get_updates_request=HTTPXRequest(http_version="1.1"))
 
+#TODO:HIGH: I think we need to change logic (here and in other places) - stop relying on user_status, stop constantly trying to keep it up to date (anyway we do it witn random 1000 users), and instead just use the message_log table to get the last message date. This will be much more efficient and less error-prone. But we should be very careful as now user_status used in many other places.
 
 async def warn_inactive(chat_id, inactivity_period_in_days_to_warn):
     try:
