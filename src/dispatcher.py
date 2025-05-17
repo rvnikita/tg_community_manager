@@ -1486,6 +1486,22 @@ async def tg_join_request(update, context):
                 logger.error(f"Error while trying to approve chat join request: {traceback.format_exc()}")
 
 
+#TODO:HIGH: THIS IS DEBUG TO UNDERSTAND WHY SPAMMERS JOIN ON NOT CAUGHT BY tg_new_member 
+from telegram.ext import ChatMemberHandler
+
+async def on_member_update(update, context):
+    cmu = update.chat_member            # a ChatMemberUpdated
+    old, new = cmu.old_chat_member, cmu.new_chat_member
+
+    # Did they go from “left”/“kicked” → “member”?
+    if old.status in ("left", "kicked") and new.status in ("member", "restricted"):
+        user = new.user
+        chat = update.effective_chat
+
+        logger.info(
+            f"(DEBUG FOR SPAMMERS) New member {user.id} joined chat {chat.id} ({chat.title})"
+        )
+    
 
 async def tg_new_member(update, context):
     try:
@@ -1602,6 +1618,7 @@ def create_application():
     application = Application.builder().token(os.getenv('ENV_BOT_KEY')).build()
 
     # Add handlers
+    application.add_handler(ChatMemberHandler(on_member_update, ChatMemberHandler.CHAT_MEMBER),group=1)
     application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, tg_new_member), group=1)
     application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, tg_cas_spamcheck), group=1)
 
