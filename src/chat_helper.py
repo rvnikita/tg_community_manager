@@ -199,7 +199,10 @@ async def send_scheduled_messages(bot):
                 due_condition
             ).all()
 
-            logger.info(f"Found {len(potential_messages_to_send)} messages due to be sent.")
+            if len(potential_messages_to_send) == 0:
+                logger.debug("No scheduled messages to send.")
+            else:
+                logger.info(f"Found {len(potential_messages_to_send)} messages due to be sent.")
 
             for scheduled_config in potential_messages_to_send:
                 message_content = scheduled_config.message_content.content
