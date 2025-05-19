@@ -914,7 +914,7 @@ async def tg_lemm_auto_reply(update, context):
         if update.message and update.message.text:
             chat_id = update.effective_chat.id
             message_text = update.message.text
-            message_lemmas = lemmatize_words(message_text)
+            message_lemmas = lemmatizer_helper.lemmatize_words(message_text)
         else:
             return
 
@@ -924,7 +924,7 @@ async def tg_lemm_auto_reply(update, context):
                 triggers_raw = auto_reply["trigger"]
                 triggers = json.loads(triggers_raw)
                 # TODO:MED cache lemmatized triggers in DB for performance
-                trigger_lemmas = set(lemmatize_single(trigger) for trigger in triggers)
+                trigger_lemmas = set(lemmatizer_helper.lemmatize_single(trigger) for trigger in triggers)
             except json.JSONDecodeError:
                 logger.warning(f"Failed to parse auto-reply trigger: {auto_reply['trigger']}")
                 continue
