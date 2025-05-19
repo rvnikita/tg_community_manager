@@ -29,8 +29,7 @@ import src.reporting_helper as reporting_helper
 import src.message_helper as message_helper
 import src.spamcheck_helper as spamcheck_helper
 import src.spamcheck_helper_raw as spamcheck_helper_raw
-import src.helpers.nltk_helper as nltk_helper
-
+import helpers.lemmatizer_helper as lemmatizer_helper
 
 logger = logging.get_logger()
 
@@ -908,30 +907,14 @@ lemmatizer = WordNetLemmatizer()
 
 #lemmatized version of tg_auto_reply (temporary)
 #TODO:MED: we should store lemmed versions of triggers in DB for performance
+lemmatizer_helper.ensure_nltk_corpora()
+
 async def tg_lemm_auto_reply(update, context):
     try:
         if update.message and update.message.text:
             chat_id = update.effective_chat.id
             message_text = update.message.text
-
-            # Detect language of message
-            try:
-                lang = detect(message_text)
-            except Exception:
-                lang = "en"
-
-            # Lemmatize message words
-            if lang == "ru":
-                message_lemmas = set(
-                    morph.parse(word)[0].normal_form for word in message_text.lower().split()
-                )
-            elif lang == "en":
-                message_lemmas = set(
-                    lemmatizer.lemmatize(word) for word in message_text.lower().split()
-                )
-            else:
-                message_lemmas = set(word for word in message_text.lower().split())
-
+            message_lemmas = lemmatize_words(message_text)
         else:
             return
 
@@ -941,20 +924,7 @@ async def tg_lemm_auto_reply(update, context):
                 triggers_raw = auto_reply["trigger"]
                 triggers = json.loads(triggers_raw)
                 # TODO:MED cache lemmatized triggers in DB for performance
-                trigger_lemmas = set()
-                for trigger in triggers:
-                    try:
-                        trigger_lang = detect(trigger)
-                    except Exception:
-                        trigger_lang = "en"
-                    trigger_lower = trigger.lower()
-                    if trigger_lang == "ru":
-                        lemma = morph.parse(trigger_lower)[0].normal_form
-                    elif trigger_lang == "en":
-                        lemma = lemmatizer.lemmatize(trigger_lower)
-                    else:
-                        lemma = trigger_lower
-                    trigger_lemmas.add(lemma)
+                trigger_lemmas = set(lemmatize_single(trigger) for trigger in triggers)
             except json.JSONDecodeError:
                 logger.warning(f"Failed to parse auto-reply trigger: {auto_reply['trigger']}")
                 continue
@@ -1733,7 +1703,5 @@ def create_application():
     return application
 
 if __name__ == '__main__':
-    nltk_helper.ensure_nltk_corpora() # Ensure NLTK corpora are available
-
     manager = BotManager()
     manager.run()
