@@ -1209,7 +1209,7 @@ async def tg_ai_spamcheck(update, context):
                 # mute in each chat indefinitely (or 7 days—adjust as you like)
                 for cid in chat_ids:
                     try:
-                        await chat_helper.mute_user(context.bot, cid, user_id, duration_in_hours=7*24)
+                        await chat_helper.mute_user(context.bot, cid, user_id, duration_in_seconds=7*24*60)
                     except Exception as e:
                         logger.error(f"mute_user failed for {user_id} in chat {cid}: {e}")
 
@@ -1582,7 +1582,7 @@ async def tg_new_member(update, context):
                     continue  # Skip to the next new member
 
             if mute_new_users_duration > 0:
-                await chat_helper.mute_user(bot, update.effective_chat.id, new_user_id, duration_in_hours = mute_new_users_duration / 3600)
+                await chat_helper.mute_user(bot, update.effective_chat.id, new_user_id, duration_in_seconds = mute_new_users_duration / 3600)
                 logger.info(f"Muted new user {new_user_id} in chat {update.effective_chat.id} for {mute_new_users_duration} seconds.")
 
         welcome_message = chat_helper.get_chat_config(update.effective_chat.id, "welcome_message")
