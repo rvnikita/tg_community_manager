@@ -1042,7 +1042,7 @@ async def tg_log_message(update, context):
                 raw_message=update.message.to_dict() if hasattr(update.message, 'to_dict') else None
             )
 
-            logger.info(f"Message logged with ID: {message_log_id} in chat {chat_id}.")
+            logger.debug(f"Message logged with ID: {message_log_id} in chat {chat_id}.")
 
 
             if not message_log_id:
