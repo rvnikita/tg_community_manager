@@ -19,3 +19,4 @@ telethon
 pymorphy2
 nltk
 langdetect
+sentry_sdk
