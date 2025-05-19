@@ -1543,17 +1543,18 @@ async def tg_join_request(update, context):
 from telegram.ext import ChatMemberHandler
 
 async def on_member_update(update, context):
-    cmu = update.chat_member            # a ChatMemberUpdated
-    old, new = cmu.old_chat_member, cmu.new_chat_member
+    logger.info(f"on_member_update: {update.to_dict()}")
+    # cmu = update.chat_member            # a ChatMemberUpdated
+    # old, new = cmu.old_chat_member, cmu.new_chat_member
 
-    # Did they go from “left”/“kicked” → “member”?
-    if old.status in ("left", "kicked") and new.status in ("member", "restricted"):
-        user = new.user
-        chat = update.effective_chat
+    # # Did they go from “left”/“kicked” → “member”?
+    # if old.status in ("left", "kicked") and new.status in ("member", "restricted"):
+    #     user = new.user
+    #     chat = update.effective_chat
 
-        logger.info(
-            f"(DEBUG FOR SPAMMERS) New member {user.id} joined chat {chat.id} ({chat.title})"
-        )
+    #     logger.info(
+    #         f"(DEBUG FOR SPAMMERS) New member {user.id} joined chat {chat.id} ({chat.title})"
+    #     )
     
 
 async def tg_new_member(update, context):
