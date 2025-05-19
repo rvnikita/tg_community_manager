@@ -895,6 +895,87 @@ async def tg_auto_reply(update, context):
     except Exception as error:
         logger.error(f"tg_auto_reply error: {traceback.format_exc()}")
 
+import pymorphy2
+from nltk.stem import WordNetLemmatizer
+from langdetect import detect
+import json
+from datetime import datetime, timezone
+import traceback
+
+morph = pymorphy2.MorphAnalyzer()
+lemmatizer = WordNetLemmatizer()
+
+#lemmatized version of tg_auto_reply (temporary)
+#TODO:MED: we should store lemmed versions of triggers in DB for performance
+async def tg_lemm_auto_reply(update, context):
+    try:
+        if update.message and update.message.text:
+            chat_id = update.effective_chat.id
+            message_text = update.message.text
+
+            # Detect language of message
+            try:
+                lang = detect(message_text)
+            except Exception:
+                lang = "en"
+
+            # Lemmatize message words
+            if lang == "ru":
+                message_lemmas = set(
+                    morph.parse(word)[0].normal_form for word in message_text.lower().split()
+                )
+            elif lang == "en":
+                message_lemmas = set(
+                    lemmatizer.lemmatize(word) for word in message_text.lower().split()
+                )
+            else:
+                message_lemmas = set(word for word in message_text.lower().split())
+
+        else:
+            return
+
+        auto_replies = await chat_helper.get_auto_replies(chat_id, filter_delayed=True)
+        for auto_reply in auto_replies:
+            try:
+                triggers_raw = auto_reply["trigger"]
+                triggers = json.loads(triggers_raw)
+                # TODO:MED cache lemmatized triggers in DB for performance
+                trigger_lemmas = set()
+                for trigger in triggers:
+                    try:
+                        trigger_lang = detect(trigger)
+                    except Exception:
+                        trigger_lang = "en"
+                    trigger_lower = trigger.lower()
+                    if trigger_lang == "ru":
+                        lemma = morph.parse(trigger_lower)[0].normal_form
+                    elif trigger_lang == "en":
+                        lemma = lemmatizer.lemmatize(trigger_lower)
+                    else:
+                        lemma = trigger_lower
+                    trigger_lemmas.add(lemma)
+            except json.JSONDecodeError:
+                logger.warning(f"Failed to parse auto-reply trigger: {auto_reply['trigger']}")
+                continue
+
+            if trigger_lemmas & message_lemmas:
+                await chat_helper.send_message(
+                    context.bot,
+                    chat_id,
+                    auto_reply["reply"],
+                    reply_to_message_id=update.message.message_id,
+                )
+                await chat_helper.update_last_reply_time_and_increment_count(
+                    chat_id, auto_reply["id"], datetime.now(timezone.utc)
+                )
+                logger.info(
+                    f"Auto-reply sent in chat {chat_id} for triggers '{', '.join(triggers)}': {auto_reply['reply']}"
+                )
+                break
+
+    except Exception as error:
+        logger.error(f"tg_auto_reply error: {traceback.format_exc()}")
+
 
 async def tg_handle_forwarded_messages(update, context):
     try:
@@ -1641,8 +1722,11 @@ def create_application():
     application.add_handler(CommandHandler(['pin', 'p'], tg_pin, filters.ChatType.GROUPS), group=9)
     application.add_handler(CommandHandler(['unpin', 'up'], tg_unpin, filters.ChatType.GROUPS), group=9)
     application.add_handler(CommandHandler(['help', 'h'], tg_help), group=10)
-    application.add_handler(MessageHandler((filters.TEXT | filters.CAPTION), tg_auto_reply), group=11)
+    # application.add_handler(MessageHandler((filters.TEXT | filters.CAPTION), tg_auto_reply), group=11)
+    application.add_handler(MessageHandler((filters.TEXT | filters.CAPTION), tg_lemm_auto_reply), group=11)
     application.add_handler(CommandHandler(['info', 'i'], tg_info), group=12)
+
+
 
     signal.signal(signal.SIGTERM, lambda s, f: application.stop())
     return application

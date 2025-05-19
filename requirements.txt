@@ -16,3 +16,6 @@ pytest-asyncio
 python-telegram-bot[rate-limiter]
 aiohttp
 telethon
+pymorphy2
+nltk
+langdetect
