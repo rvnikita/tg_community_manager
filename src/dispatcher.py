@@ -29,6 +29,7 @@ import src.reporting_helper as reporting_helper
 import src.message_helper as message_helper
 import src.spamcheck_helper as spamcheck_helper
 import src.spamcheck_helper_raw as spamcheck_helper_raw
+import src.helpers.nltk_helper as nltk_helper
 
 
 logger = logging.get_logger()
@@ -1732,9 +1733,7 @@ def create_application():
     return application
 
 if __name__ == '__main__':
-    manager = BotManager()
-    manager.run()
+    nltk_helper.ensure_nltk_corpora() # Ensure NLTK corpora are available
 
-if __name__ == '__main__':
     manager = BotManager()
     manager.run()
