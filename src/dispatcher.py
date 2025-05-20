@@ -1537,6 +1537,10 @@ async def tg_join_request(update, context):
                 logger.error(f"Error while trying to approve chat join request: {traceback.format_exc()}")
 
 
+from telegram.ext import TypeHandler
+async def debug_all_updates(update, context):
+    logger.info(f"Update type: {type(update)} -- {update.to_dict()}")
+
 #TODO:HIGH: THIS IS DEBUG TO UNDERSTAND WHY SPAMMERS JOIN ON NOT CAUGHT BY tg_new_member 
 from telegram.ext import ChatMemberHandler
 
@@ -1670,6 +1674,7 @@ def create_application():
     application = Application.builder().token(os.getenv('ENV_BOT_KEY')).build()
 
     # Add handlers
+    application.add_handler(TypeHandler(object, debug_all_updates), group=0)
     application.add_handler(ChatMemberHandler(on_member_update, ChatMemberHandler.CHAT_MEMBER),group=1)
     application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, tg_new_member), group=1)
     application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, tg_cas_spamcheck), group=1)
