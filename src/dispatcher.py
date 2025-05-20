@@ -1206,12 +1206,10 @@ async def tg_ai_spamcheck(update, context):
                                       .all()
                     chat_ids = [cid for (cid,) in rows]
 
-                # mute in each chat indefinitely (or 7 days—adjust as you like)
-                for cid in chat_ids:
-                    try:
-                        await chat_helper.mute_user(context.bot, cid, user_id, duration_in_seconds=7*24*60)
-                    except Exception as e:
-                        logger.error(f"mute_user failed for {user_id} in chat {cid}: {e}")
+                try:
+                    await chat_helper.mute_user(context.bot, chat_id, user_id, duration_in_seconds=21*24*60, global_mute=True)
+                except Exception as e:
+                    logger.error(f"global_mute failed for {user_id}: {e}")
 
                 action = "delete+mute"
 
@@ -1314,7 +1312,7 @@ async def tg_cas_spamcheck(update, context):
                 logger.info(f"CAS API found user {user_id} is CAS banned: {desc}")
 
                 # Mute the user
-                await chat_helper.mute_user(context.bot, chat_id, user_id)
+                await chat_helper.mute_user(context.bot, chat_id, user_id, global_mute=True)
                 # Log to our DB
                 message_helper.insert_or_update_message_log(
                     chat_id=chat_id,
@@ -1582,7 +1580,7 @@ async def tg_new_member(update, context):
                     continue  # Skip to the next new member
 
             if mute_new_users_duration > 0:
-                await chat_helper.mute_user(bot, update.effective_chat.id, new_user_id, duration_in_seconds = mute_new_users_duration / 3600)
+                await chat_helper.mute_user(bot, update.effective_chat.id, new_user_id, duration_in_seconds = mute_new_users_duration)
                 logger.info(f"Muted new user {new_user_id} in chat {update.effective_chat.id} for {mute_new_users_duration} seconds.")
 
         welcome_message = chat_helper.get_chat_config(update.effective_chat.id, "welcome_message")
