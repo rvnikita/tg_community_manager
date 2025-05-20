@@ -268,9 +268,13 @@ async def mute_user(bot, chat_id: int, user_id: int, duration_in_seconds: float 
             logger.error(f"mute_user: UNEXPECTED ERROR muting user={user_id} in chat={chat_id}: {traceback.format_exc()}")
     else:
         with db_helper.session_scope() as db_session:
-            all_chats = db_session.query(db_helper.Chat.id).filter(db_helper.Chat.id != 0).all()
+            # Get all active chats from the database (not id = 0 and active = True)
+            all_active_chats = db_session.query(db_helper.Chat.id).filter(
+                db_helper.Chat.id != 0,
+                db_helper.Chat.active == True
+            ).all()
             bot_info = await bot.get_me()
-            for chat in all_chats:
+            for chat in all_active_chats:
                 try:
                     chat_id_iter = chat.id
                     chat_admins = await bot.get_chat_administrators(chat_id_iter)
@@ -390,10 +394,13 @@ async def ban_user(bot, chat_id, user_to_ban, global_ban=False, reason=None):
 
             if global_ban:
                 # If global_ban is True, ban the user in all chats
-                all_chats = db_session.query(db_helper.Chat.id).filter(db_helper.Chat.id != 0).all()
+                all_active_chats = db_session.query(db_helper.Chat.id).filter(
+                    db_helper.Chat.id != 0,
+                    db_helper.Chat.active == True
+                ).all()
                 bot_info = await bot.get_me()
 
-                for chat in all_chats:
+                for chat in all_active_chats:
                     try:
                         #check if bot is admin
                         #logger.info(f"Trying to get admins of chat {chat.id}")
