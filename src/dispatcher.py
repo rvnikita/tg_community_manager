@@ -1207,7 +1207,7 @@ async def tg_ai_spamcheck(update, context):
                     chat_ids = [cid for (cid,) in rows]
 
                 try:
-                    await chat_helper.mute_user(context.bot, chat_id, user_id, duration_in_seconds=21*24*60, global_mute=True)
+                    await chat_helper.mute_user(context.bot, chat_id, user_id, duration_in_seconds=21*24*60*60, global_mute=True)
                 except Exception as e:
                     logger.error(f"global_mute failed for {user_id}: {e}")
 
