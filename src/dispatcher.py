@@ -1688,7 +1688,7 @@ def create_application():
     application.add_handler(CommandHandler(['gban', 'g', 'gb'], tg_gban), group=6)
     application.add_handler(CommandHandler(['spam', 's'], tg_spam), group=6)
     application.add_handler(CommandHandler(['unspam', 'us'], tg_unspam), group=6)
-    application.add_handler(MessageHandler(filters.TEXT | (filters.TEXT & filters.CAPTION) | (filters.PHOTO & filters.CAPTION) | (filters.VIDEO & filters.CAPTION) | filters.Document.ALL, tg_wiretapping), group=7)
+    application.add_handler(MessageHandler(filters.TEXT | (filters.TEXT & filters.CAPTION) | (filters.PHOTO & filters.CAPTION) | (filters.VIDEO & filters.CAPTION) | filters.Document.ALL | filters.STORY, tg_wiretapping), group=7)
     application.add_handler(CommandHandler(['pin', 'p'], tg_pin, filters.ChatType.GROUPS), group=9)
     application.add_handler(CommandHandler(['unpin', 'up'], tg_unpin, filters.ChatType.GROUPS), group=9)
     application.add_handler(CommandHandler(['help', 'h'], tg_help), group=10)
