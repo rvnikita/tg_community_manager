@@ -1568,6 +1568,8 @@ async def on_member_update(update, context):
 
 async def tg_new_member(update, context):
     try:
+        mute_new_users_duration = int(chat_helper.get_chat_config(update.effective_chat.id, "mute_new_users_duration", default=0))
+
         logger.info(f"New member {update.effective_user.id} joined chat {update.effective_chat.id} ({update.effective_chat.title})")
 
         delete_new_chat_members_message = chat_helper.get_chat_config(update.effective_chat.id, "delete_new_chat_members_message")
@@ -1575,9 +1577,7 @@ async def tg_new_member(update, context):
         if delete_new_chat_members_message == True:
             await bot.delete_message(update.message.chat.id, update.message.id)
             logger.info(f"Joining message deleted from chat {await chat_helper.get_chat_mention(bot, update.message.chat.id)} for user @{update.message.from_user.username} [{update.message.from_user.id}]")
-
-        mute_new_users_duration = int(chat_helper.get_chat_config(update.effective_chat.id, "mute_new_users_duration", default=0))
-
+        
         for new_member in update.message.new_chat_members:
             new_user_id = new_member.id
 
@@ -1681,9 +1681,11 @@ def create_application():
     application = Application.builder().token(os.getenv('ENV_BOT_KEY')).build()
 
     # Add handlers
-    application.add_handler(TypeHandler(object, debug_all_updates), group=0)
+    application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, tg_new_member), group=0) #important to have this first to be able to mute new users who could be spammers
+
+    application.add_handler(TypeHandler(object, debug_all_updates), group=1)
     application.add_handler(ChatMemberHandler(on_member_update, ChatMemberHandler.CHAT_MEMBER),group=1)
-    application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, tg_new_member), group=1)
+    
     application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, tg_cas_spamcheck), group=1)
 
     application.add_handler(MessageHandler(filters.ALL & filters.ChatType.GROUPS, tg_update_user_status), group=2)
