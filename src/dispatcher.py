@@ -908,8 +908,6 @@ lemmatizer = WordNetLemmatizer()
 
 #lemmatized version of tg_auto_reply (temporary)
 #TODO:MED: we should store lemmed versions of triggers in DB for performance
-lemmatizer_helper.ensure_nltk_corpora()
-
 async def tg_lemm_auto_reply(update, context):
     try:
         if update.message and update.message.text:

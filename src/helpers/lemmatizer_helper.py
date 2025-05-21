@@ -1,7 +1,12 @@
 import nltk
+import os
 from nltk.stem import WordNetLemmatizer
 import pymorphy2
 from langdetect import detect
+
+nltk.data.path.append(
+    os.path.join(os.path.dirname(__file__), "nltk_data")
+)
 
 def ensure_nltk_corpora():
     try:
