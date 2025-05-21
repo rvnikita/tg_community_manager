@@ -29,6 +29,7 @@ import src.reporting_helper as reporting_helper
 import src.message_helper as message_helper
 import src.spamcheck_helper as spamcheck_helper
 import src.spamcheck_helper_raw as spamcheck_helper_raw
+import helpers.spamcheck_helper_raw_structure as spamcheck_helper_raw_structure
 import helpers.lemmatizer_helper as lemmatizer_helper
 
 logger = logging.get_logger()
@@ -1150,6 +1151,14 @@ async def tg_ai_spamcheck(update, context):
         embedding = openai_helper.generate_embedding(text)
         if engine == "raw":
             spam_prob = await spamcheck_helper_raw.predict_spam(
+                user_id=user_id,
+                chat_id=chat_id,
+                message_text=text,
+                raw_message=message.to_dict(),
+                embedding=embedding,
+            )
+        elif engine == "raw_strucutre":
+            spam_prob = await spamcheck_helper_raw_structure.predict_spam(
                 user_id=user_id,
                 chat_id=chat_id,
                 message_text=text,
