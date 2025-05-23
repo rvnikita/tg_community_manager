@@ -1705,8 +1705,7 @@ async def on_startup(app):
 
 async def tg_ping(update, context):
     try:
-        pass
-        # await update.message.reply_text("Pong!")
+        await update.message.reply_text("Pong!")
     except Exception as e:
         logger.error(f"Error in tg_ping: {traceback.format_exc()} | Update: {update.to_dict() if hasattr(update, 'to_dict') else 'N/A'}")
 
