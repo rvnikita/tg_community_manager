@@ -158,7 +158,7 @@ async def tg_report(update, context):
 
         elif report_sum >= number_of_reports_to_warn:
             await chat_helper.warn_user(context.bot, chat_id, reported_user_id)
-            await chat_helper.mute_user(context.bot, chat_id, reported_user_id)
+            await chat_helper.mute_user(context.bot, chat_id, reported_user_id, reason="User has been warned and muted due to multiple reports.")
             await chat_helper.send_message(
                 context.bot, 
                 chat_id, 
@@ -1215,7 +1215,7 @@ async def tg_ai_spamcheck(update, context):
                     chat_ids = [cid for (cid,) in rows]
 
                 try:
-                    await chat_helper.mute_user(context.bot, chat_id, user_id, duration_in_seconds=21*24*60*60, global_mute=True)
+                    await chat_helper.mute_user(context.bot, chat_id, user_id, duration_in_seconds=21*24*60*60, global_mute=True, reason="AI spam detection")
                 except Exception as e:
                     logger.error(f"global_mute failed for {user_id}: {e}")
 
@@ -1320,7 +1320,7 @@ async def tg_cas_spamcheck(update, context):
                 logger.info(f"CAS API found user {user_id} is CAS banned: {desc}")
 
                 # Mute the user
-                await chat_helper.mute_user(context.bot, chat_id, user_id, global_mute=True)
+                await chat_helper.mute_user(context.bot, chat_id, user_id, global_mute=True, reason="CAS spam check")
                 # Log to our DB
                 message_helper.insert_or_update_message_log(
                     chat_id=chat_id,
@@ -1593,7 +1593,7 @@ async def tg_new_member(update, context):
                     continue  # Skip to the next new member
 
             if mute_new_users_duration > 0:
-                await chat_helper.mute_user(bot, update.effective_chat.id, new_user_id, duration_in_seconds = mute_new_users_duration)
+                await chat_helper.mute_user(bot, update.effective_chat.id, new_user_id, duration_in_seconds = mute_new_users_duration, reason="New user muted for spam check")
                 logger.info(f"Muted new user {new_user_id} in chat {update.effective_chat.id} for {mute_new_users_duration} seconds.")
 
         welcome_message = chat_helper.get_chat_config(update.effective_chat.id, "welcome_message")

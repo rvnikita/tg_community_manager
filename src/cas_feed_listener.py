@@ -71,7 +71,7 @@ async def main():
 
             # 3) Global mute
             try:
-                await chat_helper.mute_user(bot, 0, user_id, global_mute=True)
+                await chat_helper.mute_user(bot, 0, user_id, global_mute=True, reason="CAS-banned")
                 logger.info(f"🚨 CAS-banned user id: {user_id} globally muted")
             except Exception as e:
                 logger.error(f"Failed to global-mute user {user_id}: {e}")
