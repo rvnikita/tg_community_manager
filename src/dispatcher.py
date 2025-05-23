@@ -1701,7 +1701,7 @@ async def global_error(update, context):
     logger.error("unhandled error", exc_info=context.error)
 
 async def on_startup(app):
-    logging.getLogger("apscheduler").setLevel(logging_helper.WARNING) #get only warning messages from apscheduler
+    logging.getLogger("apscheduler").setLevel(logging.WARNING) #get only warning messages from apscheduler
 
     # schedule heartbeat after application and JobQueue are ready
     app.job_queue.run_repeating(tg_heartbeat, interval=60, first=60)
