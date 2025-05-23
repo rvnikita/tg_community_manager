@@ -3,10 +3,10 @@ from datetime import datetime
 import traceback
 
 import src.db_helper as db_helper
-import src.logging_helper as logging
+import src.logging_helper as logging_helper
 
 
-logger = logging.get_logger()
+logger = logging_helper.get_logger()
 
 async def add_report(reported_user_id, reporting_user_id, reported_message_id, chat_id, report_power):
     try:

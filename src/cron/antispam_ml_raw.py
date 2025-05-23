@@ -13,10 +13,10 @@ from joblib import dump
 from sqlalchemy import func, or_, and_
 
 import src.db_helper as db_helper
-import src.logging_helper as logging
+import src.logging_helper as logging_helper
 import src.rating_helper as rating_helper  # assumed to have get_rating(user_id, chat_id)
 
-logger = logging.get_logger()
+logger = logging_helper.get_logger()
 
 def extract_raw_features(raw_msg):
     """
@@ -101,8 +101,8 @@ async def train_spam_classifier_raw():
                         db_helper.Message_Log.raw_message != None,
                         or_(
                             db_helper.Message_Log.manually_verified == True,
-                            and_(db_helper.Message_Log.spam_prediction_probability > 0.99, db_helper.Message_Log.is_spam == True),
-                            and_(db_helper.Message_Log.spam_prediction_probability < 0.01, db_helper.Message_Log.is_spam == False)
+                            and_(db_helper.Message_Log.spam_prediction_probability > 0.98, db_helper.Message_Log.is_spam == True),
+                            and_(db_helper.Message_Log.spam_prediction_probability < 0.02, db_helper.Message_Log.is_spam == False)
                         )
                     )
                     .order_by(db_helper.Message_Log.id.desc())

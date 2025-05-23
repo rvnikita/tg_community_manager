@@ -16,13 +16,13 @@ from datetime import datetime, timedelta, timezone
 import traceback
 import re
 
-import src.logging_helper as logging
+import src.logging_helper as logging_helper
 import src.db_helper as db_helper
 import src.chat_helper as chat_helper
 import src.cache_helper as cache_helper
 
 
-logger = logging.get_logger()
+logger = logging_helper.get_logger()
 
 async def send_message_to_admin(bot, chat_id, text: str, disable_web_page_preview: bool = True):
     chat_administrators = await bot.get_chat_administrators(chat_id)

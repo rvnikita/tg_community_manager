@@ -13,10 +13,10 @@ from joblib import dump
 from sqlalchemy import or_, and_
 
 import src.db_helper as db_helper
-import src.logging_helper as logging
+import src.logging_helper as logging_helper
 import src.rating_helper as rating_helper
 
-logger = logging.get_logger()
+logger = logging_helper.get_logger()
 
 
 def collect_all_keys(messages):

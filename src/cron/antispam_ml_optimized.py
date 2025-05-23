@@ -13,10 +13,10 @@ import re
 
 import src.spamcheck_helper as spamcheck_helper
 import src.db_helper as db_helper
-import src.logging_helper as logging
+import src.logging_helper as logging_helper
 from sqlalchemy import func, or_, and_
 
-logger = logging.get_logger()
+logger = logging_helper.get_logger()
 
 async def train_spam_classifier():
     """Train a spam classifier using SVM on message embeddings and additional features.

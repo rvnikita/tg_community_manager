@@ -4,9 +4,9 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy import func
 
 import src.db_helper as db_helper
-import src.logging_helper as logging
+import src.logging_helper as logging_helper
 
-logger = logging.get_logger()
+logger = logging_helper.get_logger()
 
 # TODO: add non required parameter "spam prediction probability" that would be used when we we log with spam detection part of the code. That will easier to filter and manually verify in batch. Not going to use it in the prediction itself.
 import datetime
@@ -14,26 +14,26 @@ import traceback
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy import func
 import src.db_helper as db_helper
-import src.logging_helper as logging
+import src.logging_helper as logging_helper
 
-logger = logging.get_logger()
+logger = logging_helper.get_logger()
 
 import datetime, traceback
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy import func
 import src.db_helper as db_helper
-import src.logging_helper as logging
+import src.logging_helper as logging_helper
 
-logger = logging.get_logger()
+logger = logging_helper.get_logger()
 
 import datetime
 import traceback
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy import func
 import src.db_helper as db_helper
-import src.logging_helper as logging
+import src.logging_helper as logging_helper
 
-logger = logging.get_logger()
+logger = logging_helper.get_logger()
 
 def insert_or_update_message_log(
     chat_id,                 # mandatory

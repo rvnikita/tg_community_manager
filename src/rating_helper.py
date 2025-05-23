@@ -7,10 +7,10 @@ import os
 
 import src.db_helper as db_helper
 import src.user_helper as user_helper
-import src.logging_helper as logging
+import src.logging_helper as logging_helper
 import src.chat_helper as chat_helper
 
-logger = logging.get_logger()
+logger = logging_helper.get_logger()
 
 bot = Bot(token=os.getenv('ENV_BOT_KEY'),
           request=HTTPXRequest(http_version="1.1"), #we need this to fix bug https://github.com/python-telegram-bot/python-telegram-bot/issues/3556

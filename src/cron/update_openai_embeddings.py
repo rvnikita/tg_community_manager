@@ -7,11 +7,11 @@ import os
 from datetime import datetime
 import psycopg2
 
-import src.logging_helper as logging
+import src.logging_helper as logging_helper
 import src.openai_helper as openai_helper
 
 
-logger = logging.get_logger()
+logger = logging_helper.get_logger()
 
 openai.api_key = os.getenv('ENV_OPENAI_KEY')
 
@@ -39,7 +39,7 @@ def update_embeddings():
             sql = f"UPDATE tg_qna SET embedding = '{embedding.data[0].embedding}' WHERE id = {row['id']}"
             cur.execute(sql)
             conn.commit()
-            logging.info(f"Embedding for message {row['id']} generated")
+            logging_helper.info(f"Embedding for message {row['id']} generated")
 
     except (Exception, psycopg2.DatabaseError) as error:
         logger.error(f"Error: {traceback.format_exc()}")

@@ -13,10 +13,10 @@ sys.path.append(os.getcwd())
 # Import necessary helper modules
 import src.spamcheck_helper as spamcheck_helper
 import src.db_helper as db_helper
-import src.logging_helper as logging
+import src.logging_helper as logging_helper
 
 # Configure logger
-logger = logging.get_logger()
+logger = logging_helper.get_logger()
 
 async def train_spam_classifier():
     """Train a simple SVM model for spam detection using message embeddings, content, user ratings, and time difference."""

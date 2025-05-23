@@ -14,12 +14,13 @@ import signal
 import sys
 import json
 from re import findall
+import logging
 
 from langdetect import detect
 import langdetect
 from datetime import datetime, timedelta, timezone
 
-import src.logging_helper as logging
+import src.logging_helper as logging_helper
 import src.openai_helper as openai_helper
 import src.chat_helper as chat_helper
 import src.db_helper as db_helper
@@ -32,7 +33,7 @@ import src.spamcheck_helper_raw as spamcheck_helper_raw
 import helpers.spamcheck_helper_raw_structure as spamcheck_helper_raw_structure
 import helpers.lemmatizer_helper as lemmatizer_helper
 
-logger = logging.get_logger()
+logger = logging_helper.get_logger()
 
 logger.info(f"Starting {__file__} in {os.getenv('ENV_BOT_MODE')} mode at {os.uname()}")
 
@@ -1700,7 +1701,7 @@ async def global_error(update, context):
     logger.error("unhandled error", exc_info=context.error)
 
 async def on_startup(app):
-    logging.getLogger("apscheduler").setLevel(logging.WARNING) #get only warning messages from apscheduler
+    logging.getLogger("apscheduler").setLevel(logging_helper.WARNING) #get only warning messages from apscheduler
 
     # schedule heartbeat after application and JobQueue are ready
     app.job_queue.run_repeating(tg_heartbeat, interval=60, first=60)

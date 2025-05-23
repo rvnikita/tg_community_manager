@@ -3,12 +3,12 @@ import traceback
 from datetime import datetime, timezone
 
 import src.db_helper as db_helper
-import src.logging_helper as logging
+import src.logging_helper as logging_helper
 import src.cache_helper as cache_helper
 import src.rating_helper as rating_helper
 
 
-logger = logging.get_logger()
+logger = logging_helper.get_logger()
 
 def get_user_id(username: str):
     with db_helper.session_scope() as session:

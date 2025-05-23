@@ -4,9 +4,9 @@ import os
 import re
 from datetime import datetime, timezone
 import src.openai_helper as openai_helper
-import src.logging_helper as logging
+import src.logging_helper as logging_helper
 
-logger = logging.get_logger()
+logger = logging_helper.get_logger()
 
 def main():
     # Change this sample text as needed.
