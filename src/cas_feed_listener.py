@@ -47,7 +47,7 @@ async def main():
                 chat_ids = [cid for (cid,) in rows]
 
                 if not chat_ids:
-                    logger.info(f"CAS-banned user id: {user_id} - no record found, skipping")
+                    logger.debug(f"CAS-banned user id: {user_id} - no record found, skipping")
                     continue
                 else:
                     logger.info(f"CAS-banned user id: {user_id} - found in chats: {chat_ids}")
