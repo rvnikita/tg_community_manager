@@ -1730,12 +1730,13 @@ def create_application():
     application.add_handler(CommandHandler(["unspam", "us"], tg_unspam), group=6)
     application.add_handler(
         MessageHandler(
-            filters.TEXT
+            (filters.TEXT
             | (filters.PHOTO & filters.CAPTION)
             | (filters.VIDEO & filters.CAPTION)
             | filters.Document.ALL
             | filters.STORY
-            | filters.FORWARDED,
+            | filters.FORWARDED)
+            & filters.ChatType.GROUPS,   # only groups/supergroups
             tg_wiretapping,
         ),
         group=7,
