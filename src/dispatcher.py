@@ -1677,8 +1677,13 @@ class BotManager:
             else:
                 logger.error(f"Error: {traceback.format_exc()}")
 
+async def global_error(update, context):
+    logger.error("unhandled error", exc_info=context.error)
+
 def create_application():
     application = Application.builder().token(os.getenv('ENV_BOT_KEY')).build()
+
+    application.add_error_handler(global_error)
 
     # Add handlers
     application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, tg_new_member), group=0) #important to have this first to be able to mute new users who could be spammers
