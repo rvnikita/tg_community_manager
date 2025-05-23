@@ -1691,6 +1691,16 @@ async def on_startup(app):
     # schedule heartbeat after application and JobQueue are ready
     app.job_queue.run_repeating(heartbeat, interval=60, first=60)
 
+async def tg_ping(update, context):
+    try:
+        await context.bot.reply_text(
+            chat_id=update.effective_chat.id,
+            text="Pong!",
+            reply_to_message_id=update.effective_message.message_id
+        )
+    except Exception as e:
+        logger.error(f"Error in tg_ping: {traceback.format_exc()} | Update: {update.to_dict() if hasattr(update, 'to_dict') else 'N/A'}")
+
 # ────────────────── Application Factory ──────────────────
 
 def create_application():
@@ -1739,6 +1749,8 @@ def create_application():
     application.add_handler(CommandHandler(["help", "h"], tg_help), group=10)
     application.add_handler(MessageHandler((filters.TEXT | filters.CAPTION), tg_lemm_auto_reply), group=11)
     application.add_handler(CommandHandler(["info", "i"], tg_info), group=12)
+
+    application.add_handler(CommandHandler(["ping", "p"], tg_ping), group=13)
 
     signal.signal(signal.SIGTERM, lambda s, f: application.stop())
     return application
