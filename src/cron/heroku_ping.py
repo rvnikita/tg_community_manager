@@ -15,13 +15,16 @@ import logging_helper
 dotenv.load_dotenv("config/.env")
 logger = logging_helper.get_logger()
 
+async def my_code_callback():
+    logger.info("Telethon is asking for a login code (interactive sign-in required)")
+
 async def health_check():
     client = TelegramClient(
         os.getenv("CAS_TELETHON_SESSION_NAME", "health_check"),
         int(os.getenv("CAS_TELETHON_API_ID")),
         os.getenv("CAS_TELETHON_API_HASH"),
     )
-    await client.start(os.getenv("CAS_TELETHON_PHONE_NUMBER"))
+    await client.start(os.getenv("CAS_TELETHON_PHONE_NUMBER"), code_callback=my_code_callback)
     me = await client.get_me()
     logger.info(f"Logged in as {me.username} (id={me.id})")
 
