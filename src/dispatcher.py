@@ -1647,17 +1647,29 @@ async def tg_update_user_status(update, context):
 #We need this function to coordinate different function working with all text messages
 async def tg_wiretapping(update, context):
     try:
-        await tg_handle_forwarded_messages(update, context)
-        await tg_log_message(update, context)
-        await tg_spam_check(update, context)
-        await tg_ai_spamcheck(update, context)
-        await tg_cas_spamcheck(update, context)
-
-        return
-
+        tasks = [
+            tg_handle_forwarded_messages(update, context),
+            tg_log_message(update, context),
+            tg_spam_check(update, context),
+            tg_ai_spamcheck(update, context),
+            tg_cas_spamcheck(update, context),
+        ]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        for handler, result in zip(
+            ("forwarded", "log", "spam_check", "ai_spamcheck", "cas_spamcheck"),
+            results
+        ):
+            if isinstance(result, Exception):
+                logger.error(
+                    f"Error in tg_wiretapping → {handler}: {traceback.format_exc()}",
+                    exc_info=result
+                )
     except Exception as e:
-        update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
-        logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
+        update_str = json.dumps(
+            update.to_dict() if hasattr(update, "to_dict") else {"info": "no to_dict"},
+            indent=4, sort_keys=True, default=str
+        )
+        logger.error(f"Unhandled error in tg_wiretapping: {traceback.format_exc()} | Update: {update_str}")
 
 class BotManager:
     def __init__(self):
