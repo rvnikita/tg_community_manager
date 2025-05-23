@@ -1678,6 +1678,11 @@ class BotManager:
             else:
                 logger.error(f"Error: {traceback.format_exc()}")
 
+#temporary heartbeat function to check if the bot is alive
+#TODO:MED: remove this function later
+async def heartbeat(context):
+    logger.info("💓 heartbeat")
+
 async def global_error(update, context):
     logger.error("unhandled error", exc_info=context.error)
 
@@ -1685,6 +1690,10 @@ def create_application():
     application = Application.builder().token(os.getenv('ENV_BOT_KEY')).build()
 
     application.add_error_handler(global_error)
+
+    application.job_queue.run_repeating(heartbeat, interval=60, first=60)
+    #temporary heartbeat function to check if the bot is alive
+    #TODO:MED: remove this function later
 
     # Add handlers
     application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, tg_new_member), group=0) #important to have this first to be able to mute new users who could be spammers
