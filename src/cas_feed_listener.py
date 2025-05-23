@@ -37,7 +37,7 @@ async def main():
         text = event.message.message or ""
         for match in CAS_PATTERN.finditer(text):
             user_id = int(match.group(1))
-            logger.info(f"CAS-banned user id: {user_id}")
+            logger.debug(f"CAS-banned user id: {user_id}")
 
             # 2) Gather chats where they’re known (status or past messages) in one query
             with db_helper.session_scope() as session:
