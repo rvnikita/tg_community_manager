@@ -31,14 +31,14 @@ async def health_check():
             resp = await conv.get_response()
             text = resp.raw_text or ""
             if "Pong" in text:
-                logger.info("Pong received")
+                logger.info("🏓 Ping-Pong: Pong received")
                 await client.disconnect()
                 return
-            logger.error(f"Unexpected reply: {text!r}")
+            logger.error(f"❌🏓 Ping-Pong: Unexpected reply: {text!r}")
     except asyncio.TimeoutError:
-        logger.error("Timeout waiting for Pong")
+        logger.error("❌🏓 Ping-Pong: Timeout waiting for Pong")
     except Exception as e:
-        logger.error(f"Error during health check: {e}")
+        logger.error(f"❌🏓 Ping-Pong: Error during health check: {e}")
 
     # no Pong → restart Heroku
     url = f"https://api.heroku.com/apps/{os.getenv('HEROKU_APP_NAME')}/dynos"
