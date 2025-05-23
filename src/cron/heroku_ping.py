@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+import sys
+sys.path.insert(0, '../')  # add parent directory to the path
+
+
 import os
 import asyncio
 
