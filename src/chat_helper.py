@@ -576,7 +576,7 @@ async def delete_scheduled_messages(bot, chat_id=None, trigger_id=None, user_id=
             messages = query.all()
             for message in messages:
                 try:
-                    await bot.delete_message(message.chat_id, message.message_id)
+                    await chat_helper.delete_message(bot, message.chat_id, message.message_id)
                     message.status = 'deleted'
                     logger.info(f"Deleted message {message.message_id} for trigger ID {trigger_id}")
                 except Exception as e:

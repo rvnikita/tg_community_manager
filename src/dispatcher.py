@@ -775,7 +775,7 @@ async def tg_gban(update, context):
                 await message.reply_text("You must be a global bot admin to use this command.")
                 return
 
-            await bot.delete_message(chat_id, message.message_id)  # delete the ban command message
+            await chat_helper.delete_message(bot, chat_id, message.message_id)  # clean up the command message
 
             command_parts = message.text.split()  # Split the message into parts
             if len(command_parts) > 1:  # if the command has more than one part (means it has a user ID or username parameter)
@@ -967,7 +967,7 @@ async def tg_handle_forwarded_messages(update, context):
         forward_from_chat = getattr(message, 'forward_from_chat', None)
         if forward_from_chat and forward_from_chat.type == 'channel':
             # Delete the original message
-            await context.bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
+            await chat_helper.delete_message(context.bot, message.chat.id, message.message_id)
 
             # Prepare the new message content using your user_helper.get_user_mention function
             user_mention = user_helper.get_user_mention(message.from_user.id, message.chat.id)
@@ -1576,8 +1576,9 @@ async def tg_new_member(update, context):
         delete_new_chat_members_message = chat_helper.get_chat_config(update.effective_chat.id, "delete_new_chat_members_message")
 
         if delete_new_chat_members_message == True:
-            await bot.delete_message(update.message.chat.id, update.message.id)
+            await chat_helper.delete_message(bot, update.message.chat.id, update.message.message_id)
             logger.info(f"Joining message deleted from chat {await chat_helper.get_chat_mention(bot, update.message.chat.id)} for user @{update.message.from_user.username} [{update.message.from_user.id}]")
+                
         
         for new_member in update.message.new_chat_members:
             new_user_id = new_member.id
@@ -1634,7 +1635,7 @@ async def tg_update_user_status(update, context):
                     delete_channel_bot_message_allowed_ids = chat_helper.get_chat_config(update.message.chat.id, "delete_channel_bot_message_allowed_ids")
 
                     if delete_channel_bot_message_allowed_ids is None or update.message.sender_chat.id not in delete_channel_bot_message_allowed_ids:
-                        await bot.delete_message(update.message.chat.id, update.message.id)
+                        await chat_helper.delete_message(bot, update.message.chat.id, update.message.message_id)
                         await chat_helper.send_message(bot, update.message.chat.id, update.message.text)
                         logger.info(
                             f"Channel message deleted from chat {update.message.chat.title} ({update.message.chat.id}) for user @{update.message.from_user.username} ({update.message.from_user.id})")
