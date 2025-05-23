@@ -1,6 +1,6 @@
 import os
 from telegram import Bot, ChatPermissions
-from telegram.ext import Application, MessageHandler, CommandHandler, filters, ChatJoinRequestHandler, ApplicationBuilder
+from telegram.ext import Application, MessageHandler, CommandHandler, filters, ChatJoinRequestHandler, ApplicationBuilder, JobQueue
 from telegram.request import HTTPXRequest
 from telegram.error import TelegramError
 from datetime import datetime, timedelta, timezone
@@ -1687,19 +1687,16 @@ async def global_error(update, context):
     logger.error("unhandled error", exc_info=context.error)
 
 def create_application():
-    application = (
+    builder = (
         ApplicationBuilder()
         .token(os.getenv("ENV_BOT_KEY"))
-        .build()
+        .job_queue(JobQueue())
+        .post_init(lambda app: app.job_queue.run_repeating(heartbeat, interval=60, first=60))
     )
-
-    # force initialization so job_queue is available
-    application.initialize()
-
+    application = builder.build()
     application.add_error_handler(global_error)
-    application.job_queue.run_repeating(heartbeat, interval=60, first=60)
 
-    # Add all your handlers here, e.g.:
+    # Add your handlers:
     application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, tg_new_member), group=0)
     application.add_handler(TypeHandler(object, debug_all_updates), group=1)
     application.add_handler(ChatMemberHandler(on_member_update, ChatMemberHandler.CHAT_MEMBER), group=1)
