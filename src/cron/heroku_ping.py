@@ -20,7 +20,10 @@ async def my_code_callback():
 
 async def health_check():
     # Always use session file in project root
-    SESSION_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), os.getenv("CAS_TELETHON_SESSION_NAME", "cas_telethon"))
+    SESSION_PATH = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+        os.getenv("CAS_TELETHON_SESSION_NAME", "cas_telethon")
+    )
 
     logger.info(f"SESSION_PATH: {SESSION_PATH}")
     logger.info(f"Files in session dir: {os.listdir(os.path.dirname(SESSION_PATH))}")
