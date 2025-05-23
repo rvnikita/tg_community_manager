@@ -19,8 +19,12 @@ async def my_code_callback():
     logger.info("Telethon is asking for a login code (interactive sign-in required)")
 
 async def health_check():
+
+    # Always use session file in project root
+    SESSION_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), os.getenv("CAS_TELETHON_SESSION_NAME", "cas_telethon"))
+
     client = TelegramClient(
-        os.getenv("CAS_TELETHON_SESSION_NAME", "health_check"),
+        SESSION_PATH,
         int(os.getenv("CAS_TELETHON_API_ID")),
         os.getenv("CAS_TELETHON_API_HASH"),
     )
