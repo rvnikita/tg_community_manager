@@ -1693,7 +1693,7 @@ class BotManager:
 
 # temporary heartbeat function to check if the bot is alive
 # TODO:MED: remove this function later
-async def heartbeat(context):
+async def tg_heartbeat(context):
     logger.info("💓 heartbeat")
 
 async def global_error(update, context):
@@ -1701,7 +1701,7 @@ async def global_error(update, context):
 
 async def on_startup(app):
     # schedule heartbeat after application and JobQueue are ready
-    app.job_queue.run_repeating(heartbeat, interval=60, first=60)
+    app.job_queue.run_repeating(tg_heartbeat, interval=60, first=60)
 
 async def tg_ping(update, context):
     try:
