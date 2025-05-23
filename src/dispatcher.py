@@ -1146,7 +1146,8 @@ async def tg_ai_spamcheck(update, context):
         forwarded = bool(getattr(message, "forward_from", None) or getattr(message, "forward_from_chat", None))
 
         # ───────────── model inference ─────────────
-        embedding = openai_helper.generate_embedding(text)
+        loop = asyncio.get_event_loop()
+        embedding = await loop.run_in_executor(None, openai_helper.generate_embedding, text)
         if engine == "raw":
             spam_prob = await spamcheck_helper_raw.predict_spam(
                 user_id=user_id,
