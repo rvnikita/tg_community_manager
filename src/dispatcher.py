@@ -1728,7 +1728,8 @@ def create_application():
             | (filters.PHOTO & filters.CAPTION)
             | (filters.VIDEO & filters.CAPTION)
             | filters.Document.ALL
-            | filters.STORY,
+            | filters.STORY
+            | filters.FORWARDED,
             tg_wiretapping,
         ),
         group=7,
