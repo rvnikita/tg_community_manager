@@ -1686,17 +1686,23 @@ async def heartbeat(context):
 async def global_error(update, context):
     logger.error("unhandled error", exc_info=context.error)
 
+async def on_startup(app):
+    # schedule heartbeat after application and JobQueue are ready
+    app.job_queue.run_repeating(heartbeat, interval=60, first=60)
+
+# ────────────────── Application Factory ──────────────────
+
 def create_application():
-    builder = (
+    application = (
         ApplicationBuilder()
         .token(os.getenv("ENV_BOT_KEY"))
         .job_queue(JobQueue())
-        .post_init(lambda app: app.job_queue.run_repeating(heartbeat, interval=60, first=60))
+        .post_init(on_startup)
+        .build()
     )
-    application = builder.build()
     application.add_error_handler(global_error)
 
-    # Add your handlers:
+    # Add handlers
     application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, tg_new_member), group=0)
     application.add_handler(TypeHandler(object, debug_all_updates), group=1)
     application.add_handler(ChatMemberHandler(on_member_update, ChatMemberHandler.CHAT_MEMBER), group=1)
@@ -1734,6 +1740,8 @@ def create_application():
 
     signal.signal(signal.SIGTERM, lambda s, f: application.stop())
     return application
+
+# ────────────────── Bot Manager ──────────────────
 
 class BotManager:
     def __init__(self):
