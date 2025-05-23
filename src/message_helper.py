@@ -35,6 +35,7 @@ import src.logging_helper as logging_helper
 
 logger = logging_helper.get_logger()
 
+#TODO:MED: Add photo_descroption parameter (that we will get through recognition pf photo) to the message log. It will be used for spam detection and for manual verification. We can use it in the future for other things as well.
 def insert_or_update_message_log(
     chat_id,                 # mandatory
     message_id,              # mandatory
