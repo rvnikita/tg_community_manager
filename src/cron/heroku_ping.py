@@ -25,9 +25,6 @@ async def health_check():
         os.getenv("CAS_TELETHON_SESSION_NAME", "cas_telethon")
     )
 
-    logger.info(f"SESSION_PATH: {SESSION_PATH}")
-    logger.info(f"Files in session dir: {os.listdir(os.path.dirname(SESSION_PATH))}")
-
     client = TelegramClient(
         SESSION_PATH,
         int(os.getenv("CAS_TELETHON_API_ID")),
