@@ -20,3 +20,4 @@ pymorphy2
 nltk
 langdetect
 sentry_sdk
+python-telegram-bot[job-queue]
