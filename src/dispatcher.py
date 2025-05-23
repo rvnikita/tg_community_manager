@@ -1,6 +1,6 @@
 import os
 from telegram import Bot, ChatPermissions
-from telegram.ext import Application, MessageHandler, CommandHandler, filters, ChatJoinRequestHandler
+from telegram.ext import Application, MessageHandler, CommandHandler, filters, ChatJoinRequestHandler, ApplicationBuilder
 from telegram.request import HTTPXRequest
 from telegram.error import TelegramError
 from datetime import datetime, timedelta, timezone
@@ -1673,63 +1673,72 @@ class BotManager:
             self.application = create_application()
             self.application.run_polling()
         except Exception as e:
-            if 'Event loop is closed' in str(e):
-                logger.info('Received shutdown signal, exiting gracefully')
+            if "Event loop is closed" in str(e):
+                logger.info("Received shutdown signal, exiting gracefully")
             else:
                 logger.error(f"Error: {traceback.format_exc()}")
 
-#temporary heartbeat function to check if the bot is alive
-#TODO:MED: remove this function later
+# temporary heartbeat function to check if the bot is alive
+# TODO:MED: remove this function later
 async def heartbeat(context):
     logger.info("💓 heartbeat")
 
 async def global_error(update, context):
     logger.error("unhandled error", exc_info=context.error)
 
+# schedule heartbeat once job_queue is ready
+async def _on_startup(app: Application):
+    app.job_queue.run_repeating(heartbeat, interval=60, first=60)
+
 def create_application():
-    application = Application.builder().token(os.getenv('ENV_BOT_KEY')).build()
+    application = (
+        ApplicationBuilder()
+        .token(os.getenv("ENV_BOT_KEY"))
+        .post_init(_on_startup)
+        .build()
+    )
 
     application.add_error_handler(global_error)
 
-    application.job_queue.run_repeating(heartbeat, interval=60, first=60)
-    #temporary heartbeat function to check if the bot is alive
-    #TODO:MED: remove this function later
-
     # Add handlers
-    application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, tg_new_member), group=0) #important to have this first to be able to mute new users who could be spammers
-
+    application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, tg_new_member), group=0)
     application.add_handler(TypeHandler(object, debug_all_updates), group=1)
-    application.add_handler(ChatMemberHandler(on_member_update, ChatMemberHandler.CHAT_MEMBER),group=1)
-    
+    application.add_handler(ChatMemberHandler(on_member_update, ChatMemberHandler.CHAT_MEMBER), group=1)
     application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, tg_cas_spamcheck), group=1)
-
     application.add_handler(MessageHandler(filters.ALL & filters.ChatType.GROUPS, tg_update_user_status), group=2)
     application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, tg_update_user_status), group=2)
     application.add_handler(MessageHandler((filters.TEXT | filters.CAPTION), tg_thankyou), group=3)
-    application.add_handler(CommandHandler(['report', 'r'], tg_report, filters.ChatType.GROUPS), group=4)
-    application.add_handler(CommandHandler(['warn', 'w'], tg_warn, filters.ChatType.GROUPS), group=4)
-    application.add_handler(CommandHandler(['offtop', 'o'], tg_offtop, filters.ChatType.GROUPS), group=4)
-    application.add_handler(CommandHandler(['set_rating'], tg_set_rating, filters.ChatType.GROUPS), group=4)
-    application.add_handler(CommandHandler(['set_report'], tg_set_report, filters.ChatType.GROUPS), group=4)
-    application.add_handler(CommandHandler(['get_rating', 'gr'], tg_get_rating, filters.ChatType.GROUPS), group=4)
+    application.add_handler(CommandHandler(["report", "r"], tg_report, filters.ChatType.GROUPS), group=4)
+    application.add_handler(CommandHandler(["warn", "w"], tg_warn, filters.ChatType.GROUPS), group=4)
+    application.add_handler(CommandHandler(["offtop", "o"], tg_offtop, filters.ChatType.GROUPS), group=4)
+    application.add_handler(CommandHandler(["set_rating"], tg_set_rating, filters.ChatType.GROUPS), group=4)
+    application.add_handler(CommandHandler(["set_report"], tg_set_report, filters.ChatType.GROUPS), group=4)
+    application.add_handler(CommandHandler(["get_rating", "gr"], tg_get_rating, filters.ChatType.GROUPS), group=4)
     application.add_handler(ChatJoinRequestHandler(tg_join_request), group=5)
-    application.add_handler(CommandHandler(['ban', 'b'], tg_ban, filters.ChatType.GROUPS), group=6)
-    application.add_handler(CommandHandler(['gban', 'g', 'gb'], tg_gban), group=6)
-    application.add_handler(CommandHandler(['spam', 's'], tg_spam), group=6)
-    application.add_handler(CommandHandler(['unspam', 'us'], tg_unspam), group=6)
-    application.add_handler(MessageHandler(filters.TEXT | (filters.TEXT & filters.CAPTION) | (filters.PHOTO & filters.CAPTION) | (filters.VIDEO & filters.CAPTION) | filters.Document.ALL | filters.STORY, tg_wiretapping), group=7)
-    application.add_handler(CommandHandler(['pin', 'p'], tg_pin, filters.ChatType.GROUPS), group=9)
-    application.add_handler(CommandHandler(['unpin', 'up'], tg_unpin, filters.ChatType.GROUPS), group=9)
-    application.add_handler(CommandHandler(['help', 'h'], tg_help), group=10)
-    # application.add_handler(MessageHandler((filters.TEXT | filters.CAPTION), tg_auto_reply), group=11)
+    application.add_handler(CommandHandler(["ban", "b"], tg_ban, filters.ChatType.GROUPS), group=6)
+    application.add_handler(CommandHandler(["gban", "g", "gb"], tg_gban), group=6)
+    application.add_handler(CommandHandler(["spam", "s"], tg_spam), group=6)
+    application.add_handler(CommandHandler(["unspam", "us"], tg_unspam), group=6)
+    application.add_handler(
+        MessageHandler(
+            filters.TEXT
+            | (filters.PHOTO & filters.CAPTION)
+            | (filters.VIDEO & filters.CAPTION)
+            | filters.Document.ALL
+            | filters.STORY,
+            tg_wiretapping,
+        ),
+        group=7,
+    )
+    application.add_handler(CommandHandler(["pin", "p"], tg_pin, filters.ChatType.GROUPS), group=9)
+    application.add_handler(CommandHandler(["unpin", "up"], tg_unpin, filters.ChatType.GROUPS), group=9)
+    application.add_handler(CommandHandler(["help", "h"], tg_help), group=10)
     application.add_handler(MessageHandler((filters.TEXT | filters.CAPTION), tg_lemm_auto_reply), group=11)
-    application.add_handler(CommandHandler(['info', 'i'], tg_info), group=12)
-
-
+    application.add_handler(CommandHandler(["info", "i"], tg_info), group=12)
 
     signal.signal(signal.SIGTERM, lambda s, f: application.stop())
     return application
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     manager = BotManager()
     manager.run()
