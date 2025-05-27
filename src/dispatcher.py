@@ -32,6 +32,7 @@ import src.spamcheck_helper as spamcheck_helper
 import src.spamcheck_helper_raw as spamcheck_helper_raw
 import helpers.spamcheck_helper_raw_structure as spamcheck_helper_raw_structure
 import helpers.lemmatizer_helper as lemmatizer_helper
+import src.helpers.embedding_reply_helper as embedding_reply_helper
 
 logger = logging_helper.get_logger()
 
@@ -948,6 +949,33 @@ async def tg_lemm_auto_reply(update, context):
         logger.error(f"tg_auto_reply error: {traceback.format_exc()}")
 
 
+import src.helpers.embedding_reply_helper as embedding_reply_helper
+
+async def tg_embeddings_auto_reply(update, context):
+    try:
+        if not (update.message and update.message.text):
+            return
+
+        chat_id = update.effective_chat.id
+        message_text = update.message.text
+
+        message_embedding = await openai_helper.get_embedding(message_text)
+        row = embedding_reply_helper.find_best_embedding_trigger(chat_id, message_embedding)
+        if not row:
+            return
+
+        content = embedding_reply_helper.get_content_by_id(row["content_id"])
+        if not content:
+            return
+
+        await embedding_reply_helper.send_embedding_reply(
+            context.bot, chat_id, content.reply, update.message.message_id, content
+        )
+
+    except Exception:
+        logger.error(f"tg_embeddings_auto_reply error: {traceback.format_exc()}")
+
+
 async def tg_handle_forwarded_messages(update, context):
     try:
         message = update.message
@@ -1771,6 +1799,7 @@ def create_application():
     application.add_handler(CommandHandler(["unpin", "up"], tg_unpin, filters.ChatType.GROUPS), group=9)
     application.add_handler(CommandHandler(["help", "h"], tg_help), group=10)
     application.add_handler(MessageHandler((filters.TEXT | filters.CAPTION), tg_lemm_auto_reply), group=11)
+    application.add_handler(MessageHandler((filters.TEXT | filters.CAPTION), tg_embeddings_auto_reply), group=11) 
     application.add_handler(CommandHandler(["info", "i"], tg_info), group=12)
 
     application.add_handler(CommandHandler(["ping", "p"], tg_ping), group=13)

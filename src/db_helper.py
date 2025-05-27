@@ -303,6 +303,37 @@ class Auto_Reply(Base):
     reply_delay = Column(Integer, nullable=True)  # Delay in seconds
     usage_count = Column(Integer, default=0)  # New column to track usage count
 
+class Embeddings_Auto_Reply_Content(Base):
+    __table_args__ = (
+        PrimaryKeyConstraint('id', name='embeddings_auto_reply_content_pkey'),
+    )
+
+    id = Column(BigInteger, Identity(start=1, increment=1), primary_key=True)
+    reply = Column(Text, nullable=False)
+    last_reply_time = Column(DateTime(True), nullable=True)
+    reply_delay = Column(Integer, nullable=True)  # in seconds
+    usage_count = Column(Integer, default=0)
+    created_at = Column(DateTime(True), server_default=text('now()'))
+
+    triggers = relationship('Embeddings_Auto_Reply_Trigger', back_populates='content')
+
+
+class Embeddings_Auto_Reply_Trigger(Base):
+    __table_args__ = (
+        PrimaryKeyConstraint('id', name='embeddings_auto_reply_trigger_pkey'),
+    )
+
+    id = Column(BigInteger, Identity(start=1, increment=1), primary_key=True)
+    chat_id = Column(BigInteger, ForeignKey(Chat.__table__.c.id), nullable=False)
+    content_id = Column(BigInteger, ForeignKey(Embeddings_Auto_Reply_Content.id), nullable=False)
+    trigger_text = Column(Text, nullable=False)
+    embedding = Column(Vector, nullable=True)
+    created_at = Column(DateTime(True), server_default=text('now()'))
+
+    content = relationship('Embeddings_Auto_Reply_Content', back_populates='triggers')
+    chat = relationship('Chat')
+
+
 
 class Scheduled_Message_Content(Base):
     __table_args__ = (
