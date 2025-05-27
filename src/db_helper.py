@@ -302,6 +302,7 @@ class Auto_Reply(Base):
     last_reply_time = Column(DateTime(True), nullable=True)  # To ensure delay between replies
     reply_delay = Column(Integer, nullable=True)  # Delay in seconds
     usage_count = Column(Integer, default=0)  # New column to track usage count
+    enabled = Column(Boolean, nullable=False, server_default=text("true"))
 
 class Embeddings_Auto_Reply_Content(Base):
     __table_args__ = (
@@ -329,6 +330,7 @@ class Embeddings_Auto_Reply_Trigger(Base):
     trigger_text = Column(Text, nullable=False)
     embedding = Column(Vector, nullable=True)
     created_at = Column(DateTime(True), server_default=text('now()'))
+    enabled = Column(Boolean, nullable=False, server_default=text("true"))
 
     content = relationship('Embeddings_Auto_Reply_Content', back_populates='triggers')
     chat = relationship('Chat')
