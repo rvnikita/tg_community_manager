@@ -97,7 +97,7 @@ async def update_embeddings():
                     embedding = feature_array[:-NUM_ADDITIONAL_FEATURES]
 
                     # Convert the embedding to a list for psycopg2
-                    embedding_list = embedding.tolist()
+                    embeddings_list = embedding.tolist()
 
                     # Update the embedding in the database
                     sql_update = """
@@ -105,7 +105,7 @@ async def update_embeddings():
                         SET embedding = %s
                         WHERE id = %s
                     """
-                    cur.execute(sql_update, (embedding_list, message_id))
+                    cur.execute(sql_update, (embeddings_list, message_id))
                     conn.commit()
 
                     processed_count += 1

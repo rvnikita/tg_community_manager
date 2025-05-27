@@ -32,7 +32,7 @@ import src.spamcheck_helper as spamcheck_helper
 import src.spamcheck_helper_raw as spamcheck_helper_raw
 import helpers.spamcheck_helper_raw_structure as spamcheck_helper_raw_structure
 import helpers.lemmatizer_helper as lemmatizer_helper
-import src.helpers.embedding_reply_helper as embedding_reply_helper
+import src.helpers.embeddings_reply_helper as embeddings_reply_helper
 
 logger = logging_helper.get_logger()
 
@@ -949,10 +949,11 @@ async def tg_lemm_auto_reply(update, context):
         logger.error(f"tg_auto_reply error: {traceback.format_exc()}")
 
 
-import src.helpers.embedding_reply_helper as embedding_reply_helper
+import src.helpers.embeddings_reply_helper as embeddings_reply_helper
 
 async def tg_embeddings_auto_reply(update, context):
     try:
+        logger.info(f"🥶 tg_embeddings_auto_reply called with update: {update}")
         if not (update.message and update.message.text):
             return
 
@@ -960,15 +961,15 @@ async def tg_embeddings_auto_reply(update, context):
         message_text = update.message.text
 
         message_embedding = await openai_helper.get_embedding(message_text)
-        row = embedding_reply_helper.find_best_embedding_trigger(chat_id, message_embedding)
+        row = embeddings_reply_helper.find_best_embeddings_trigger(chat_id, message_embedding)
         if not row:
             return
 
-        content = embedding_reply_helper.get_content_by_id(row["content_id"])
+        content = embeddings_reply_helper.get_content_by_id(row["content_id"])
         if not content:
             return
 
-        await embedding_reply_helper.send_embedding_reply(
+        await embeddings_reply_helper.send_embeddings_reply(
             context.bot, chat_id, content.reply, update.message.message_id, content
         )
 

@@ -19,7 +19,7 @@ def main():
         embedding = openai_helper.generate_embedding(sample_text)
         
         # Convert the embedding (assumed to be a list of floats) to a PostgreSQL vector literal.
-        embedding_str = "[" + ",".join(f"{x:.8f}" for x in embedding) + "]"
+        embeddings_str = "[" + ",".join(f"{x:.8f}" for x in embedding) + "]"
         
         # Parameters
         threshold = 0.97
@@ -35,11 +35,11 @@ def main():
             "    manually_verified,\n"
             "    message_content,\n"
             "    embedding,\n"
-            f"    embedding <-> '{embedding_str}'::vector AS distance\n"
+            f"    embedding <-> '{embeddings_str}'::vector AS distance\n"
             "FROM tg_message_log\n"
             "WHERE is_spam = false\n"
-            f"  AND embedding <-> '{embedding_str}'::vector < {threshold}\n"
-            f"ORDER BY embedding <-> '{embedding_str}'::vector ASC\n"
+            f"  AND embedding <-> '{embeddings_str}'::vector < {threshold}\n"
+            f"ORDER BY embedding <-> '{embeddings_str}'::vector ASC\n"
             f"LIMIT {limit};"
         )
         

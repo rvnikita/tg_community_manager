@@ -6,10 +6,10 @@ import src.logging_helper as logging_helper
 
 logger = logging_helper.get_logger()
 
-def find_best_embedding_trigger(chat_id, embedding, threshold=0.3):
+def find_best_embeddings_trigger(chat_id, embedding, threshold=0.3):
     from pgvector.sqlalchemy import Vector
 
-    embedding_str = "[" + ",".join(str(float(x)) for x in embedding) + "]"
+    embeddings_str = "[" + ",".join(str(float(x)) for x in embedding) + "]"
     with db_helper.session_scope() as session:
         sql = text("""
             SELECT id, content_id, embedding <=> :embedding as distance
@@ -18,7 +18,7 @@ def find_best_embedding_trigger(chat_id, embedding, threshold=0.3):
             ORDER BY distance ASC
             LIMIT 1
         """)
-        row = session.execute(sql, {"embedding": embedding_str, "chat_id": chat_id}).fetchone()
+        row = session.execute(sql, {"embedding": embeddings_str, "chat_id": chat_id}).fetchone()
         if not row or row.distance > threshold:
             return None
         return dict(row)
@@ -46,7 +46,7 @@ def update_reply_usage(content_id, now=None):
         session.commit()
         return True
 
-async def send_embedding_reply(bot, chat_id, reply_text, reply_to_message_id, content_obj, now=None):
+async def send_embeddings_reply(bot, chat_id, reply_text, reply_to_message_id, content_obj, now=None):
     now = now or datetime.now(timezone.utc)
     if not can_send_reply(content_obj, now):
         logger.info(f"Reply suppressed for content_id={content_obj.id} in chat_id={chat_id} due to reply_delay.")
