@@ -250,6 +250,7 @@ async def mute_user(
 ) -> None:
     from datetime import datetime, timedelta, timezone
     from telegram.error import TelegramError, BadRequest
+    import asyncio
 
     perms = ChatPermissions.no_permissions()
 
@@ -287,72 +288,89 @@ async def mute_user(
             ).all()
             bot_info = await bot.get_me()
             for chat in all_active_chats:
-                try:
-                    chat_id_iter = chat.id
-                    chat_admins = await bot.get_chat_administrators(chat_id_iter)
-                    if bot_info.id not in [admin.user.id for admin in chat_admins]:
-                        logger.info(
-                            f"Bot is not admin in chat {await chat_helper.get_chat_mention(bot, chat_id_iter)}"
+                chat_id_iter = chat.id
+                try_count = 0
+                while True:
+                    try:
+                        chat_admins = await bot.get_chat_administrators(chat_id_iter)
+                        if bot_info.id not in [admin.user.id for admin in chat_admins]:
+                            logger.info(
+                                f"Bot is not admin in chat {await chat_helper.get_chat_mention(bot, chat_id_iter)}"
+                            )
+                            break
+                        await bot.restrict_chat_member(
+                            chat_id=chat_id_iter,
+                            user_id=user_id,
+                            permissions=perms,
+                            until_date=until
                         )
-                        continue
-                    await bot.restrict_chat_member(
-                        chat_id=chat_id_iter,
-                        user_id=user_id,
-                        permissions=perms,
-                        until_date=until
-                    )
-                    logger.info(
-                        f"User {user_id} has been globally muted in chat {await chat_helper.get_chat_mention(bot, chat_id_iter)} {desc}. Reason: {reason}"
-                    )
-                except TelegramError as e:
-                    if "Bot is not a member of the group chat" in e.message:
                         logger.info(
-                            f"Bot is not a member in chat {await chat_helper.get_chat_mention(bot, chat_id_iter)}"
+                            f"User {user_id} has been globally muted in chat {await chat_helper.get_chat_mention(bot, chat_id_iter)} {desc}. Reason: {reason}"
                         )
-                        continue
-                    elif "Group migrated to supergroup. New chat id" in e.message:
-                        new_chat_id = int(re.search(r"New chat id: (-\d+)", e.message).group(1))
-                        existing_chat = db_session.query(db_helper.Chat).filter(db_helper.Chat.id == new_chat_id).first()
-                        if not existing_chat:
-                            chat_to_update = db_session.query(db_helper.Chat).filter(db_helper.Chat.id == chat_id_iter).first()
-                            if chat_to_update:
-                                chat_to_update.id = new_chat_id
-                                db_session.commit()
-                                logger.info(
-                                    f"Updated chat id from {chat_id_iter} to {new_chat_id}"
-                                )
-                    elif "bot was kicked from the supergroup chat" in e.message:
-                        logger.info(
-                            f"Bot was kicked from chat {await chat_helper.get_chat_mention(bot, chat_id_iter)}"
-                        )
-                        continue
-                    else:
+                        await asyncio.sleep(1.5)  # throttle to avoid rate limit
+                        break  # success, move to next chat
+                    except TelegramError as e:
+                        # Rate limit handling
+                        if "Too Many Requests" in e.message:
+                            retry_after = getattr(e, "retry_after", None)
+                            if not retry_after:
+                                # try to parse from message, fallback to 5s
+                                m = re.search(r'retry after (\d+)', e.message)
+                                retry_after = int(m.group(1)) if m else 5
+                            logger.warning(f"mute_user: 429 Too Many Requests. Sleeping for {retry_after} seconds before retrying chat {chat_id_iter}")
+                            await asyncio.sleep(retry_after)
+                            try_count += 1
+                            continue  # retry same chat
+                        elif "Bot is not a member of the group chat" in e.message:
+                            logger.info(
+                                f"Bot is not a member in chat {await chat_helper.get_chat_mention(bot, chat_id_iter)}"
+                            )
+                            break
+                        elif "Group migrated to supergroup. New chat id" in e.message:
+                            new_chat_id = int(re.search(r"New chat id: (-\d+)", e.message).group(1))
+                            existing_chat = db_session.query(db_helper.Chat).filter(db_helper.Chat.id == new_chat_id).first()
+                            if not existing_chat:
+                                chat_to_update = db_session.query(db_helper.Chat).filter(db_helper.Chat.id == chat_id_iter).first()
+                                if chat_to_update:
+                                    chat_to_update.id = new_chat_id
+                                    db_session.commit()
+                                    logger.info(
+                                        f"Updated chat id from {chat_id_iter} to {new_chat_id}"
+                                    )
+                            break
+                        elif "bot was kicked from the supergroup chat" in e.message:
+                            logger.info(
+                                f"Bot was kicked from chat {await chat_helper.get_chat_mention(bot, chat_id_iter)}"
+                            )
+                            break
+                        else:
+                            logger.error(
+                                f"mute_user: TELEGRAM ERROR muting user={user_id} in chat={chat_id_iter}: {e.message}"
+                            )
+                            break
+                    except BadRequest as e:
+                        if "There are no administrators in the private chat" in e.message:
+                            logger.info(
+                                f"Bot is not admin in chat {await chat_helper.get_chat_mention(bot, chat_id_iter)}"
+                            )
+                            break
+                        elif "User_not_participant" in e.message:
+                            logger.info(
+                                f"User {user_id} is not in chat {chat_id_iter}"
+                            )
+                            break
                         logger.error(
-                            f"mute_user: TELEGRAM ERROR muting user={user_id} in chat={chat_id_iter}: {e.message}"
+                            f"BadRequest. Chat: {await chat_helper.get_chat_mention(bot, chat_id_iter)}. Traceback: {traceback.format_exc()}"
                         )
-                except BadRequest as e:
-                    if "There are no administrators in the private chat" in e.message:
-                        logger.info(
-                            f"Bot is not admin in chat {await chat_helper.get_chat_mention(bot, chat_id_iter)}"
-                        )
-                        continue
-                    elif "User_not_participant" in e.message:
-                        logger.info(
-                            f"User {user_id} is not in chat {chat_id_iter}"
-                        )
-                        continue
-                    logger.error(
-                        f"BadRequest. Chat: {await chat_helper.get_chat_mention(bot, chat_id_iter)}. Traceback: {traceback.format_exc()}"
-                    )
-                    continue
-                except Exception as e:
-                    if getattr(e, "message", None) == "Chat not found":
-                        continue
-                    else:
-                        logger.error(
-                            f"mute_user: UNEXPECTED ERROR muting user={user_id} in chat={chat_id_iter}: {traceback.format_exc()}"
-                        )
-                        continue
+                        break
+                    except Exception as e:
+                        if getattr(e, "message", None) == "Chat not found":
+                            break
+                        else:
+                            logger.error(
+                                f"mute_user: UNEXPECTED ERROR muting user={user_id} in chat={chat_id_iter}: {traceback.format_exc()}"
+                            )
+                            break
 
 
 
