@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 import sys
-sys.path.insert(0, '../')  # add parent directory to the path
-
+sys.path.insert(0, '../')
 
 import os
 import asyncio
-
 import requests
+
 from telethon import TelegramClient
+from telethon.sessions import StringSession
 
 import dotenv
 import logging_helper
@@ -15,22 +15,18 @@ import logging_helper
 dotenv.load_dotenv("config/.env")
 logger = logging_helper.get_logger()
 
-async def my_code_callback():
-    logger.info("Telethon is asking for a login code (interactive sign-in required)")
-
 async def health_check():
-    # Always use session file in project root
-    SESSION_PATH = os.path.join(
-        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-        os.getenv("CAS_TELETHON_SESSION_NAME", "cas_telethon")
-    )
+    session_string = os.getenv("CAS_TELETHON_SESSION_STRING")
+    if not session_string:
+        logger.error("CAS_TELETHON_SESSION_STRING is missing in .env")
+        return
 
     client = TelegramClient(
-        SESSION_PATH,
+        StringSession(session_string),
         int(os.getenv("CAS_TELETHON_API_ID")),
         os.getenv("CAS_TELETHON_API_HASH"),
     )
-    await client.start(os.getenv("CAS_TELETHON_PHONE_NUMBER"), code_callback=my_code_callback)
+    await client.start()
     me = await client.get_me()
     logger.info(f"Logged in as {me.username} (id={me.id})")
 
@@ -49,7 +45,6 @@ async def health_check():
     except Exception as e:
         logger.error(f"❌🏓 Ping-Pong: Error during health check: {e}")
 
-    # no Pong → restart Heroku
     url = f"https://api.heroku.com/apps/{os.getenv('HEROKU_APP_NAME')}/dynos"
     headers = {
         "Accept": "application/vnd.heroku+json; version=3",
