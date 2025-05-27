@@ -1,25 +1,22 @@
-# auth_telethon.py
-
 import asyncio
-from telethon import TelegramClient
 import os
 from dotenv import load_dotenv
 
+from telethon import TelegramClient
+from telethon.sessions import StringSession
+
 load_dotenv("config/.env")
 
-# These can come from env vars, config files, etc.
 API_ID = int(os.getenv("TELETHON1_API_ID"))
 API_HASH = os.getenv("TELETHON1_API_HASH")
 PHONE_NUMBER = os.getenv("TELETHON1_PHONE_NUMBER")
 
-SESSION_NAME = "TELETHON1"  # or another name you want
-
 async def main():
-    client = TelegramClient(SESSION_NAME, API_ID, API_HASH)
-    print(f"Starting Telethon client (session='{SESSION_NAME}')...")
-    await client.start()
-    print("Session saved. You won't need to log in again for this session file.")
-    await client.disconnect()
+    async with TelegramClient(StringSession(), API_ID, API_HASH) as client:
+        await client.start(PHONE_NUMBER)
+        session_string = client.session.save()
+        print("Session string (save this to your .env as TELETHON1_SESSION_STRING):")
+        print(session_string)
 
 if __name__ == "__main__":
     asyncio.run(main())
