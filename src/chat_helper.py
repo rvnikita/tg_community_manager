@@ -741,6 +741,7 @@ async def get_chat_mention(bot, chat_id: int) -> str:
 async def get_auto_replies(chat_id, filter_delayed=False):
     """
     Fetch auto-reply settings for a specific chat, optionally filtering out replies that are currently delayed.
+    Only returns enabled auto-replies.
     """
     try:
         cache_key = f"auto_replies:{chat_id}:{filter_delayed}"
@@ -750,15 +751,31 @@ async def get_auto_replies(chat_id, filter_delayed=False):
             return json.loads(auto_replies)  # Deserialize JSON string back into Python object
 
         with db_helper.session_scope() as db_session:
+            base_query = db_session.query(db_helper.Auto_Reply).filter(
+                db_helper.Auto_Reply.chat_id == chat_id,
+                or_(db_helper.Auto_Reply.enabled == True, db_helper.Auto_Reply.enabled == None)
+            )
+
             if filter_delayed:
                 current_time = datetime.now(timezone.utc)
-                auto_replies = db_session.query(db_helper.Auto_Reply).filter(db_helper.Auto_Reply.chat_id == chat_id, or_(db_helper.Auto_Reply.last_reply_time == None, func.extract('epoch', func.now() - db_helper.Auto_Reply.last_reply_time) > db_helper.Auto_Reply.reply_delay)).all()
-            else:
-                auto_replies = db_session.query(db_helper.Auto_Reply).filter(
-                    db_helper.Auto_Reply.chat_id == chat_id
+                auto_replies = base_query.filter(
+                    or_(
+                        db_helper.Auto_Reply.last_reply_time == None,
+                        func.extract('epoch', func.now() - db_helper.Auto_Reply.last_reply_time) > db_helper.Auto_Reply.reply_delay
+                    )
                 ).all()
+            else:
+                auto_replies = base_query.all()
 
-            auto_replies_list = [{'id': ar.id, 'trigger': ar.trigger, 'reply': ar.reply, 'reply_delay': ar.reply_delay, 'last_reply_time': ar.last_reply_time.isoformat() if ar.last_reply_time else None} for ar in auto_replies]
+            auto_replies_list = [{
+                'id': ar.id,
+                'trigger': ar.trigger,
+                'reply': ar.reply,
+                'reply_delay': ar.reply_delay,
+                'last_reply_time': ar.last_reply_time.isoformat() if ar.last_reply_time else None,
+                'enabled': getattr(ar, 'enabled', True)  # default to True if not present
+            } for ar in auto_replies]
+
             cache_helper.set_key(cache_key, json.dumps(auto_replies_list), expire=3600)
             return auto_replies_list
     except Exception as e:
