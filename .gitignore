@@ -10,9 +10,7 @@
 /src/temp.py
 
 # Ignore session files
-TELETHON1.session
-TELETHON2.session
-TELETHON*.session
+*.session
 
 # Ignore cache
 __pycache__
