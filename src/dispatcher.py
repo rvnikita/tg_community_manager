@@ -1255,22 +1255,15 @@ async def tg_ai_spamcheck(update, context):
 
 # BrightData (formerly Luminati) proxy credentials.
 # Note: Adjust these values to match your actual BrightData account.
+import asyncio
+
 BRIGHTDATA_PROXY = "http://brd-customer-hl_cf9f8e6a-zone-residential_proxy1:k47qfcqxmwh3@brd.superproxy.io:22225"
 
-# Create an SSL context that disables certificate verification.
 ssl_context = ssl.create_default_context()
 ssl_context.check_hostname = False
 ssl_context.verify_mode = ssl.CERT_NONE
 
 async def tg_cas_spamcheck(update, context):
-    """
-    Check if a user is CAS banned using the Combot Anti-Spam API.
-
-    - New members (update.message.new_chat_members): message_id=0
-    - Regular messages: message_id=message.message_id
-
-    “Record not found” from CAS is treated as “no info” (DEBUG), not an error.
-    """
     if not update.message:
         return
 
@@ -1278,7 +1271,6 @@ async def tg_cas_spamcheck(update, context):
     if not chat_helper.get_chat_config(chat_id, "cas_enabled", default=False):
         return
 
-    # Gather all (user, message_id, nickname) tuples we need to check.
     checks = []
     if update.message.new_chat_members:
         for member in update.message.new_chat_members:
@@ -1287,42 +1279,61 @@ async def tg_cas_spamcheck(update, context):
         msg = update.message
         checks.append((msg.from_user.id, msg.message_id, msg.from_user.username or msg.from_user.first_name))
 
+    MAX_RETRIES = 3
+    RETRY_DELAY = 1  # seconds
+
     async with aiohttp.ClientSession() as session:
         for user_id, message_id, nickname in checks:
-            # skip admins
             admins = await context.bot.get_chat_administrators(chat_id)
             if any(a.user.id == user_id for a in admins):
                 continue
 
             url = f"https://api.cas.chat/check?user_id={user_id}"
-            try:
-                resp = await session.get(url, proxy=BRIGHTDATA_PROXY, ssl=ssl_context)
-            except Exception as e:
-                logger.error(f"CAS API request failed for user {user_id}: {e}")
-                continue
+            resp = None
+            for attempt in range(1, MAX_RETRIES + 1):
+                try:
+                    resp = await session.get(url, proxy=BRIGHTDATA_PROXY, ssl=ssl_context)
+                    if resp.status == 200:
+                        break
+                    elif resp.status == 502:
+                        logger.warning(f"CAS API returned HTTP 502 for user {user_id}, attempt {attempt}/{MAX_RETRIES}")
+                        if attempt < MAX_RETRIES:
+                            await asyncio.sleep(RETRY_DELAY)
+                            continue
+                        else:
+                            logger.error(f"CAS API failed after {MAX_RETRIES} retries for user {user_id}")
+                            resp = None
+                            break
+                    else:
+                        logger.error(f"CAS API returned HTTP {resp.status} for user {user_id}")
+                        resp = None
+                        break
+                except Exception as e:
+                    logger.error(f"CAS API request failed for user {user_id} on attempt {attempt}/{MAX_RETRIES}: {e}")
+                    if attempt < MAX_RETRIES:
+                        await asyncio.sleep(RETRY_DELAY)
+                        continue
+                    else:
+                        resp = None
+                        break
 
-            if resp.status != 200:
-                logger.error(f"CAS API returned HTTP {resp.status} for user {user_id}")
+            if not resp or resp.status != 200:
                 continue
 
             data = await resp.json()
             desc = data.get("description", "")
 
             if not data.get("ok", False):
-                # If there simply is no record, that's fine—just DEBUG.
                 if "Record not found" in desc:
                     logger.info(f"CAS API no record for user {user_id}")
                 else:
                     logger.info(f"CAS API not ok for user {user_id}: {desc}")
                 continue
 
-            # API says “ok” — now check the actual ban result
             if data.get("result", False):
                 logger.info(f"CAS API found user {user_id} is CAS banned: {desc}")
 
-                # Mute the user
                 await chat_helper.mute_user(context.bot, chat_id, user_id, global_mute=True, reason="CAS spam check")
-                # Log to our DB
                 message_helper.insert_or_update_message_log(
                     chat_id=chat_id,
                     message_id=message_id,
@@ -1339,7 +1350,7 @@ async def tg_cas_spamcheck(update, context):
                     embedding=None
                 )
                 logger.info(f"CAS check: muted user {user_id} in chat {chat_id}")
-            # else: result==False → user is clean, nothing to do
+
 
 
 async def tg_thankyou(update, context):
