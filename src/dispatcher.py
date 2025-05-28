@@ -7,6 +7,18 @@ sentry_sdk.init(
     profile_session_sample_rate=1.0,
 )
 
+import sentry_sdk
+
+def sentry_profile(name=None):
+    def decorator(func):
+        @functools.wraps(func)
+        async def wrapper(*args, **kwargs):
+            tx_name = name or func.__name__
+            with sentry_sdk.start_transaction(name=tx_name):
+                return await func(*args, **kwargs)
+        return wrapper
+    return decorator
+
 
 
 
@@ -54,6 +66,7 @@ bot = Bot(os.getenv('ENV_BOT_KEY'),
 
 ########################
 
+@sentry_profile()
 async def tg_help(update, context):
     try:
         # just return all commands we support as a reply
@@ -74,6 +87,7 @@ async def tg_help(update, context):
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
         logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
 
+@sentry_profile()
 async def tg_report(update, context):
     try:
         chat_id = update.effective_chat.id
@@ -207,6 +221,7 @@ from src.user_helper import get_user_id
 import src.chat_helper as chat_helper
 import src.rating_helper as rating_helper
 
+@sentry_profile()
 async def tg_info(update, context):
     try:
         chat_id = update.effective_chat.id
@@ -289,6 +304,7 @@ async def tg_info(update, context):
 
 
 
+@sentry_profile()
 async def tg_offtop(update, context):
     try:
         chat_id = update.effective_chat.id
@@ -359,6 +375,7 @@ async def tg_offtop(update, context):
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
         logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
 
+@sentry_profile()
 async def tg_set_report(update, context):
     try:
         chat_id = update.effective_chat.id
@@ -410,6 +427,7 @@ async def tg_set_report(update, context):
         logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
 
 
+@sentry_profile()
 async def tg_pin(update, context):
     try:
         chat_id = update.effective_chat.id
@@ -430,6 +448,7 @@ async def tg_pin(update, context):
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
         logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
 
+@sentry_profile()
 async def tg_unpin(update, context):
     try:
         chat_id = update.effective_chat.id
@@ -444,6 +463,7 @@ async def tg_unpin(update, context):
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
         logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
 
+@sentry_profile()
 async def tg_warn(update, context):
     try:
         chat_id = update.effective_chat.id
@@ -515,6 +535,7 @@ async def tg_warn(update, context):
         logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
 
 
+@sentry_profile()
 async def tg_ban(update, context):
     try:
         with db_helper.session_scope() as db_session:
@@ -586,6 +607,7 @@ async def tg_ban(update, context):
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
         logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
 
+@sentry_profile()
 async def tg_spam(update, context):
     try:
         message = update.message
@@ -681,6 +703,7 @@ async def tg_spam(update, context):
         )
 
 
+@sentry_profile()
 async def tg_unspam(update, context):
     try:
         message = update.message
@@ -772,6 +795,7 @@ async def tg_unspam(update, context):
         )
 
 
+@sentry_profile()
 async def tg_gban(update, context):
     try:
         with db_helper.session_scope() as db_session:
@@ -862,6 +886,7 @@ async def tg_gban(update, context):
 
 
 #TODO:MED: May be we need to make it more complicated (e.g. with ai embeddings) and move big part of it to separate auto_deply_helper
+@sentry_profile()
 async def tg_auto_reply(update, context):
     try:
         if update.message and update.message.text:
@@ -920,6 +945,7 @@ async def tg_auto_reply(update, context):
 
 # #lemmatized version of tg_auto_reply (temporary)
 # #TODO:MED: we should store lemmed versions of triggers in DB for performance
+# @sentry_profile()
 # async def tg_lemm_auto_reply(update, context):
 #     try:
 #         if update.message and update.message.text:
@@ -961,6 +987,7 @@ async def tg_auto_reply(update, context):
 
 import src.helpers.embeddings_reply_helper as embeddings_reply_helper
 
+@sentry_profile()
 async def tg_embeddings_auto_reply(update, context):
     try:
         logger.info(f"🥶 tg_embeddings_auto_reply called with update: {update}")
@@ -993,6 +1020,7 @@ async def tg_embeddings_auto_reply(update, context):
         logger.error(f"tg_embeddings_auto_reply error: {traceback.format_exc()}")
 
 
+@sentry_profile()
 async def tg_handle_forwarded_messages(update, context):
     try:
         message = update.message
@@ -1038,6 +1066,7 @@ async def tg_handle_forwarded_messages(update, context):
 
 
 
+@sentry_profile()
 async def tg_log_message(update, context):
     try:
         message = update.message
@@ -1099,6 +1128,7 @@ async def tg_log_message(update, context):
 
 
 
+@sentry_profile()
 async def tg_spam_check(update, context):
     try:
         message = update.message if update.message else update.edited_message
@@ -1154,6 +1184,7 @@ async def tg_spam_check(update, context):
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
         logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
 
+@sentry_profile()
 async def tg_ai_spamcheck(update, context):
     """
     ML-based spam detector with per-chat configuration.
@@ -1308,6 +1339,7 @@ ssl_context = ssl.create_default_context()
 ssl_context.check_hostname = False
 ssl_context.verify_mode = ssl.CERT_NONE
 
+@sentry_profile()
 async def tg_cas_spamcheck(update, context):
     if not update.message:
         return
@@ -1398,6 +1430,7 @@ async def tg_cas_spamcheck(update, context):
 
 
 
+@sentry_profile()
 async def tg_thankyou(update, context):
     try:
         msg = update.message
@@ -1476,6 +1509,7 @@ async def tg_thankyou(update, context):
         logger.error(f"Error in tg_thankyou: {traceback.format_exc()} | Update: {update_str}")
 
 
+@sentry_profile()
 async def tg_set_rating(update, context):
     try:
         chat_id = update.effective_chat.id
@@ -1532,6 +1566,7 @@ async def tg_set_rating(update, context):
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
         logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
 
+@sentry_profile()
 async def tg_get_rating(update, context):
     try:
         chat_id = update.effective_chat.id
@@ -1571,6 +1606,7 @@ async def tg_get_rating(update, context):
 
 
 
+@sentry_profile()
 async def tg_join_request(update, context):
     try:
         welcome_dm_message = chat_helper.get_chat_config(update.effective_chat.id, "welcome_dm_message")
@@ -1624,6 +1660,7 @@ async def on_member_update(update, context):
     #     )
     
 
+@sentry_profile()
 async def tg_new_member(update, context):
     try:
         mute_new_users_duration = int(chat_helper.get_chat_config(update.effective_chat.id, "mute_new_users_duration", default=0))
@@ -1662,6 +1699,7 @@ async def tg_new_member(update, context):
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
         logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
 
+@sentry_profile()
 async def tg_update_user_status(update, context):
     try:
         #TODO: we need to rewrite all this to support multiple chats. May be we should add chat_id to user table
@@ -1702,6 +1740,7 @@ async def tg_update_user_status(update, context):
         logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
 
 #We need this function to coordinate different function working with all text messages
+@sentry_profile()
 async def tg_wiretapping(update, context):
     try:
         tasks = [
@@ -1750,6 +1789,7 @@ class BotManager:
 
 # temporary heartbeat function to check if the bot is alive
 # TODO:MED: remove this function later
+@sentry_profile()
 async def tg_heartbeat(context):
     logger.info("💓 heartbeat")
 
@@ -1762,6 +1802,7 @@ async def on_startup(app):
     # schedule heartbeat after application and JobQueue are ready
     app.job_queue.run_repeating(tg_heartbeat, interval=60, first=60)
 
+@sentry_profile()
 async def tg_ping(update, context):
     try:
         await update.message.reply_text("Pong!")
