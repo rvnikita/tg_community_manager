@@ -17,4 +17,5 @@ python-telegram-bot[rate-limiter]
 aiohttp
 telethon
 sentry_sdk
+sentry-sdk[profiling]
 python-telegram-bot[job-queue]
