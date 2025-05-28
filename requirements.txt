@@ -16,5 +16,5 @@ pytest-asyncio
 python-telegram-bot[rate-limiter]
 aiohttp
 telethon
-sentry-sdk>=2.24.1
+sentry_sdk
 python-telegram-bot[job-queue]
