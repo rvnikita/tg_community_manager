@@ -28,7 +28,10 @@ def find_best_embeddings_trigger(chat_id, embedding, threshold=0.3):
         
 def get_content_by_id(content_id):
     with db_helper.session_scope() as session:
-        return session.query(db_helper.Embeddings_Auto_Reply_Content).filter_by(id=content_id).one_or_none()
+        obj = session.query(db_helper.Embeddings_Auto_Reply_Content).filter_by(id=content_id).one_or_none()
+        if obj is None:
+            return None
+        return {c.name: getattr(obj, c.name) for c in obj.__table__.columns}
 
 def can_send_reply(content, now=None):
     now = now or datetime.now(timezone.utc)
