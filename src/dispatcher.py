@@ -1800,10 +1800,11 @@ def create_application():
     application.add_handler(CommandHandler(["unpin", "up"], tg_unpin, filters.ChatType.GROUPS), group=9)
     application.add_handler(CommandHandler(["help", "h"], tg_help), group=10)
     application.add_handler(MessageHandler((filters.TEXT | filters.CAPTION), tg_lemm_auto_reply), group=11)
-    application.add_handler(MessageHandler((filters.TEXT | filters.CAPTION), tg_embeddings_auto_reply), group=11) 
     application.add_handler(CommandHandler(["info", "i"], tg_info), group=12)
 
     application.add_handler(CommandHandler(["ping", "p"], tg_ping), group=13)
+
+    application.add_handler(MessageHandler((filters.TEXT | filters.CAPTION), tg_embeddings_auto_reply), group=14) 
 
     signal.signal(signal.SIGTERM, lambda s, f: application.stop())
     return application
