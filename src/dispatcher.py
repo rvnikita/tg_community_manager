@@ -3,8 +3,9 @@ import os
 
 sentry_sdk.init(
     dsn=os.getenv("SENTRY_DSN"),
-    traces_sample_rate=1.0,
-    profiles_sample_rate=1.0,
+    traces_sample_rate=1.0,  # or lower in prod
+    profile_session_sample_rate=1.0,    # this is the new way, not profiles_sample_rate!
+    profile_lifecycle="trace",          # automatic profiling during spans
 )
 
 import functools
