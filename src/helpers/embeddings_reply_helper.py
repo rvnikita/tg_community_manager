@@ -20,7 +20,7 @@ def find_best_embeddings_trigger(chat_id, embedding, threshold=0.3):
         """
         row = session.execute(text(sql), {"chat_id": chat_id}).fetchone()
         if row:
-            logger.info(f"Found embeddings row: {row}, distance: {row.distance}")
+            logger.info(f"🥶 Found embeddings row: {row}, distance: {row.distance}")
         if not row or row.distance is None or row.distance > threshold:
             return None
         return dict(row._mapping)
