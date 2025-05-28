@@ -1,4 +1,5 @@
 import sentry_sdk
+import os
 
 sentry_sdk.init(
     dsn=os.getenv("SENTRY_DSN"),
@@ -7,7 +8,8 @@ sentry_sdk.init(
 )
 
 
-import os
+
+
 from telegram import Bot, ChatPermissions
 from telegram.ext import Application, MessageHandler, CommandHandler, filters, ChatJoinRequestHandler, ApplicationBuilder, JobQueue
 from telegram.request import HTTPXRequest
