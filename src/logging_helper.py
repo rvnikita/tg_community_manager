@@ -25,8 +25,8 @@ class TelegramLoggerHandler(logging.Handler):
         try:
             msg = self.format(record)
             # Truncate if too long for Telegram
-            if len(msg) > 3500:
-                msg = msg[:3500] + "\\n...(truncated)"
+            # if len(msg) > 3500:
+                # msg = msg[:3500] + "\\n...(truncated)"
             text = urllib.parse.quote(msg, safe="")
             url = (
                 f"https://api.telegram.org/bot{os.getenv('ENV_BOT_KEY')}"
