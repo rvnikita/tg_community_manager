@@ -42,7 +42,6 @@ import src.message_helper as message_helper
 import src.spamcheck_helper as spamcheck_helper
 import src.spamcheck_helper_raw as spamcheck_helper_raw
 import helpers.spamcheck_helper_raw_structure as spamcheck_helper_raw_structure
-import helpers.lemmatizer_helper as lemmatizer_helper
 import src.helpers.embeddings_reply_helper as embeddings_reply_helper
 
 logger = logging_helper.get_logger()
@@ -909,55 +908,55 @@ async def tg_auto_reply(update, context):
     except Exception as error:
         logger.error(f"tg_auto_reply error: {traceback.format_exc()}")
 
-import pymorphy2
-from nltk.stem import WordNetLemmatizer
-from langdetect import detect
-import json
-from datetime import datetime, timezone
-import traceback
+# import pymorphy2
+# from nltk.stem import WordNetLemmatizer
+# from langdetect import detect
+# import json
+# from datetime import datetime, timezone
+# import traceback
 
-morph = pymorphy2.MorphAnalyzer()
-lemmatizer = WordNetLemmatizer()
+# morph = pymorphy2.MorphAnalyzer()
+# lemmatizer = WordNetLemmatizer()
 
-#lemmatized version of tg_auto_reply (temporary)
-#TODO:MED: we should store lemmed versions of triggers in DB for performance
-async def tg_lemm_auto_reply(update, context):
-    try:
-        if update.message and update.message.text:
-            chat_id = update.effective_chat.id
-            message_text = update.message.text
-            message_lemmas = lemmatizer_helper.lemmatize_words(message_text)
-        else:
-            return
+# #lemmatized version of tg_auto_reply (temporary)
+# #TODO:MED: we should store lemmed versions of triggers in DB for performance
+# async def tg_lemm_auto_reply(update, context):
+#     try:
+#         if update.message and update.message.text:
+#             chat_id = update.effective_chat.id
+#             message_text = update.message.text
+#             message_lemmas = lemmatizer_helper.lemmatize_words(message_text)
+#         else:
+#             return
 
-        auto_replies = await chat_helper.get_auto_replies(chat_id, filter_delayed=True)
-        for auto_reply in auto_replies:
-            try:
-                triggers_raw = auto_reply["trigger"]
-                triggers = json.loads(triggers_raw)
-                # TODO:MED cache lemmatized triggers in DB for performance
-                trigger_lemmas = set(lemmatizer_helper.lemmatize_single(trigger) for trigger in triggers)
-            except json.JSONDecodeError:
-                logger.warning(f"Failed to parse auto-reply trigger: {auto_reply['trigger']}")
-                continue
+#         auto_replies = await chat_helper.get_auto_replies(chat_id, filter_delayed=True)
+#         for auto_reply in auto_replies:
+#             try:
+#                 triggers_raw = auto_reply["trigger"]
+#                 triggers = json.loads(triggers_raw)
+#                 # TODO:MED cache lemmatized triggers in DB for performance
+#                 trigger_lemmas = set(lemmatizer_helper.lemmatize_single(trigger) for trigger in triggers)
+#             except json.JSONDecodeError:
+#                 logger.warning(f"Failed to parse auto-reply trigger: {auto_reply['trigger']}")
+#                 continue
 
-            if trigger_lemmas & message_lemmas:
-                await chat_helper.send_message(
-                    context.bot,
-                    chat_id,
-                    auto_reply["reply"],
-                    reply_to_message_id=update.message.message_id,
-                )
-                await chat_helper.update_last_reply_time_and_increment_count(
-                    chat_id, auto_reply["id"], datetime.now(timezone.utc)
-                )
-                logger.info(
-                    f"Auto-reply sent in chat {chat_id} for triggers '{', '.join(triggers)}': {auto_reply['reply']}"
-                )
-                break
+#             if trigger_lemmas & message_lemmas:
+#                 await chat_helper.send_message(
+#                     context.bot,
+#                     chat_id,
+#                     auto_reply["reply"],
+#                     reply_to_message_id=update.message.message_id,
+#                 )
+#                 await chat_helper.update_last_reply_time_and_increment_count(
+#                     chat_id, auto_reply["id"], datetime.now(timezone.utc)
+#                 )
+#                 logger.info(
+#                     f"Auto-reply sent in chat {chat_id} for triggers '{', '.join(triggers)}': {auto_reply['reply']}"
+#                 )
+#                 break
 
-    except Exception as error:
-        logger.error(f"tg_auto_reply error: {traceback.format_exc()}")
+#     except Exception as error:
+#         logger.error(f"tg_auto_reply error: {traceback.format_exc()}")
 
 
 import src.helpers.embeddings_reply_helper as embeddings_reply_helper
@@ -1816,7 +1815,7 @@ def create_application():
     application.add_handler(CommandHandler(["pin", "p"], tg_pin, filters.ChatType.GROUPS), group=9)
     application.add_handler(CommandHandler(["unpin", "up"], tg_unpin, filters.ChatType.GROUPS), group=9)
     application.add_handler(CommandHandler(["help", "h"], tg_help), group=10)
-    application.add_handler(MessageHandler((filters.TEXT | filters.CAPTION), tg_lemm_auto_reply), group=11)
+    application.add_handler(MessageHandler((filters.TEXT | filters.CAPTION), tg_auto_reply), group=11)
     application.add_handler(CommandHandler(["info", "i"], tg_info), group=12)
 
     application.add_handler(CommandHandler(["ping", "p"], tg_ping), group=13)
