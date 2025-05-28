@@ -9,10 +9,8 @@ import src.logging_helper as logging_helper
 logger = logging_helper.get_logger()
 
 def find_best_embeddings_trigger(chat_id, embedding, threshold=0.3):
-    # Convert embedding to Postgres vector string
     embedding_str = "[" + ",".join(str(float(x)) for x in embedding) + "]"
     with db_helper.session_scope() as session:
-        # Safely inject embedding_str (already sanitized numbers)
         sql = f"""
             SELECT id, content_id, embedding <=> '{embedding_str}'::vector as distance
             FROM tg_embeddings_auto_reply_trigger
@@ -25,7 +23,7 @@ def find_best_embeddings_trigger(chat_id, embedding, threshold=0.3):
             logger.info(f"Found embeddings row: {row}, distance: {row.distance}")
         if not row or row.distance is None or row.distance > threshold:
             return None
-        return dict(row)
+        return dict(row._mapping)
 
         
 def get_content_by_id(content_id):
