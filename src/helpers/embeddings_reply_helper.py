@@ -9,7 +9,6 @@ logger = logging_helper.get_logger()
 def find_best_embeddings_trigger(chat_id, embedding, threshold=0.3):
     from pgvector.sqlalchemy import Vector
 
-    embeddings_str = "[" + ",".join(str(float(x)) for x in embedding) + "]"
     with db_helper.session_scope() as session:
         sql = text("""
             SELECT id, content_id, embedding <=> :embedding as distance
@@ -18,7 +17,7 @@ def find_best_embeddings_trigger(chat_id, embedding, threshold=0.3):
             ORDER BY distance ASC
             LIMIT 1
         """)
-        row = session.execute(sql, {"embedding": embeddings_str, "chat_id": chat_id}).fetchone()
+        row = session.execute(sql, {"embedding": embedding, "chat_id": chat_id}).fetchone()
         # FIXED GUARD FOR NONE
         if not row or row.distance is None or row.distance > threshold:
             return None
