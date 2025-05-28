@@ -976,7 +976,7 @@ async def tg_embeddings_auto_reply(update, context):
             return
 
         await embeddings_reply_helper.send_embeddings_reply(
-            context.bot, chat_id, content.reply, update.message.message_id, content
+            context.bot, chat_id, content["reply"], update.message.message_id, content
         )
 
     except Exception:

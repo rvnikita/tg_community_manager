@@ -35,8 +35,8 @@ def get_content_by_id(content_id):
 
 def can_send_reply(content, now=None):
     now = now or datetime.now(timezone.utc)
-    if content.last_reply_time and content.reply_delay:
-        next_reply_time = content.last_reply_time + timedelta(seconds=content.reply_delay)
+    if content["last_reply_time"] and content["reply_delay"]:
+        next_reply_time = content["last_reply_time"] + timedelta(seconds=content["reply_delay"])
         return now >= next_reply_time
     return True
 
@@ -55,7 +55,7 @@ def update_reply_usage(content_id, now=None):
 async def send_embeddings_reply(bot, chat_id, reply_text, reply_to_message_id, content_obj, now=None):
     now = now or datetime.now(timezone.utc)
     if not can_send_reply(content_obj, now):
-        logger.info(f"Reply suppressed for content_id={content_obj.id} in chat_id={chat_id} due to reply_delay.")
+        logger.info(f"Reply suppressed for content_id={content_obj['id']} in chat_id={chat_id} due to reply_delay.")
         return False
 
     await bot.send_message(
@@ -64,6 +64,6 @@ async def send_embeddings_reply(bot, chat_id, reply_text, reply_to_message_id, c
         reply_to_message_id=reply_to_message_id
     )
 
-    update_reply_usage(content_obj.id, now)
-    logger.info(f"Auto-reply sent for content_id={content_obj.id} in chat_id={chat_id}")
+    update_reply_usage(content_obj["id"], now)
+    logger.info(f"Auto-reply sent for content_id={content_obj['id']} in chat_id={chat_id}")
     return True
