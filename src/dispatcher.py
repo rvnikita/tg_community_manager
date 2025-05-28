@@ -7,7 +7,7 @@ sentry_sdk.init(
     profile_session_sample_rate=1.0,
 )
 
-import sentry_sdk
+import functools
 
 def sentry_profile(name=None):
     def decorator(func):
