@@ -960,7 +960,7 @@ async def tg_embeddings_auto_reply(update, context):
         chat_id = update.effective_chat.id
         message_text = update.message.text
 
-        message_embedding = await openai_helper.get_embedding(message_text)
+        message_embedding = await openai_helper.generate_embedding(message_text)
         row = embeddings_reply_helper.find_best_embeddings_trigger(chat_id, message_embedding)
         if not row:
             return
