@@ -29,7 +29,7 @@ scaler = load('ml_models/scaler.joblib')
 async def generate_features(user_id, chat_id, message_text=None, embedding=None, is_forwarded=None, reply_to_message_id=None):
     try:
         if embedding is None and message_text is not None:
-            embedding = openai_helper.generate_embedding(message_text)
+            embedding = await openai_helper.generate_embedding(message_text)
         if embedding is None:
             logger.error(f"Failed to generate embedding for spam prediction. Message text: {message_text}")
             return None

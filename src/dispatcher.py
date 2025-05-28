@@ -1048,7 +1048,7 @@ async def tg_log_message(update, context):
                 # logger.info("No 'forward_origin' in message or sender_user data is missing.")
 
             #TODO:LOW: Maybe we don't need to calculate embedding and insert it in DB here as we will recalculate it later in tg_ai_spamcheck. But we should be careful as it seems like sometimes tg_ai_spamcheck is not called (or maybe called but not updating the message log in DB is there is something wrong with the probability calculation. That happens if "ai_spamcheck_enabled": false in chat config)
-            embedding = openai_helper.generate_embedding(message_content)
+            embedding =await openai_helper.generate_embedding(message_content)
 
 
             # Log the message, treating forwarded messages differently if needed
@@ -1177,7 +1177,7 @@ async def tg_ai_spamcheck(update, context):
 
         # ───────────── model inference ─────────────
         loop = asyncio.get_event_loop()
-        embedding = await loop.run_in_executor(None, openai_helper.generate_embedding, text)
+        embedding = await openai_helper.generate_embedding(text)
         if engine == "raw":
             spam_prob = await spamcheck_helper_raw.predict_spam(
                 user_id=user_id,

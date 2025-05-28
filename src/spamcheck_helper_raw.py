@@ -41,7 +41,7 @@ def _name_lens(user_raw, first, last):
 async def predict_spam(*, user_id, chat_id, message_text, raw_message, embedding=None):
     try:
         if embedding is None:
-            embedding = openai_helper.generate_embedding(message_text)
+            embedding = await openai_helper.generate_embedding(message_text)
 
         with db_helper.session_scope() as s:
             user = s.query(db_helper.User).get(user_id)
