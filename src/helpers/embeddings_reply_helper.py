@@ -1,5 +1,7 @@
 from datetime import datetime, timezone, timedelta
 from sqlalchemy import text
+from pgvector.sqlalchemy import Vector
+
 
 import src.db_helper as db_helper
 import src.logging_helper as logging_helper
@@ -7,8 +9,6 @@ import src.logging_helper as logging_helper
 logger = logging_helper.get_logger()
 
 def find_best_embeddings_trigger(chat_id, embedding, threshold=0.3):
-    from pgvector.sqlalchemy import Vector
-
     with db_helper.session_scope() as session:
         sql = text("""
             SELECT id, content_id, embedding <=> :embedding as distance
@@ -17,14 +17,16 @@ def find_best_embeddings_trigger(chat_id, embedding, threshold=0.3):
             ORDER BY distance ASC
             LIMIT 1
         """)
-        row = session.execute(sql, {"embedding": embedding, "chat_id": chat_id}).fetchone()
+        # Use Vector for embedding
+        row = session.execute(
+            sql,
+            {"embedding": Vector(embedding), "chat_id": chat_id}
+        ).fetchone()
         if row:
             logger.info(f"Found embeddings row: {row}, distance: {row.distance}")
-        # FIXED GUARD FOR NONE
         if not row or row.distance is None or row.distance > threshold:
             return None
         return dict(row)
-
 def get_content_by_id(content_id):
     with db_helper.session_scope() as session:
         return session.query(db_helper.Embeddings_Auto_Reply_Content).filter_by(id=content_id).one_or_none()
