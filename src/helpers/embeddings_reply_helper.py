@@ -15,15 +15,18 @@ def find_best_embeddings_trigger(chat_id, embedding, threshold=0.3):
             SELECT id, content_id, embedding <=> '{embedding_str}'::vector as distance
             FROM tg_embeddings_auto_reply_trigger
             WHERE chat_id = :chat_id
+              AND embedding <=> '{embedding_str}'::vector <= :threshold
             ORDER BY distance ASC
             LIMIT 1
         """
-        row = session.execute(text(sql), {"chat_id": chat_id}).fetchone()
+        row = session.execute(
+            text(sql),
+            {"chat_id": chat_id, "threshold": threshold}
+        ).fetchone()
         if row:
             logger.info(f"🥶 Found embeddings row: {row}, distance: {row.distance}")
-        if not row or row.distance is None or row.distance > threshold:
-            return None
-        return dict(row._mapping)
+            return dict(row._mapping)
+        return None
 
         
 def get_content_by_id(content_id):
