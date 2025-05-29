@@ -83,7 +83,7 @@ async def tg_report(update, context):
         if message:
             await chat_helper.schedule_message_deletion(chat_id, message.message_id, message.from_user.id, trigger_id=reported_message_id, delay_seconds=2 * 60 * 60)  # use reported_message_id as trigger_id
 
-        chat_administrators = await context.bot.get_chat_administrators(chat_id)
+        chat_administrators = await context.chat_helper.get_chat_administrators(bot, chat_id)
         if any(admin.user.id == reported_user_id for admin in chat_administrators):
             await chat_helper.send_message(context.bot, chat_id, "You cannot report an admin.", delete_after=120)
             return
@@ -283,7 +283,7 @@ async def tg_offtop(update, context):
     try:
         chat_id = update.effective_chat.id
         message = update.message
-        admin_ids = [admin.user.id for admin in await bot.get_chat_administrators(chat_id)]
+        admin_ids = [admin.user.id for admin in await chat_helper.get_chat_administrators(bot, chat_id)]
 
         await chat_helper.delete_message(bot, chat_id, message.message_id, delay_seconds=120)  # clean up the command message
 
@@ -355,7 +355,7 @@ async def tg_set_report(update, context):
         message = update.message
 
         # Verify if the command issuer is an administrator
-        chat_administrators = await context.bot.get_chat_administrators(chat_id)
+        chat_administrators = await context.chat_helper.get_chat_administrators(bot, chat_id)
         is_admin = any(admin.user.id == message.from_user.id for admin in chat_administrators)
         if not is_admin:
             await chat_helper.send_message(context.bot, chat_id, "You must be an admin to use this command.", reply_to_message_id=message.message_id, delete_after=120)
@@ -438,7 +438,7 @@ async def tg_warn(update, context):
     try:
         chat_id = update.effective_chat.id
         message = update.message
-        admin_ids = [admin.user.id for admin in await bot.get_chat_administrators(chat_id)]
+        admin_ids = [admin.user.id for admin in await chat_helper.get_chat_administrators(bot, chat_id)]
 
         await chat_helper.delete_message(bot, chat_id, message.message_id, delay_seconds=120)  # clean up the command message
 
@@ -515,7 +515,7 @@ async def tg_ban(update, context):
             await chat_helper.delete_message(bot, chat_id, message.message_id)  # clean up the command message
 
             # Check if the command was sent by an admin of the chat
-            chat_administrators = await bot.get_chat_administrators(chat_id)
+            chat_administrators = await chat_helper.get_chat_administrators(bot, chat_id)
 
             # TODO:MED: We should find the way how to identify admin if he answers from channel
             if message.from_user.id not in [admin.user.id for admin in chat_administrators]:
@@ -984,7 +984,7 @@ async def tg_handle_forwarded_messages(update, context):
             return
 
         # Check if the user is an admin; if so, don't process their messages
-        chat_administrators = await context.bot.get_chat_administrators(message.chat.id)
+        chat_administrators = await chat_helper.get_chat_administrators(context.bot, message.chat.id)
         is_admin = any(admin.user.id == message.from_user.id for admin in chat_administrators)
         if is_admin:
             return
@@ -1088,7 +1088,7 @@ async def tg_spam_check(update, context):
         message = update.message if update.message else update.edited_message
 
         #check if user is admin so don't check spam for them
-        chat_administrators = await context.bot.get_chat_administrators(message.chat.id)
+        chat_administrators = await chat_helper.get_chat_administrators(context.bot, message.chat.id)
         is_admin = any(admin.user.id == message.from_user.id for admin in chat_administrators)
         if is_admin:
             return
@@ -1159,7 +1159,7 @@ async def tg_ai_spamcheck(update, context):
         # ───────────── feature-toggle / admin-skip ─────────────
         if chat_helper.get_chat_config(chat_id, "ai_spamcheck_enabled") is not True:
             return
-        if any(adm.user.id == user_id for adm in await context.bot.get_chat_administrators(chat_id)):
+        if any(adm.user.id == user_id for adm in await context.chat_helper.get_chat_administrators(bot, chat_id)):
             return
         if user_id == 777000:
             return
@@ -1313,7 +1313,7 @@ async def tg_cas_spamcheck(update, context):
 
     async with aiohttp.ClientSession() as session:
         for user_id, message_id, nickname in checks:
-            admins = await context.bot.get_chat_administrators(chat_id)
+            admins = await context.chat_helper.get_chat_administrators(bot, chat_id)
             if any(a.user.id == user_id for a in admins):
                 continue
 
@@ -1466,7 +1466,7 @@ async def tg_set_rating(update, context):
         message = update.message
 
         # Check if the user is an administrator
-        chat_administrators = await context.bot.get_chat_administrators(chat_id)
+        chat_administrators = await context.chat_helper.get_chat_administrators(bot, chat_id)
         is_admin = any(admin.user.id == message.from_user.id for admin in chat_administrators)
         if not is_admin:
             await chat_helper.send_message(context.bot, chat_id, "You must be an admin to use this command.", reply_to_message_id=message.message_id, delete_after=120)

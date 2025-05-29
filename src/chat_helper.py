@@ -25,7 +25,7 @@ import src.cache_helper as cache_helper
 logger = logging_helper.get_logger()
 
 async def send_message_to_admin(bot, chat_id, text: str, disable_web_page_preview: bool = True):
-    chat_administrators = await bot.get_chat_administrators(chat_id)
+    chat_administrators = await chat_helper.get_chat_administrators(bot, chat_id)
 
     for admin in chat_administrators:
         if admin.user.is_bot == True: #don't send to bots
@@ -141,6 +141,37 @@ async def set_last_admin_permissions_check(chat_id, timestamp):
     except Exception as e:
         logger.error(f"Error updating last admin permissions check for chat_id {chat_id}: {traceback.format_exc()}")
         return False
+
+async def get_chat_administrators(bot, chat_id, cache_ttl=3600):
+    """
+    Get chat administrators with caching. Caches per chat_id for cache_ttl seconds.
+    Returns a list of dicts: [{user_id, is_bot, status}]
+    """
+    cache_key = f"chat_admins:{chat_id}"
+    admins_json = cache_helper.get_key(cache_key)
+    if admins_json:
+        try:
+            return json.loads(admins_json)
+        except Exception as e:
+            logger.error(f"Error parsing cached admins for chat {chat_id}: {e}")
+            cache_helper.delete_key(cache_key)
+
+    try:
+        admins = await chat_helper.get_chat_administrators(bot, chat_id)
+        admins_data = [
+            {
+                "user_id": admin.user.id,
+                "is_bot": admin.user.is_bot,
+                "status": admin.status
+            }
+            for admin in admins
+        ]
+        cache_helper.set_key(cache_key, json.dumps(admins_data), expire=cache_ttl)
+        return admins_data
+    except Exception as e:
+        logger.error(f"Error getting chat administrators for chat {chat_id}: {traceback.format_exc()}")
+        return []
+
 
 async def send_message(
     bot,
@@ -292,7 +323,7 @@ async def mute_user(
                 try_count = 0
                 while True:
                     try:
-                        chat_admins = await bot.get_chat_administrators(chat_id_iter)
+                        chat_admins = await chat_helper.get_chat_administrators(bot, chat_id_iter)
                         if bot_info.id not in [admin.user.id for admin in chat_admins]:
                             logger.info(
                                 f"Bot is not admin in chat {await chat_helper.get_chat_mention(bot, chat_id_iter)}"
@@ -455,7 +486,7 @@ async def ban_user(bot, chat_id, user_to_ban, global_ban=False, reason=None):
                     try:
                         #check if bot is admin
                         #logger.info(f"Trying to get admins of chat {chat.id}")
-                        chat_admins = await bot.get_chat_administrators(chat.id)
+                        chat_admins = await chat_helper.get_chat_administrators(bot, chat.id)
                         #logger.info(f"Get admins of chat {chat.id}")
 
                         #logger.info("Checking if bot is admin in chat")
