@@ -8,8 +8,8 @@ from datetime import datetime
 import psycopg2
 import asyncio
 
-import src.logging_helper as logging_helper
-import src.openai_helper as openai_helper
+import src.helpers.logging_helper as logging_helper
+import src.helpers.openai_helper as openai_helper
 
 
 logger = logging_helper.get_logger()

@@ -4,9 +4,9 @@ import traceback
 
 sys.path.insert(0, '../')  # Add the parent directory to the path for module importing
 import asyncio
-import src.db_helper as db_helper
+import src.helpers.db_helper as db_helper
 import src.helpers.chat_helper as chat_helper
-import src.logging_helper as logging_helper
+import src.helpers.logging_helper as logging_helper
 import telegram
 from telegram.request import HTTPXRequest
 

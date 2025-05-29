@@ -10,7 +10,7 @@ from telethon import TelegramClient
 from telethon.sessions import StringSession
 
 import dotenv
-import logging_helper
+import src.helpers.logging_helper as logging_helper
 
 dotenv.load_dotenv("config/.env")
 logger = logging_helper.get_logger()

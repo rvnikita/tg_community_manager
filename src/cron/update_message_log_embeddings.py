@@ -14,11 +14,11 @@ project_root = os.path.dirname(os.path.dirname(current_dir))  # tg_community_man
 sys.path.insert(0, project_root)
 
 # Import your helper modules
-from src import logging_helper
-from src import openai_helper
-from src import db_helper
-from src import spamcheck_helper  # Assuming generate_features is in this module
-from src import rating_helper
+from src.helpers import logging_helper
+from src.helpers import openai_helper
+from src.helpers import db_helper
+from src.helpers import spamcheck_helper  # Assuming generate_features is in this module
+from src.helpers import rating_helper
 
 # Configure logger and load config
 logger = logging_helper.get_logger()

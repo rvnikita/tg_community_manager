@@ -10,9 +10,9 @@ import psycopg2
 import psycopg2.extras
 import os
 
-import src.db_helper as db_helper
+import src.helpers.db_helper as db_helper
 import src.helpers.chat_helper as chat_helper
-import src.logging_helper as logging_helper
+import src.helpers.logging_helper as logging_helper
 
 # Setup configuration and logger as before
 logger = logging_helper.get_logger()

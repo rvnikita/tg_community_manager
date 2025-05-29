@@ -44,16 +44,16 @@ from langdetect import detect
 import langdetect
 from datetime import datetime, timedelta, timezone
 
-import src.logging_helper as logging_helper
-import src.openai_helper as openai_helper
+import src.helpers.logging_helper as logging_helper
+import src.helpers.openai_helper as openai_helper
 import src.helpers.chat_helper as chat_helper
-import src.db_helper as db_helper
-import src.user_helper as user_helper
-import src.rating_helper as rating_helper
-import src.reporting_helper as reporting_helper
-import src.message_helper as message_helper
-import src.spamcheck_helper as spamcheck_helper
-import src.spamcheck_helper_raw as spamcheck_helper_raw
+import src.helpers.db_helper as db_helper
+import src.helpers.user_helper as user_helper
+import src.helpers.rating_helper as rating_helper
+import src.helpers.reporting_helper as reporting_helper
+import src.helpers.message_helper as message_helper
+import src.helpers.spamcheck_helper as spamcheck_helper
+import src.helpers.spamcheck_helper_raw as spamcheck_helper_raw
 import helpers.spamcheck_helper_raw_structure as spamcheck_helper_raw_structure
 import src.helpers.embeddings_reply_helper as embeddings_reply_helper
 
@@ -217,10 +217,10 @@ async def tg_report(update, context):
 
 from datetime import datetime, timezone
 from sqlalchemy import func
-import src.db_helper as db_helper
-from src.user_helper import get_user_id
+import src.helpers.db_helper as db_helper
+from src.helpers.user_helper import get_user_id
 import src.helpers.chat_helper as chat_helper
-import src.rating_helper as rating_helper
+import src.helpers.rating_helper as rating_helper
 
 @sentry_profile()
 async def tg_info(update, context):

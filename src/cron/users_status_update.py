@@ -1,8 +1,8 @@
 import sys
 sys.path.insert(0, '../')  # add parent directory to the path
-import src.db_helper as db_helper
+import src.helpers.db_helper as db_helper
 import src.helpers.chat_helper as chat_helper
-import src.logging_helper as logging_helper
+import src.helpers.logging_helper as logging_helper
 
 import os
 import telegram

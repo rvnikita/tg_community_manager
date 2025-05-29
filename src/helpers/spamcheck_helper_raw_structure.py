@@ -3,10 +3,10 @@ import os, traceback, numpy as np
 from datetime import datetime, timezone
 from joblib import load
 
-import src.db_helper as db_helper
-import src.logging_helper as logging_helper
-import src.openai_helper as openai_helper
-import src.rating_helper as rating_helper
+import src.helpers.db_helper as db_helper
+import src.helpers.logging_helper as logging_helper
+import src.helpers.openai_helper as openai_helper
+import src.helpers.rating_helper as rating_helper
 
 logger = logging_helper.get_logger()
 

@@ -3,8 +3,8 @@ from sqlalchemy import text
 from pgvector.sqlalchemy import Vector
 
 
-import src.db_helper as db_helper
-import src.logging_helper as logging_helper
+import src.helpers.db_helper as db_helper
+import src.helpers.logging_helper as logging_helper
 
 logger = logging_helper.get_logger()
 

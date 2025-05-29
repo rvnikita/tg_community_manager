@@ -7,10 +7,10 @@ from telethon import TelegramClient, errors
 from telethon.tl.functions.channels import JoinChannelRequest
 from telegram.ext import Application
 from src.dispatcher import create_application  # returns a PTB Application
-from src.db_helper import session_scope, Message_Log
-import src.message_helper as message_helper
+from src.helpers.db_helper import session_scope, Message_Log
+import src.helpers.message_helper as message_helper
 import src.helpers.chat_helper as chat_helper
-import src.user_helper as user_helper
+import src.helpers.user_helper as user_helper
 
 @pytest.mark.asyncio
 async def test_tg_spam_unspam_flow():

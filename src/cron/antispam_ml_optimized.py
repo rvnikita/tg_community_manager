@@ -11,9 +11,9 @@ from joblib import dump
 import asyncio
 import re
 
-import src.spamcheck_helper as spamcheck_helper
-import src.db_helper as db_helper
-import src.logging_helper as logging_helper
+import src.helpers.spamcheck_helper as spamcheck_helper
+import src.helpers.db_helper as db_helper
+import src.helpers.logging_helper as logging_helper
 from sqlalchemy import func, or_, and_
 
 logger = logging_helper.get_logger()

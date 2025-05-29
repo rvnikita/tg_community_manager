@@ -10,9 +10,9 @@ import traceback
 
 sys.path.append('../../../')
 
-import src.logging_helper as logging_helper
-import src.db_helper as db_helper
-import src.user_helper as user_helper
+import src.helpers.logging_helper as logging_helper
+import src.helpers.db_helper as db_helper
+import src.helpers.user_helper as user_helper
 
 logger = logging_helper.get_logger()
 

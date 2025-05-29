@@ -8,8 +8,8 @@ from telethon.sessions import StringSession
 import telegram
 import telegram.request
 
-import logging_helper
-import src.db_helper as db_helper
+import src.helpers.logging_helper as logging_helper
+import src.helpers.db_helper as db_helper
 import src.helpers.chat_helper as chat_helper
 
 dotenv.load_dotenv("config/.env")

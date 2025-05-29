@@ -6,8 +6,8 @@ import traceback
 import asyncio
 import os
 
-import src.logging_helper as logging_helper
-from src.db_helper import session_scope, Message_Log
+import src.helpers.logging_helper as logging_helper
+from src.helpers.db_helper import session_scope, Message_Log
 
 logger = logging_helper.get_logger()
 

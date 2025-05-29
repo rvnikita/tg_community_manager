@@ -2,10 +2,10 @@ from sqlalchemy.dialects.postgresql import insert
 import traceback
 from datetime import datetime, timezone
 
-import src.db_helper as db_helper
-import src.logging_helper as logging_helper
-import src.cache_helper as cache_helper
-import src.rating_helper as rating_helper
+import src.helpers.db_helper as db_helper
+import src.helpers.logging_helper as logging_helper
+import src.helpers.cache_helper as cache_helper
+import src.helpers.rating_helper as rating_helper
 
 
 logger = logging_helper.get_logger()

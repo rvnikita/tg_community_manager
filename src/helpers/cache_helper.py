@@ -1,6 +1,6 @@
 from time import time
 
-from src.logging_helper import get_logger
+from src.helpers.logging_helper import get_logger
 
 logger = get_logger()
 

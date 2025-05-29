@@ -2,9 +2,9 @@ import requests
 import traceback
 import os
 
-from src.db_helper import session_scope, Message_Log
-from src.logging_helper import get_logger
-import src.openai_helper as openai_helper
+from src.helpers.db_helper import session_scope, Message_Log
+from src.helpers.logging_helper import get_logger
+import src.helpers.openai_helper as openai_helper
 
 # Configure logger
 logger = get_logger()

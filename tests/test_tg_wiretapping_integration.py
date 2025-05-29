@@ -6,7 +6,7 @@ import asyncio
 from telethon import TelegramClient
 from telegram.ext import Application
 from src.dispatcher import create_application  # your function returning a PTB Application
-from src.db_helper import session_scope, Message_Log  # assuming these are accessible
+from src.helpers.db_helper import session_scope, Message_Log  # assuming these are accessible
 
 #TODO:HIGH: We need to create separate DB for tests so only 1-2 chats are running, small amount of message_log etc + we don't mess production data with test data
 

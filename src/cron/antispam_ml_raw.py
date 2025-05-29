@@ -12,9 +12,9 @@ from sklearn.svm import SVC
 from joblib import dump
 from sqlalchemy import func, or_, and_
 
-import src.db_helper as db_helper
-import src.logging_helper as logging_helper
-import src.rating_helper as rating_helper  # assumed to have get_rating(user_id, chat_id)
+import src.helpers.db_helper as db_helper
+import src.helpers.logging_helper as logging_helper
+import src.helpers.rating_helper as rating_helper  # assumed to have get_rating(user_id, chat_id)
 
 logger = logging_helper.get_logger()
 
