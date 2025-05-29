@@ -34,11 +34,11 @@ async def send_message_to_admin(bot, chat_id, text: str, disable_web_page_previe
             await chat_helper.send_message(bot, admin["user_id"], text, disable_web_page_preview = True)
         except TelegramError as error:
             if error.message == "Forbidden: bot was blocked by the user":
-                logger.info(f"Bot was blocked by the user {admin["user_id"]}.")
+                logger.info(f"Bot was blocked by the user {admin['user_id']}.")
             elif error.message == "Forbidden: user is deactivated":
-                logger.info(f"User {admin["user_id"]} is deactivated.")
+                logger.info(f"User {admin['user_id']} is deactivated.")
             elif error.message == "Forbidden: bot can't initiate conversation with a user":
-                logger.info(f"Bot can't initiate conversation with a user {admin["user_id"]}.")
+                logger.info(f"Bot can't initiate conversation with a user {admin['user_id']}.")
             else:
                 logger.error(f"Telegram error: {error.message}. Traceback: {traceback.format_exc()}")
         except Exception as error:
