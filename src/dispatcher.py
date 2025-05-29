@@ -1365,7 +1365,8 @@ async def tg_cas_spamcheck(update, context):
             admins = await context.chat_helper.get_chat_administrators(bot, chat_id)
             if any(a.user.id == user_id for a in admins):
                 continue
-
+            
+            #TODO:MED: Maybe I can cache value for short time (e.g. 5-10 second) or for long if we know that user is not CAS banned
             url = f"https://api.cas.chat/check?user_id={user_id}"
             resp = None
             for attempt in range(1, MAX_RETRIES + 1):
