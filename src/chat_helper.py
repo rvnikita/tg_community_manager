@@ -324,6 +324,7 @@ async def mute_user(
                 while True:
                     try:
                         chat_admins = await chat_helper.get_chat_administrators(bot, chat_id_iter)
+                        logger.info(f"Chat {chat_id_iter} admins: {chat_admins}. Bot info: {bot_info}")
                         if bot_info.id not in [admin.user.id for admin in chat_admins]:
                             logger.info(
                                 f"Bot is not admin in chat {await chat_helper.get_chat_mention(bot, chat_id_iter)}"
@@ -490,6 +491,7 @@ async def ban_user(bot, chat_id, user_to_ban, global_ban=False, reason=None):
                         #logger.info(f"Get admins of chat {chat.id}")
 
                         #logger.info("Checking if bot is admin in chat")
+                        logger.info(f"Chat {chat_admins} admins: {chat_admins}. Bot info: {bot_info}")
                         if bot_info.id not in [admin.user.id for admin in chat_admins]:
                             logger.info(f"Bot is not admin in chat {await chat_helper.get_chat_mention(bot, chat.id)}")
                             continue
