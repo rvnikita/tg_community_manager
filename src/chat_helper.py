@@ -157,7 +157,7 @@ async def get_chat_administrators(bot, chat_id, cache_ttl=3600):
             cache_helper.delete_key(cache_key)
 
     try:
-        admins = await chat_helper.get_chat_administrators(bot, chat_id)
+        admins = await bot.get_chat_administrators(chat_id)  # <- FIXED
         admins_data = [
             {
                 "user_id": admin.user.id,
@@ -166,12 +166,15 @@ async def get_chat_administrators(bot, chat_id, cache_ttl=3600):
             }
             for admin in admins
         ]
-        cache_helper.set_key(cache_key, json.dumps(admins_data), expire=cache_ttl)
+        if admins_data:
+            cache_helper.set_key(cache_key, json.dumps(admins_data), expire=cache_ttl)
+        else:
+            # Cache empty only for short time
+            cache_helper.set_key(cache_key, json.dumps(admins_data), expire=5)
         return admins_data
     except Exception as e:
         logger.error(f"Error getting chat administrators for chat {chat_id}: {traceback.format_exc()}")
         return []
-
 
 async def send_message(
     bot,
