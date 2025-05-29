@@ -1882,7 +1882,8 @@ class BotManager:
 
     def run(self):
         try:
-            self.application = create_application().concurrent_updates(os.getenv("ENV_BOT_CONCURRENCY"))
+            self.application = create_application()
+            self.application.concurrent_updates = int(os.getenv("ENV_BOT_CONCURRENCY"))
             self.application.run_polling()
         except Exception as e:
             if "Event loop is closed" in str(e):
