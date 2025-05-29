@@ -1196,129 +1196,126 @@ async def tg_ai_spamcheck(update, context):
         • antispam_mute_threshold   – float              (default = 0.95)
     """
     try:
-        message = update.message
-        if not message or not message.from_user:
-            return
+        with sentry_sdk.start_span(op="input_validation", description="Initial checks"):
+            message = update.message
+            if not message or not message.from_user:
+                return
 
-        chat_id = message.chat.id
-        user_id = message.from_user.id
+            chat_id = message.chat.id
+            user_id = message.from_user.id
 
-        # ───────────── feature-toggle / admin-skip ─────────────
-        if chat_helper.get_chat_config(chat_id, "ai_spamcheck_enabled") is not True:
-            return
-        if any(adm["user_id"] == user_id for adm in await chat_helper.get_chat_administrators(context.bot, chat_id)):
-            return
-        if user_id == 777000:
-            return
+            # ───────────── feature-toggle / admin-skip ─────────────
+            if chat_helper.get_chat_config(chat_id, "ai_spamcheck_enabled") is not True:
+                return
+            if any(adm["user_id"] == user_id for adm in await chat_helper.get_chat_administrators(context.bot, chat_id)):
+                return
+            if user_id == 777000:
+                return
 
-        # ───────────── engine & thresholds ─────────────
-        engine     = (chat_helper.get_chat_config(chat_id, "ai_spamcheck_engine") or "legacy").lower()
-        engine     = engine if engine in ("legacy", "raw") else "legacy"
-        delete_thr = float(chat_helper.get_chat_config(chat_id, "antispam_delete_threshold") or 0.80)
-        mute_thr   = float(chat_helper.get_chat_config(chat_id, "antispam_mute_threshold")   or 0.95)
+        with sentry_sdk.start_span(op="config_and_message", description="Config, thresholds, and message fields"):
+            engine     = (chat_helper.get_chat_config(chat_id, "ai_spamcheck_engine") or "legacy").lower()
+            engine     = engine if engine in ("legacy", "raw") else "legacy"
+            delete_thr = float(chat_helper.get_chat_config(chat_id, "antispam_delete_threshold") or 0.80)
+            mute_thr   = float(chat_helper.get_chat_config(chat_id, "antispam_mute_threshold")   or 0.95)
 
-        # ───────────── message facts ─────────────
-        text      = message.text or message.caption or "Non-text message"
-        reply_to  = message.reply_to_message.message_id if message.reply_to_message else None
-        forwarded = bool(getattr(message, "forward_from", None) or getattr(message, "forward_from_chat", None))
+            text      = message.text or message.caption or "Non-text message"
+            reply_to  = message.reply_to_message.message_id if message.reply_to_message else None
+            forwarded = bool(getattr(message, "forward_from", None) or getattr(message, "forward_from_chat", None))
 
-        # ───────────── model inference ─────────────
-        loop = asyncio.get_event_loop()
-        embedding = await openai_helper.generate_embedding(text)
-        if engine == "raw":
-            spam_prob = await spamcheck_helper_raw.predict_spam(
-                user_id=user_id,
-                chat_id=chat_id,
-                message_text=text,
-                raw_message=message.to_dict(),
-                embedding=embedding,
+        with sentry_sdk.start_span(op="embedding", description="OpenAI embedding + spam prediction"):
+            loop = asyncio.get_event_loop()
+            embedding = await openai_helper.generate_embedding(text)
+            if engine == "raw":
+                spam_prob = await spamcheck_helper_raw.predict_spam(
+                    user_id=user_id,
+                    chat_id=chat_id,
+                    message_text=text,
+                    raw_message=message.to_dict(),
+                    embedding=embedding,
+                )
+            elif engine == "raw_strucutre":
+                spam_prob = await spamcheck_helper_raw_structure.predict_spam(
+                    user_id=user_id,
+                    chat_id=chat_id,
+                    message_text=text,
+                    raw_message=message.to_dict(),
+                    embedding=embedding,
+                )
+            else:
+                spam_prob = await spamcheck_helper.predict_spam(
+                    user_id=user_id,
+                    chat_id=chat_id,
+                    message_content=text,
+                    embedding=embedding,
+                )
+
+        with sentry_sdk.start_span(op="db_logging", description="DB logging"):
+            message_log_id = message_helper.insert_or_update_message_log(
+                chat_id                     = chat_id,
+                message_id                  = message.message_id,
+                user_id                     = user_id,
+                user_nickname               = message.from_user.first_name,
+                user_current_rating         = rating_helper.get_rating(user_id, chat_id),
+                message_content             = text,
+                action_type                 = "spam detection",
+                reporting_id                = context.bot.id,
+                reporting_id_nickname       = "rv_tg_community_bot",
+                reason_for_action           = "Automated spam detection",
+                is_spam                     = spam_prob >= delete_thr,
+                manually_verified           = False,
+                spam_prediction_probability = spam_prob,
+                embedding                   = embedding
             )
-        elif engine == "raw_strucutre":
-            spam_prob = await spamcheck_helper_raw_structure.predict_spam(
-                user_id=user_id,
-                chat_id=chat_id,
-                message_text=text,
-                raw_message=message.to_dict(),
-                embedding=embedding,
-            )
-        else:
-            spam_prob = await spamcheck_helper.predict_spam(
-                user_id=user_id,
-                chat_id=chat_id,
-                message_content=text,
-                embedding=embedding,
-            )
 
-        # ───────────── DB logging ─────────────
-        message_log_id = message_helper.insert_or_update_message_log(
-            chat_id                     = chat_id,
-            message_id                  = message.message_id,
-            user_id                     = user_id,
-            user_nickname               = message.from_user.first_name,
-            user_current_rating         = rating_helper.get_rating(user_id, chat_id),
-            message_content             = text,
-            action_type                 = "spam detection",
-            reporting_id                = context.bot.id,
-            reporting_id_nickname       = "rv_tg_community_bot",
-            reason_for_action           = "Automated spam detection",
-            is_spam                     = spam_prob >= delete_thr,
-            manually_verified           = False,
-            spam_prediction_probability = spam_prob,
-            embedding                   = embedding
-        )
+        with sentry_sdk.start_span(op="moderation_action", description="Moderation actions (delete/mute)"):
+            action = "none"
+            if spam_prob >= delete_thr:
+                await chat_helper.delete_message(context.bot, chat_id, message.message_id)
+                action = "delete"
 
-        # ───────────── moderation action ─────────────
-        action = "none"
-        if spam_prob >= delete_thr:
-            # always delete the offending message
-            await chat_helper.delete_message(context.bot, chat_id, message.message_id)
-            action = "delete"
-
-            if spam_prob >= mute_thr:
-                # gather *all* chat_ids where we’ve seen this user
-                with db_helper.session_scope() as session:
-                    rows = session.query(db_helper.User_Status.chat_id) \
-                                  .filter_by(user_id=user_id) \
-                                  .all()
-                chat_ids = [cid for (cid,) in rows]
-
-                # fallback to message logs if no statuses
-                if not chat_ids:
+                if spam_prob >= mute_thr:
                     with db_helper.session_scope() as session:
-                        rows = session.query(db_helper.Message_Log.chat_id) \
-                                      .filter(db_helper.Message_Log.user_id == user_id) \
-                                      .distinct() \
+                        rows = session.query(db_helper.User_Status.chat_id) \
+                                      .filter_by(user_id=user_id) \
                                       .all()
                     chat_ids = [cid for (cid,) in rows]
 
-                try:
-                    await chat_helper.mute_user(context.bot, chat_id, user_id, duration_in_seconds=21*24*60*60, global_mute=True, reason="AI spam detection")
-                except Exception as e:
-                    logger.error(f"global_mute failed for {user_id}: {e}")
+                    if not chat_ids:
+                        with db_helper.session_scope() as session:
+                            rows = session.query(db_helper.Message_Log.chat_id) \
+                                          .filter(db_helper.Message_Log.user_id == user_id) \
+                                          .distinct() \
+                                          .all()
+                        chat_ids = [cid for (cid,) in rows]
 
-                action = "delete+mute"
+                    try:
+                        await chat_helper.mute_user(context.bot, chat_id, user_id, duration_in_seconds=21*24*60*60, global_mute=True, reason="AI spam detection")
+                    except Exception as e:
+                        logger.error(f"global_mute failed for {user_id}: {e}")
 
-        # ───────────── pretty log ─────────────
-        chat_name = await chat_helper.get_chat_mention(context.bot, chat_id)
-        user_ment = user_helper.get_user_mention(user_id, chat_id)
-        short_txt = (text[:200] + "…") if len(text) > 203 else text
-        vis_emoji = "‼️" if action=="delete+mute" else "⚠️" if action=="delete" else "👌"
+                    action = "delete+mute"
 
-        log_lines = [
-            "",
-            "╔═ AI-Spamcheck",
-            f"║ Probability  : {vis_emoji} {spam_prob:.5f}  (del≥{delete_thr}, mute≥{mute_thr})",
-            f"║ Action       : {action}",
-            f"║ User         : {user_ment}",
-            f"║ Chat         : {chat_name} ({chat_id})",
-            f"║ Engine       : {engine}",
-            f"║ Msg-log-ID   : {message_log_id}",
-            f"║ Fwd / Reply  : forwarded={forwarded}  reply_to={reply_to}",
-            f"╚═ Content     : {short_txt}",
-            f"      ↳ message_log_id={message_log_id}",
-            f"      ↳ raw_message={message.to_dict() if hasattr(message, 'to_dict') else None}",
-        ]
-        logger.info("\n".join(log_lines))
+        with sentry_sdk.start_span(op="logging", description="Pretty log"):
+            chat_name = await chat_helper.get_chat_mention(context.bot, chat_id)
+            user_ment = user_helper.get_user_mention(user_id, chat_id)
+            short_txt = (text[:200] + "…") if len(text) > 203 else text
+            vis_emoji = "‼️" if action=="delete+mute" else "⚠️" if action=="delete" else "👌"
+
+            log_lines = [
+                "",
+                "╔═ AI-Spamcheck",
+                f"║ Probability  : {vis_emoji} {spam_prob:.5f}  (del≥{delete_thr}, mute≥{mute_thr})",
+                f"║ Action       : {action}",
+                f"║ User         : {user_ment}",
+                f"║ Chat         : {chat_name} ({chat_id})",
+                f"║ Engine       : {engine}",
+                f"║ Msg-log-ID   : {message_log_id}",
+                f"║ Fwd / Reply  : forwarded={forwarded}  reply_to={reply_to}",
+                f"╚═ Content     : {short_txt}",
+                f"      ↳ message_log_id={message_log_id}",
+                f"      ↳ raw_message={message.to_dict() if hasattr(message, 'to_dict') else None}",
+            ]
+            logger.info("\n".join(log_lines))
 
     except Exception:
         logger.error(
@@ -1326,6 +1323,7 @@ async def tg_ai_spamcheck(update, context):
             f"user_id={update.effective_user.id if update.effective_user else 'N/A'} | "
             f"traceback={traceback.format_exc()}"
         )
+
 
 
 
