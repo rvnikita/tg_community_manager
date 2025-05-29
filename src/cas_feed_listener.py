@@ -10,7 +10,7 @@ import telegram.request
 
 import logging_helper
 import src.db_helper as db_helper
-import src.chat_helper as chat_helper
+import src.helpers.chat_helper as chat_helper
 
 dotenv.load_dotenv("config/.env")
 logger = logging_helper.get_logger()

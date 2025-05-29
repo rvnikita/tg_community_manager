@@ -46,7 +46,7 @@ from datetime import datetime, timedelta, timezone
 
 import src.logging_helper as logging_helper
 import src.openai_helper as openai_helper
-import src.chat_helper as chat_helper
+import src.helpers.chat_helper as chat_helper
 import src.db_helper as db_helper
 import src.user_helper as user_helper
 import src.rating_helper as rating_helper
@@ -219,7 +219,7 @@ from datetime import datetime, timezone
 from sqlalchemy import func
 import src.db_helper as db_helper
 from src.user_helper import get_user_id
-import src.chat_helper as chat_helper
+import src.helpers.chat_helper as chat_helper
 import src.rating_helper as rating_helper
 
 @sentry_profile()

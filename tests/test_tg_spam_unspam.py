@@ -9,7 +9,7 @@ from telegram.ext import Application
 from src.dispatcher import create_application  # returns a PTB Application
 from src.db_helper import session_scope, Message_Log
 import src.message_helper as message_helper
-import src.chat_helper as chat_helper
+import src.helpers.chat_helper as chat_helper
 import src.user_helper as user_helper
 
 @pytest.mark.asyncio
