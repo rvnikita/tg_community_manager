@@ -45,7 +45,7 @@ async def admin_permissions_check():
 
                     # Now only chats that were not checked in the last day are processed
                     chat_administrators = await chat_helper.get_chat_administrators(bot, chat_id)
-                    bot_is_admin = any(admin.user.id == bot.id for admin in chat_administrators)
+                    bot_is_admin = any(admin["user_id"] == bot.id for admin in chat_administrators)
 
                     if not bot_is_admin:
                         message_text = "Bot is not an admin in this chat. Please make me an admin to operate fully."

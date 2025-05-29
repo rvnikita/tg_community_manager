@@ -28,17 +28,17 @@ async def send_message_to_admin(bot, chat_id, text: str, disable_web_page_previe
     chat_administrators = await chat_helper.get_chat_administrators(bot, chat_id)
 
     for admin in chat_administrators:
-        if admin.user.is_bot == True: #don't send to bots
+        if admin["is_bot"] == True: #don't send to bots
             continue
         try:
-            await chat_helper.send_message(bot, admin.user.id, text, disable_web_page_preview = True)
+            await chat_helper.send_message(bot, admin["user_id"], text, disable_web_page_preview = True)
         except TelegramError as error:
             if error.message == "Forbidden: bot was blocked by the user":
-                logger.info(f"Bot was blocked by the user {admin.user.id}.")
+                logger.info(f"Bot was blocked by the user {admin["user_id"]}.")
             elif error.message == "Forbidden: user is deactivated":
-                logger.info(f"User {admin.user.id} is deactivated.")
+                logger.info(f"User {admin["user_id"]} is deactivated.")
             elif error.message == "Forbidden: bot can't initiate conversation with a user":
-                logger.info(f"Bot can't initiate conversation with a user {admin.user.id}.")
+                logger.info(f"Bot can't initiate conversation with a user {admin["user_id"]}.")
             else:
                 logger.error(f"Telegram error: {error.message}. Traceback: {traceback.format_exc()}")
         except Exception as error:
@@ -334,7 +334,7 @@ async def mute_user(
                     try:
                         chat_admins = await chat_helper.get_chat_administrators(bot, chat_id_iter)
                         logger.info(f"Chat {chat_id_iter} admins: {chat_admins}. Bot info: {bot_info}")
-                        if bot_info.id not in [admin.user.id for admin in chat_admins]:
+                        if bot_info.id not in [admin["user_id"] for admin in chat_admins]:
                             logger.info(
                                 f"Bot is not admin in chat {await chat_helper.get_chat_mention(bot, chat_id_iter)}"
                             )
@@ -501,7 +501,7 @@ async def ban_user(bot, chat_id, user_to_ban, global_ban=False, reason=None):
 
                         #logger.info("Checking if bot is admin in chat")
                         logger.info(f"Chat {chat_admins} admins: {chat_admins}. Bot info: {bot_info}")
-                        if bot_info.id not in [admin.user.id for admin in chat_admins]:
+                        if bot_info.id not in [admin["user_id"] for admin in chat_admins]:
                             logger.info(f"Bot is not admin in chat {await chat_helper.get_chat_mention(bot, chat.id)}")
                             continue
                         else:

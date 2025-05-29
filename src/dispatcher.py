@@ -109,7 +109,7 @@ async def tg_report(update, context):
             await chat_helper.schedule_message_deletion(chat_id, message.message_id, message.from_user.id, trigger_id=reported_message_id, delay_seconds=2 * 60 * 60)  # use reported_message_id as trigger_id
 
         chat_administrators = await chat_helper.get_chat_administrators(context.bot, chat_id)
-        if any(admin.user.id == reported_user_id for admin in chat_administrators):
+        if any(admin["user_id"] == reported_user_id for admin in chat_administrators):
             await chat_helper.send_message(context.bot, chat_id, "You cannot report an admin.", delete_after=120)
             return
 
@@ -118,7 +118,7 @@ async def tg_report(update, context):
         report_power = 1 if user_rating_to_power_ratio == 0 else max(1, reporting_user_rating // user_rating_to_power_ratio)
 
         # Check if the reporting user is not an admin (if he is an admin he can report several times)
-        if not any(admin.user.id == reporting_user_id for admin in chat_administrators):
+        if not any(admin["user_id"] == reporting_user_id for admin in chat_administrators):
             # If the reported user has already been reported by the reporting user, send a message and return
             if await reporting_helper.check_existing_report(chat_id, reported_user_id, reporting_user_id):
                 await chat_helper.send_message(context.bot, chat_id, "This user has already been reported by you.", reply_to_message_id=message.message_id, delete_after=120)
@@ -310,7 +310,7 @@ async def tg_offtop(update, context):
     try:
         chat_id = update.effective_chat.id
         message = update.message
-        admin_ids = [admin.user.id for admin in await chat_helper.get_chat_administrators(bot, chat_id)]
+        admin_ids = [admin["user_id"] for admin in await chat_helper.get_chat_administrators(bot, chat_id)]
 
         await chat_helper.delete_message(bot, chat_id, message.message_id, delay_seconds=120)  # clean up the command message
 
@@ -384,7 +384,7 @@ async def tg_set_report(update, context):
 
         # Verify if the command issuer is an administrator
         chat_administrators = await chat_helper.get_chat_administrators(context.bot, chat_id)
-        is_admin = any(admin.user.id == message.from_user.id for admin in chat_administrators)
+        is_admin = any(admin["user_id"] == message.from_user.id for admin in chat_administrators)
         if not is_admin:
             await chat_helper.send_message(context.bot, chat_id, "You must be an admin to use this command.", reply_to_message_id=message.message_id, delete_after=120)
             return
@@ -469,7 +469,7 @@ async def tg_warn(update, context):
     try:
         chat_id = update.effective_chat.id
         message = update.message
-        admin_ids = [admin.user.id for admin in await chat_helper.get_chat_administrators(bot, chat_id)]
+        admin_ids = [admin["user_id"] for admin in await chat_helper.get_chat_administrators(bot, chat_id)]
 
         await chat_helper.delete_message(bot, chat_id, message.message_id, delay_seconds=120)  # clean up the command message
 
@@ -550,7 +550,7 @@ async def tg_ban(update, context):
             chat_administrators = await chat_helper.get_chat_administrators(bot, chat_id)
 
             # TODO:MED: We should find the way how to identify admin if he answers from channel
-            if message.from_user.id not in [admin.user.id for admin in chat_administrators]:
+            if message.from_user.id not in [admin["user_id"] for admin in chat_administrators]:
                 await chat_helper.send_message(bot, chat_id, "You must be an admin to use this command.", reply_to_message_id=message.message_id, delete_after=120)
                 return
 
@@ -577,7 +577,7 @@ async def tg_ban(update, context):
 
             # Check if the user to ban is an admin of the chat
             for admin in chat_administrators:
-                if admin.user.id == ban_user_id:
+                if admin["user_id"] == ban_user_id:
                     await message.reply_text("You cannot ban an admin.")
                     return
 
@@ -1030,7 +1030,7 @@ async def tg_handle_forwarded_messages(update, context):
 
         # Check if the user is an admin; if so, don't process their messages
         chat_administrators = await chat_helper.get_chat_administrators(context.bot, message.chat.id)
-        is_admin = any(admin.user.id == message.from_user.id for admin in chat_administrators)
+        is_admin = any(admin["user_id"] == message.from_user.id for admin in chat_administrators)
         if is_admin:
             return
 
@@ -1136,7 +1136,7 @@ async def tg_spam_check(update, context):
 
         #check if user is admin so don't check spam for them
         chat_administrators = await chat_helper.get_chat_administrators(context.bot, message.chat.id)
-        is_admin = any(admin.user.id == message.from_user.id for admin in chat_administrators)
+        is_admin = any(admin["user_id"] == message.from_user.id for admin in chat_administrators)
         if is_admin:
             return
         
@@ -1519,7 +1519,7 @@ async def tg_set_rating(update, context):
 
         # Check if the user is an administrator
         chat_administrators = await chat_helper.get_chat_administrators(context.bot, chat_id)
-        is_admin = any(admin.user.id == message.from_user.id for admin in chat_administrators)
+        is_admin = any(admin["user_id"] == message.from_user.id for admin in chat_administrators)
         if not is_admin:
             await chat_helper.send_message(context.bot, chat_id, "You must be an admin to use this command.", reply_to_message_id=message.message_id, delete_after=120)
             return
