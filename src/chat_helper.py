@@ -151,13 +151,17 @@ async def get_chat_administrators(bot, chat_id, cache_ttl=3600):
     admins_json = cache_helper.get_key(cache_key)
     if admins_json:
         try:
-            return json.loads(admins_json)
+            admins_data = json.loads(admins_json)
+            if admins_data:
+                return admins_data
+            # If cached list is empty, treat as cache miss (force re-fetch)
+            logger.warning(f"Cached admins for chat {chat_id} is empty, ignoring cache.")
         except Exception as e:
             logger.error(f"Error parsing cached admins for chat {chat_id}: {e}")
             cache_helper.delete_key(cache_key)
 
     try:
-        admins = await bot.get_chat_administrators(chat_id)  # <- FIXED
+        admins = await bot.get_chat_administrators(chat_id)
         admins_data = [
             {
                 "user_id": admin.user.id,
@@ -166,15 +170,17 @@ async def get_chat_administrators(bot, chat_id, cache_ttl=3600):
             }
             for admin in admins
         ]
-        if admins_data:
-            cache_helper.set_key(cache_key, json.dumps(admins_data), expire=cache_ttl)
+        if not admins_data:
+            logger.error(f"Telegram API returned empty admin list for chat {chat_id}. This should not happen.")
+            # Optionally: Do not cache, or cache for 5 seconds to avoid rapid re-requests
+            cache_helper.set_key(cache_key, "[]", expire=5)
         else:
-            # Cache empty only for short time
-            cache_helper.set_key(cache_key, json.dumps(admins_data), expire=5)
+            cache_helper.set_key(cache_key, json.dumps(admins_data), expire=cache_ttl)
         return admins_data
     except Exception as e:
         logger.error(f"Error getting chat administrators for chat {chat_id}: {traceback.format_exc()}")
         return []
+
 
 async def send_message(
     bot,
