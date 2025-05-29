@@ -991,7 +991,7 @@ import src.helpers.embeddings_reply_helper as embeddings_reply_helper
 @sentry_profile()
 async def tg_embeddings_auto_reply(update, context):
     try:
-        logger.info(f"🥶 tg_embeddings_auto_reply called with update: {update}")
+        logger.debug(f"🥶 tg_embeddings_auto_reply called with update: {update}")
         if not (update.message and update.message.text):
             return
 
@@ -1000,7 +1000,7 @@ async def tg_embeddings_auto_reply(update, context):
 
         message_embedding = await openai_helper.generate_embedding(message_text)
 
-        logger.info(f"🥶 tg_embeddings_auto_reply message_embedding: {message_embedding}")
+        logger.debug(f"🥶 tg_embeddings_auto_reply message_embedding: {message_embedding}")
 
         row = embeddings_reply_helper.find_best_embeddings_trigger(chat_id, message_embedding)
 
