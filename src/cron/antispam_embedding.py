@@ -16,11 +16,11 @@ OPENAI_MODEL = os.getenv('ENV_OPENAI_MODEL')
 
 
 
-def update_embeddings():
-    """Update embeddings for messages without embeddings and non-empty content."""
+import asyncio
+
+async def update_embeddings():
     try:
         with session_scope() as session:
-            # Retrieve all messages without embeddings and with non-null and non-empty message content
             messages = session.query(Message_Log).filter(
                 Message_Log.embedding == None,
                 Message_Log.message_content != None,
@@ -29,13 +29,11 @@ def update_embeddings():
 
             for message in messages:
                 logger.info(f"Processing message ID: {message.id}")
-                # Ensure the message content is not just whitespace
                 if not message.message_content.strip():
                     logger.info(f"Skipping message ID: {message.id} due to empty content.")
                     continue
 
-                # Retrieve embedding if not already present
-                embedding = openai_helper.generate_embedding(message.message_content)
+                embedding = await openai_helper.generate_embedding(message.message_content)
                 if embedding:
                     message.embedding = embedding
                     session.commit()
@@ -45,6 +43,5 @@ def update_embeddings():
     except Exception as e:
         logger.error(f"An error occurred while updating embeddings: {e}. Traceback: {traceback.format_exc()}")
 
-
 if __name__ == '__main__':
-    update_embeddings()
+    asyncio.run(update_embeddings())

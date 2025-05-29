@@ -31,7 +31,7 @@ async def health_check():
     logger.info(f"Logged in as {me.username} (id={me.id})")
 
     try:
-        async with client.conversation(os.getenv("ENV_BOT_USERNAME"), timeout=20) as conv:
+        async with client.conversation(os.getenv("ENV_BOT_USERNAME"), timeout=120) as conv:
             await conv.send_message("/ping")
             resp = await conv.get_response()
             text = resp.raw_text or ""

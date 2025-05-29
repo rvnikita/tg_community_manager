@@ -16,8 +16,6 @@ pytest-asyncio
 python-telegram-bot[rate-limiter]
 aiohttp
 telethon
-pymorphy2
-nltk
-langdetect
 sentry_sdk
+sentry-sdk[profiling]
 python-telegram-bot[job-queue]

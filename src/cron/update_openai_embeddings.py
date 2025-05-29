@@ -6,6 +6,7 @@ import traceback
 import os
 from datetime import datetime
 import psycopg2
+import asyncio
 
 import src.logging_helper as logging_helper
 import src.openai_helper as openai_helper
@@ -16,7 +17,7 @@ logger = logging_helper.get_logger()
 openai.api_key = os.getenv('ENV_OPENAI_KEY')
 
 # function that select all messages from database without embedding, generate them and write them back to database
-def update_embeddings():
+async def update_embeddings():
     conn = None
     try:
         conn = psycopg2.connect(user=os.getenv('ENV_DB_USER'),
@@ -25,27 +26,26 @@ def update_embeddings():
                                 port=os.getenv('ENV_DB_PORT'),
                                 database=os.getenv('ENV_DB_NAME'))
 
-        #sql select all rows from qna table without embedding
         sql = "SELECT * FROM tg_qna WHERE embedding IS NULL"
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         cur.execute(sql)
-
         rows = cur.fetchall()
 
-        #generate embeddings for all messages
         for row in rows:
-            embedding = openai_helper.generate_embedding(row['title'])
-            #write embedding to database
-            sql = f"UPDATE tg_qna SET embedding = '{embedding.data[0].embedding}' WHERE id = {row['id']}"
-            cur.execute(sql)
-            conn.commit()
-            logging_helper.info(f"Embedding for message {row['id']} generated")
-
-    except (Exception, psycopg2.DatabaseError) as error:
+            embedding = await openai_helper.generate_embedding(row['title'])
+            if embedding:
+                # Store as string/array, depending on your schema. Adjust as needed:
+                sql_update = "UPDATE tg_qna SET embedding = %s WHERE id = %s"
+                cur.execute(sql_update, (embedding, row['id']))
+                conn.commit()
+                logger.info(f"Embedding for message {row['id']} generated")
+            else:
+                logger.error(f"Failed to generate embedding for message {row['id']}")
+    except Exception:
         logger.error(f"Error: {traceback.format_exc()}")
     finally:
         if conn is not None:
-                conn.close()
+            conn.close()
 
 if __name__ == '__main__':
-    update_embeddings()
+    asyncio.run(update_embeddings())

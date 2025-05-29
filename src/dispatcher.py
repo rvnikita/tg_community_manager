@@ -1,4 +1,28 @@
+import sentry_sdk
 import os
+
+sentry_sdk.init(
+    dsn=os.getenv("SENTRY_DSN"),
+    traces_sample_rate=1.0,  # or lower in prod
+    profile_session_sample_rate=1.0,    # this is the new way, not profiles_sample_rate!
+    profile_lifecycle="trace",          # automatic profiling during spans
+)
+
+import functools
+
+def sentry_profile(name=None):
+    def decorator(func):
+        @functools.wraps(func)
+        async def wrapper(*args, **kwargs):
+            tx_name = name or func.__name__
+            with sentry_sdk.start_transaction(name=tx_name):
+                return await func(*args, **kwargs)
+        return wrapper
+    return decorator
+
+
+
+
 from telegram import Bot, ChatPermissions
 from telegram.ext import Application, MessageHandler, CommandHandler, filters, ChatJoinRequestHandler, ApplicationBuilder, JobQueue
 from telegram.request import HTTPXRequest
@@ -31,7 +55,6 @@ import src.message_helper as message_helper
 import src.spamcheck_helper as spamcheck_helper
 import src.spamcheck_helper_raw as spamcheck_helper_raw
 import helpers.spamcheck_helper_raw_structure as spamcheck_helper_raw_structure
-import helpers.lemmatizer_helper as lemmatizer_helper
 import src.helpers.embeddings_reply_helper as embeddings_reply_helper
 
 logger = logging_helper.get_logger()
@@ -44,6 +67,7 @@ bot = Bot(os.getenv('ENV_BOT_KEY'),
 
 ########################
 
+@sentry_profile()
 async def tg_help(update, context):
     try:
         # just return all commands we support as a reply
@@ -64,6 +88,7 @@ async def tg_help(update, context):
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
         logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
 
+@sentry_profile()
 async def tg_report(update, context):
     try:
         chat_id = update.effective_chat.id
@@ -197,6 +222,7 @@ from src.user_helper import get_user_id
 import src.chat_helper as chat_helper
 import src.rating_helper as rating_helper
 
+@sentry_profile()
 async def tg_info(update, context):
     try:
         chat_id = update.effective_chat.id
@@ -279,6 +305,7 @@ async def tg_info(update, context):
 
 
 
+@sentry_profile()
 async def tg_offtop(update, context):
     try:
         chat_id = update.effective_chat.id
@@ -349,6 +376,7 @@ async def tg_offtop(update, context):
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
         logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
 
+@sentry_profile()
 async def tg_set_report(update, context):
     try:
         chat_id = update.effective_chat.id
@@ -400,6 +428,7 @@ async def tg_set_report(update, context):
         logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
 
 
+@sentry_profile()
 async def tg_pin(update, context):
     try:
         chat_id = update.effective_chat.id
@@ -420,6 +449,7 @@ async def tg_pin(update, context):
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
         logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
 
+@sentry_profile()
 async def tg_unpin(update, context):
     try:
         chat_id = update.effective_chat.id
@@ -434,6 +464,7 @@ async def tg_unpin(update, context):
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
         logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
 
+@sentry_profile()
 async def tg_warn(update, context):
     try:
         chat_id = update.effective_chat.id
@@ -505,6 +536,7 @@ async def tg_warn(update, context):
         logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
 
 
+@sentry_profile()
 async def tg_ban(update, context):
     try:
         with db_helper.session_scope() as db_session:
@@ -576,6 +608,7 @@ async def tg_ban(update, context):
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
         logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
 
+@sentry_profile()
 async def tg_spam(update, context):
     try:
         message = update.message
@@ -671,6 +704,7 @@ async def tg_spam(update, context):
         )
 
 
+@sentry_profile()
 async def tg_unspam(update, context):
     try:
         message = update.message
@@ -762,6 +796,7 @@ async def tg_unspam(update, context):
         )
 
 
+@sentry_profile()
 async def tg_gban(update, context):
     try:
         with db_helper.session_scope() as db_session:
@@ -852,6 +887,7 @@ async def tg_gban(update, context):
 
 
 #TODO:MED: May be we need to make it more complicated (e.g. with ai embeddings) and move big part of it to separate auto_deply_helper
+@sentry_profile()
 async def tg_auto_reply(update, context):
     try:
         if update.message and update.message.text:
@@ -898,59 +934,61 @@ async def tg_auto_reply(update, context):
     except Exception as error:
         logger.error(f"tg_auto_reply error: {traceback.format_exc()}")
 
-import pymorphy2
-from nltk.stem import WordNetLemmatizer
-from langdetect import detect
-import json
-from datetime import datetime, timezone
-import traceback
+# import pymorphy2
+# from nltk.stem import WordNetLemmatizer
+# from langdetect import detect
+# import json
+# from datetime import datetime, timezone
+# import traceback
 
-morph = pymorphy2.MorphAnalyzer()
-lemmatizer = WordNetLemmatizer()
+# morph = pymorphy2.MorphAnalyzer()
+# lemmatizer = WordNetLemmatizer()
 
-#lemmatized version of tg_auto_reply (temporary)
-#TODO:MED: we should store lemmed versions of triggers in DB for performance
-async def tg_lemm_auto_reply(update, context):
-    try:
-        if update.message and update.message.text:
-            chat_id = update.effective_chat.id
-            message_text = update.message.text
-            message_lemmas = lemmatizer_helper.lemmatize_words(message_text)
-        else:
-            return
+# #lemmatized version of tg_auto_reply (temporary)
+# #TODO:MED: we should store lemmed versions of triggers in DB for performance
+# @sentry_profile()
+# async def tg_lemm_auto_reply(update, context):
+#     try:
+#         if update.message and update.message.text:
+#             chat_id = update.effective_chat.id
+#             message_text = update.message.text
+#             message_lemmas = lemmatizer_helper.lemmatize_words(message_text)
+#         else:
+#             return
 
-        auto_replies = await chat_helper.get_auto_replies(chat_id, filter_delayed=True)
-        for auto_reply in auto_replies:
-            try:
-                triggers_raw = auto_reply["trigger"]
-                triggers = json.loads(triggers_raw)
-                # TODO:MED cache lemmatized triggers in DB for performance
-                trigger_lemmas = set(lemmatizer_helper.lemmatize_single(trigger) for trigger in triggers)
-            except json.JSONDecodeError:
-                logger.warning(f"Failed to parse auto-reply trigger: {auto_reply['trigger']}")
-                continue
+#         auto_replies = await chat_helper.get_auto_replies(chat_id, filter_delayed=True)
+#         for auto_reply in auto_replies:
+#             try:
+#                 triggers_raw = auto_reply["trigger"]
+#                 triggers = json.loads(triggers_raw)
+#                 # TODO:MED cache lemmatized triggers in DB for performance
+#                 trigger_lemmas = set(lemmatizer_helper.lemmatize_single(trigger) for trigger in triggers)
+#             except json.JSONDecodeError:
+#                 logger.warning(f"Failed to parse auto-reply trigger: {auto_reply['trigger']}")
+#                 continue
 
-            if trigger_lemmas & message_lemmas:
-                await chat_helper.send_message(
-                    context.bot,
-                    chat_id,
-                    auto_reply["reply"],
-                    reply_to_message_id=update.message.message_id,
-                )
-                await chat_helper.update_last_reply_time_and_increment_count(
-                    chat_id, auto_reply["id"], datetime.now(timezone.utc)
-                )
-                logger.info(
-                    f"Auto-reply sent in chat {chat_id} for triggers '{', '.join(triggers)}': {auto_reply['reply']}"
-                )
-                break
+#             if trigger_lemmas & message_lemmas:
+#                 await chat_helper.send_message(
+#                     context.bot,
+#                     chat_id,
+#                     auto_reply["reply"],
+#                     reply_to_message_id=update.message.message_id,
+#                 )
+#                 await chat_helper.update_last_reply_time_and_increment_count(
+#                     chat_id, auto_reply["id"], datetime.now(timezone.utc)
+#                 )
+#                 logger.info(
+#                     f"Auto-reply sent in chat {chat_id} for triggers '{', '.join(triggers)}': {auto_reply['reply']}"
+#                 )
+#                 break
 
-    except Exception as error:
-        logger.error(f"tg_auto_reply error: {traceback.format_exc()}")
+#     except Exception as error:
+#         logger.error(f"tg_auto_reply error: {traceback.format_exc()}")
 
 
 import src.helpers.embeddings_reply_helper as embeddings_reply_helper
 
+@sentry_profile()
 async def tg_embeddings_auto_reply(update, context):
     try:
         logger.info(f"🥶 tg_embeddings_auto_reply called with update: {update}")
@@ -960,8 +998,14 @@ async def tg_embeddings_auto_reply(update, context):
         chat_id = update.effective_chat.id
         message_text = update.message.text
 
-        message_embedding = await openai_helper.get_embedding(message_text)
+        message_embedding = await openai_helper.generate_embedding(message_text)
+
+        logger.info(f"🥶 tg_embeddings_auto_reply message_embedding: {message_embedding}")
+
         row = embeddings_reply_helper.find_best_embeddings_trigger(chat_id, message_embedding)
+
+        logger.info(f"🥶 tg_embeddings_auto_reply found row: {row}")
+        
         if not row:
             return
 
@@ -970,13 +1014,14 @@ async def tg_embeddings_auto_reply(update, context):
             return
 
         await embeddings_reply_helper.send_embeddings_reply(
-            context.bot, chat_id, content.reply, update.message.message_id, content
+            context.bot, chat_id, content["reply"], update.message.message_id, content
         )
 
     except Exception:
         logger.error(f"tg_embeddings_auto_reply error: {traceback.format_exc()}")
 
 
+@sentry_profile()
 async def tg_handle_forwarded_messages(update, context):
     try:
         message = update.message
@@ -1022,6 +1067,7 @@ async def tg_handle_forwarded_messages(update, context):
 
 
 
+@sentry_profile()
 async def tg_log_message(update, context):
     try:
         message = update.message
@@ -1048,7 +1094,7 @@ async def tg_log_message(update, context):
                 # logger.info("No 'forward_origin' in message or sender_user data is missing.")
 
             #TODO:LOW: Maybe we don't need to calculate embedding and insert it in DB here as we will recalculate it later in tg_ai_spamcheck. But we should be careful as it seems like sometimes tg_ai_spamcheck is not called (or maybe called but not updating the message log in DB is there is something wrong with the probability calculation. That happens if "ai_spamcheck_enabled": false in chat config)
-            embedding = openai_helper.generate_embedding(message_content)
+            embedding =await openai_helper.generate_embedding(message_content)
 
 
             # Log the message, treating forwarded messages differently if needed
@@ -1083,6 +1129,7 @@ async def tg_log_message(update, context):
 
 
 
+@sentry_profile()
 async def tg_spam_check(update, context):
     try:
         message = update.message if update.message else update.edited_message
@@ -1138,6 +1185,7 @@ async def tg_spam_check(update, context):
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
         logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
 
+@sentry_profile()
 async def tg_ai_spamcheck(update, context):
     """
     ML-based spam detector with per-chat configuration.
@@ -1177,7 +1225,7 @@ async def tg_ai_spamcheck(update, context):
 
         # ───────────── model inference ─────────────
         loop = asyncio.get_event_loop()
-        embedding = await loop.run_in_executor(None, openai_helper.generate_embedding, text)
+        embedding = await openai_helper.generate_embedding(text)
         if engine == "raw":
             spam_prob = await spamcheck_helper_raw.predict_spam(
                 user_id=user_id,
@@ -1292,6 +1340,7 @@ ssl_context = ssl.create_default_context()
 ssl_context.check_hostname = False
 ssl_context.verify_mode = ssl.CERT_NONE
 
+@sentry_profile()
 async def tg_cas_spamcheck(update, context):
     if not update.message:
         return
@@ -1382,6 +1431,7 @@ async def tg_cas_spamcheck(update, context):
 
 
 
+@sentry_profile()
 async def tg_thankyou(update, context):
     try:
         msg = update.message
@@ -1460,6 +1510,7 @@ async def tg_thankyou(update, context):
         logger.error(f"Error in tg_thankyou: {traceback.format_exc()} | Update: {update_str}")
 
 
+@sentry_profile()
 async def tg_set_rating(update, context):
     try:
         chat_id = update.effective_chat.id
@@ -1516,6 +1567,7 @@ async def tg_set_rating(update, context):
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
         logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
 
+@sentry_profile()
 async def tg_get_rating(update, context):
     try:
         chat_id = update.effective_chat.id
@@ -1555,6 +1607,7 @@ async def tg_get_rating(update, context):
 
 
 
+@sentry_profile()
 async def tg_join_request(update, context):
     try:
         welcome_dm_message = chat_helper.get_chat_config(update.effective_chat.id, "welcome_dm_message")
@@ -1608,6 +1661,7 @@ async def on_member_update(update, context):
     #     )
     
 
+@sentry_profile()
 async def tg_new_member(update, context):
     try:
         mute_new_users_duration = int(chat_helper.get_chat_config(update.effective_chat.id, "mute_new_users_duration", default=0))
@@ -1646,6 +1700,7 @@ async def tg_new_member(update, context):
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
         logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
 
+@sentry_profile()
 async def tg_update_user_status(update, context):
     try:
         #TODO: we need to rewrite all this to support multiple chats. May be we should add chat_id to user table
@@ -1686,6 +1741,7 @@ async def tg_update_user_status(update, context):
         logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
 
 #We need this function to coordinate different function working with all text messages
+@sentry_profile()
 async def tg_wiretapping(update, context):
     try:
         tasks = [
@@ -1734,6 +1790,7 @@ class BotManager:
 
 # temporary heartbeat function to check if the bot is alive
 # TODO:MED: remove this function later
+@sentry_profile()
 async def tg_heartbeat(context):
     logger.info("💓 heartbeat")
 
@@ -1746,6 +1803,7 @@ async def on_startup(app):
     # schedule heartbeat after application and JobQueue are ready
     app.job_queue.run_repeating(tg_heartbeat, interval=60, first=60)
 
+@sentry_profile()
 async def tg_ping(update, context):
     try:
         await update.message.reply_text("Pong!")
@@ -1799,11 +1857,12 @@ def create_application():
     application.add_handler(CommandHandler(["pin", "p"], tg_pin, filters.ChatType.GROUPS), group=9)
     application.add_handler(CommandHandler(["unpin", "up"], tg_unpin, filters.ChatType.GROUPS), group=9)
     application.add_handler(CommandHandler(["help", "h"], tg_help), group=10)
-    application.add_handler(MessageHandler((filters.TEXT | filters.CAPTION), tg_lemm_auto_reply), group=11)
-    application.add_handler(MessageHandler((filters.TEXT | filters.CAPTION), tg_embeddings_auto_reply), group=11) 
+    application.add_handler(MessageHandler((filters.TEXT | filters.CAPTION), tg_auto_reply), group=11)
     application.add_handler(CommandHandler(["info", "i"], tg_info), group=12)
 
     application.add_handler(CommandHandler(["ping", "p"], tg_ping), group=13)
+
+    application.add_handler(MessageHandler((filters.TEXT | filters.CAPTION), tg_embeddings_auto_reply), group=14) 
 
     signal.signal(signal.SIGTERM, lambda s, f: application.stop())
     return application

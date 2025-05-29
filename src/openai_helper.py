@@ -4,32 +4,30 @@ import psycopg2.extras
 import configparser
 import traceback
 import asyncio
-import openai
 import os
 
 import src.logging_helper as logging_helper
+from src.db_helper import session_scope, Message_Log
 
 logger = logging_helper.get_logger()
 
 # For asynchronous API calls
 async_client = AsyncOpenAI(api_key=os.getenv('ENV_OPENAI_KEY'))
 
-# For synchronous API calls
+# For synchronous API calls (if needed elsewhere)
 client = OpenAI(api_key=os.getenv('ENV_OPENAI_KEY'))
 
+OPENAI_MODEL = os.getenv('ENV_OPENAI_EMBEDDING_MODEL')
 
 async def chat_completion_create(messages, model="gpt-3.5-turbo"):
     """
     Asynchronously sends a request to OpenAI's API to create chat completions,
     using a specified model for chat-based interactions.
-
     Args:
-    - messages (list): A list of dictionaries defining the messages for chat interaction,
-                       each with 'role' and 'content' keys.
-    - model (str): The model to use for the completion.
-
+        messages (list): [{'role': ..., 'content': ...}, ...]
+        model (str): Model name.
     Returns:
-    - The response from the OpenAI API.
+        The response from the OpenAI API.
     """
     try:
         chat_completion = await async_client.chat.completions.create(
@@ -37,49 +35,34 @@ async def chat_completion_create(messages, model="gpt-3.5-turbo"):
             model=model,
         )
         return chat_completion
-    except Exception as e:
+    except Exception:
         logger.error(f"Error creating chat completion with OpenAI: {traceback.format_exc()}")
         return None
 
-import requests
-import traceback
-
-from src.db_helper import session_scope, Message_Log
-from src.logging_helper import get_logger
-
-# Configure logger
-logger = get_logger()
-
-# Load configuration
-OPENAI_API_KEY = os.getenv('ENV_OPENAI_KEY')
-OPENAI_MODEL = os.getenv('ENV_OPENAI_EMBEDDING_MODEL')
-
-def generate_embedding(text):
-    """Call OpenAI API to get embeddings for the given text."""
-    headers = {
-        'Content-Type': 'application/json',
-        'Authorization': f'Bearer {OPENAI_API_KEY}'
-    }
-    response = requests.post(
-        'https://api.openai.com/v1/embeddings',
-        headers=headers,
-        json={
-            'input': text,
-            'model': OPENAI_MODEL
-        }
-    )
-    response_json = response.json()
-    if 'data' in response_json and len(response_json['data']) > 0:
-        return response_json['data'][0]['embedding']
-    else:
-        logger.error(f"Failed to retrieve embedding: {response_json.get('error', 'No error information available')}")
+async def generate_embedding(text):
+    """
+    Asynchronously get embeddings for the given text using OpenAI.
+    Args:
+        text (str): Text to embed.
+    Returns:
+        list[float] or None: The embedding, or None on failure.
+    """
+    try:
+        response = await async_client.embeddings.create(
+            input=text,
+            model=OPENAI_MODEL
+        )
+        return response.data[0].embedding
+    except Exception:
+        logger.error(f"Failed to retrieve embedding: {traceback.format_exc()}")
         return None
 
-def update_embeddings():
-    """Update embeddings for messages without embeddings and non-empty content."""
+async def update_embeddings():
+    """
+    Asynchronously update embeddings for messages without embeddings and non-empty content.
+    """
     try:
         with session_scope() as session:
-            # Retrieve all messages without embeddings and with non-null and non-empty message content
             messages = session.query(Message_Log).filter(
                 Message_Log.embedding == None,
                 Message_Log.message_content != None,
@@ -88,13 +71,11 @@ def update_embeddings():
 
             for message in messages:
                 logger.info(f"Processing message ID: {message.id}")
-                # Ensure the message content is not just whitespace
                 if not message.message_content.strip():
                     logger.info(f"Skipping message ID: {message.id} due to empty content.")
                     continue
 
-                # Retrieve embedding if not already present
-                embedding = generate_embedding(message.message_content)
+                embedding = await generate_embedding(message.message_content)
                 if embedding:
                     message.embedding = embedding
                     session.commit()
@@ -104,6 +85,5 @@ def update_embeddings():
     except Exception as e:
         logger.error(f"An error occurred while updating embeddings: {e}. Traceback: {traceback.format_exc()}")
 
-
 if __name__ == '__main__':
-    update_embeddings()
+    asyncio.run(update_embeddings())
