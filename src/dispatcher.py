@@ -1817,6 +1817,7 @@ def create_application():
     application = (
         ApplicationBuilder()
         .token(os.getenv("ENV_BOT_KEY"))
+        .concurrent_updates(int(os.getenv("ENV_BOT_CONCURRENCY", "1")))
         .job_queue(JobQueue())
         .post_init(on_startup)
         .build()
@@ -1845,12 +1846,12 @@ def create_application():
     application.add_handler(
         MessageHandler(
             (filters.TEXT
-            | (filters.PHOTO & filters.CAPTION)
-            | (filters.VIDEO & filters.CAPTION)
-            | filters.Document.ALL
-            | filters.STORY
-            | filters.FORWARDED)
-            & filters.ChatType.GROUPS,   # only groups/supergroups
+             | (filters.PHOTO & filters.CAPTION)
+             | (filters.VIDEO & filters.CAPTION)
+             | filters.Document.ALL
+             | filters.STORY
+             | filters.FORWARDED)
+            & filters.ChatType.GROUPS,
             tg_wiretapping,
         ),
         group=7,
@@ -1860,15 +1861,11 @@ def create_application():
     application.add_handler(CommandHandler(["help", "h"], tg_help), group=10)
     application.add_handler(MessageHandler((filters.TEXT | filters.CAPTION), tg_auto_reply), group=11)
     application.add_handler(CommandHandler(["info", "i"], tg_info), group=12)
-
     application.add_handler(CommandHandler(["ping", "p"], tg_ping), group=13)
-
-    application.add_handler(MessageHandler((filters.TEXT | filters.CAPTION), tg_embeddings_auto_reply), group=14) 
+    application.add_handler(MessageHandler((filters.TEXT | filters.CAPTION), tg_embeddings_auto_reply), group=14)
 
     signal.signal(signal.SIGTERM, lambda s, f: application.stop())
     return application
-
-# ────────────────── Bot Manager ──────────────────
 
 class BotManager:
     def __init__(self):
@@ -1883,7 +1880,6 @@ class BotManager:
     def run(self):
         try:
             self.application = create_application()
-            self.application.concurrent_updates = int(os.getenv("ENV_BOT_CONCURRENCY"))
             self.application.run_polling()
         except Exception as e:
             if "Event loop is closed" in str(e):
