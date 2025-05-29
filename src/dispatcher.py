@@ -1362,7 +1362,7 @@ async def tg_cas_spamcheck(update, context):
 
     async with aiohttp.ClientSession() as session:
         for user_id, message_id, nickname in checks:
-            admins = await context.chat_helper.get_chat_administrators(bot, chat_id)
+            admins = await chat_helper.get_chat_administrators(context.bot, chat_id)
             if any(a.user.id == user_id for a in admins):
                 continue
             
