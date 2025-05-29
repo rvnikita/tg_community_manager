@@ -1207,7 +1207,7 @@ async def tg_ai_spamcheck(update, context):
         # ───────────── feature-toggle / admin-skip ─────────────
         if chat_helper.get_chat_config(chat_id, "ai_spamcheck_enabled") is not True:
             return
-        if any(adm.user.id == user_id for adm in await chat_helper.get_chat_administrators(context.bot, chat_id)):
+        if any(adm["user_id"] == user_id for adm in await chat_helper.get_chat_administrators(context.bot, chat_id)):
             return
         if user_id == 777000:
             return
@@ -1363,7 +1363,7 @@ async def tg_cas_spamcheck(update, context):
     async with aiohttp.ClientSession() as session:
         for user_id, message_id, nickname in checks:
             admins = await chat_helper.get_chat_administrators(context.bot, chat_id)
-            if any(a.user.id == user_id for a in admins):
+            if any(a["user_id"] == user_id for a in admins):
                 continue
             
             #TODO:MED: Maybe I can cache value for short time (e.g. 5-10 second) or for long if we know that user is not CAS banned
