@@ -511,7 +511,6 @@ async def tg_warn(update, context):
             if warn_count >= number_of_reports_to_ban:
                 await chat_helper.delete_message(bot, chat_id, warned_message_id)
                 await chat_helper.ban_user(bot, chat_id, warned_user_id)
-                warned_user_mention = user_helper.get_user_mention(warned_user_id, chat_id)
                 await chat_helper.send_message(bot, chat_id, f"User {warned_user_mention} has been banned due to {warn_count} warnings.", delete_after=120)
                 await chat_helper.send_message_to_admin(bot, chat_id, f"User {warned_user_mention} has been banned in chat {await chat_helper.get_chat_mention(bot, chat_id)} due to {warn_count}/{number_of_reports_to_ban} warnings.")
 
