@@ -577,6 +577,7 @@ async def ban_user(bot, chat_id, user_to_ban, global_ban=False, reason=None):
 async def unban_user(bot, chat_id, user_to_unban, global_unban=False):
     """
     Unban a user from a chat or, if global_unban is True, from all active chats in the database.
+    Also removes from global ban list if applicable.
     """
     import traceback
 
@@ -588,6 +589,11 @@ async def unban_user(bot, chat_id, user_to_unban, global_unban=False):
                     db_helper.Chat.active == True
                 ).all()
                 chat_ids = [chat.id for chat in all_chats]
+                # Remove user from global ban list
+                session.query(db_helper.User_Global_Ban).filter(
+                    db_helper.User_Global_Ban.user_id == user_to_unban
+                ).delete(synchronize_session=False)
+                session.commit()
             else:
                 chat_ids = [chat_id]
 
