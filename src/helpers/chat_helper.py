@@ -588,7 +588,7 @@ async def unban_user(bot, chat_id, user_to_unban, global_unban=False):
         for cid in chat_ids:
             try:
                 await bot.unban_chat_member(cid, user_to_unban)
-                # logger.info(f"User {user_to_unban} unbanned from chat {cid}")
+                logger.info(f"User {user_to_unban} unbanned from chat {cid}")
             except BadRequest as e:
                 if e.message == "Method is available only for supergroups":
                     continue
