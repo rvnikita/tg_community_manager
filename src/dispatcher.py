@@ -1277,26 +1277,34 @@ async def tg_ai_spamcheck(update, context):
         with sentry_sdk.start_span(op="moderation_action", description="Moderation actions (delete/mute)"):
             action = "none"
             if spam_prob >= delete_thr:
-                await chat_helper.delete_message(context.bot, chat_id, message.message_id)
+                with sentry_sdk.start_span(op="moderation_delete", description="Delete message"):
+                    await chat_helper.delete_message(context.bot, chat_id, message.message_id)
                 action = "delete"
 
                 if spam_prob >= mute_thr:
-                    with db_helper.session_scope() as session:
-                        rows = session.query(db_helper.User_Status.chat_id) \
-                                      .filter_by(user_id=user_id) \
-                                      .all()
-                    chat_ids = [cid for (cid,) in rows]
-
-                    if not chat_ids:
+                    with sentry_sdk.start_span(op="moderation_db_query", description="Query user status chats"):
                         with db_helper.session_scope() as session:
-                            rows = session.query(db_helper.Message_Log.chat_id) \
-                                          .filter(db_helper.Message_Log.user_id == user_id) \
-                                          .distinct() \
-                                          .all()
+                            rows = session.query(db_helper.User_Status.chat_id) \
+                                        .filter_by(user_id=user_id) \
+                                        .all()
                         chat_ids = [cid for (cid,) in rows]
 
+                    if not chat_ids:
+                        with sentry_sdk.start_span(op="moderation_db_query_msglog", description="Query message log chats"):
+                            with db_helper.session_scope() as session:
+                                rows = session.query(db_helper.Message_Log.chat_id) \
+                                            .filter(db_helper.Message_Log.user_id == user_id) \
+                                            .distinct() \
+                                            .all()
+                            chat_ids = [cid for (cid,) in rows]
+
                     try:
-                        await chat_helper.mute_user(context.bot, chat_id, user_id, duration_in_seconds=21*24*60*60, global_mute=True, reason="AI spam detection")
+                        with sentry_sdk.start_span(op="moderation_mute", description="Mute user"):
+                            await chat_helper.mute_user(
+                                context.bot, chat_id, user_id,
+                                duration_in_seconds=21*24*60*60,
+                                global_mute=True, reason="AI spam detection"
+                            )
                     except Exception as e:
                         logger.error(f"global_mute failed for {user_id}: {e}")
 
