@@ -22,8 +22,22 @@ import src.helpers.chat_helper as chat_helper
 import src.helpers.cache_helper as cache_helper
 
 
+import functools
+
+def sentry_profile(name=None):
+    def decorator(func):
+        @functools.wraps(func)
+        async def wrapper(*args, **kwargs):
+            tx_name = name or func.__name__
+            with sentry_sdk.start_transaction(name=tx_name):
+                return await func(*args, **kwargs)
+        return wrapper
+    return decorator
+
+
 logger = logging_helper.get_logger()
 
+@sentry_profile()
 async def send_message_to_admin(bot, chat_id, text: str, disable_web_page_preview: bool = True):
     chat_administrators = await chat_helper.get_chat_administrators(bot, chat_id)
 
@@ -117,6 +131,7 @@ def get_chat_config(chat_id=None, config_param=None, default=None):
             logger.error(f"Error: {traceback.format_exc()}")
             return default  # Return the default value in case of any error
 
+@sentry_profile()
 async def get_last_admin_permissions_check(chat_id):
     try:
         with db_helper.session_scope() as db_session:
@@ -127,6 +142,7 @@ async def get_last_admin_permissions_check(chat_id):
         logger.error(f"Error retrieving last admin permissions check for chat_id {chat_id}: {traceback.format_exc()}")
     return None
 
+@sentry_profile()
 async def set_last_admin_permissions_check(chat_id, timestamp):
     try:
         with db_helper.session_scope() as db_session:
@@ -142,6 +158,7 @@ async def set_last_admin_permissions_check(chat_id, timestamp):
         logger.error(f"Error updating last admin permissions check for chat_id {chat_id}: {traceback.format_exc()}")
         return False
 
+@sentry_profile()
 async def get_chat_administrators(bot, chat_id, cache_ttl=3600):
     """
     Get chat administrators with caching. Caches per chat_id for cache_ttl seconds.
@@ -182,6 +199,7 @@ async def get_chat_administrators(bot, chat_id, cache_ttl=3600):
         return []
 
 
+@sentry_profile()
 async def send_message(
     bot,
     chat_id,
@@ -206,6 +224,7 @@ async def send_message(
 
 
 
+@sentry_profile()
 async def send_scheduled_messages(bot):
     try:
         with db_helper.session_scope() as db_session:
@@ -276,10 +295,12 @@ async def send_scheduled_messages(bot):
 
 
 
+@sentry_profile()
 async def warn_user(bot, chat_id: int, user_id: int) -> None:
     # bot.send_message(chat_id, text=f"User {user_id} has been warned due to multiple reports.")
     pass
 
+@sentry_profile()
 async def mute_user(
     bot,
     chat_id: int,
@@ -415,6 +436,7 @@ async def mute_user(
 
 
 
+@sentry_profile()
 async def unmute_user(bot, chat_id, user_to_unmute, global_unmute=False):
     """
     Unmute a user by restoring full chat permissions.
@@ -475,6 +497,7 @@ async def unmute_user(bot, chat_id, user_to_unmute, global_unmute=False):
 
 
 
+@sentry_profile()
 async def ban_user(bot, chat_id, user_to_ban, global_ban=False, reason=None):
     with db_helper.session_scope() as db_session:
         try:
@@ -574,6 +597,7 @@ async def ban_user(bot, chat_id, user_to_ban, global_ban=False, reason=None):
             logger.error(f"Error: {traceback.format_exc()}")
             return None
 
+@sentry_profile()
 async def unban_user(bot, chat_id, user_to_unban, global_unban=False):
     """
     Unban a user from a chat or, if global_unban is True, from all active chats in the database.
@@ -630,6 +654,7 @@ async def unban_user(bot, chat_id, user_to_unban, global_unban=False):
 
 
 
+@sentry_profile()
 async def delete_message(bot, chat_id: int, message_id: int, delay_seconds: int = None) -> None:
     if delay_seconds:
         await asyncio.sleep(delay_seconds)
@@ -644,6 +669,7 @@ async def delete_message(bot, chat_id: int, message_id: int, delay_seconds: int 
     except Exception as e:
         logger.error(f"Error: {traceback.format_exc()}")
 
+@sentry_profile()
 async def schedule_message_deletion(chat_id, user_id, message_id, trigger_id=None, delay_seconds=None):
     try:
         with db_helper.session_scope() as db_session:
@@ -667,6 +693,7 @@ async def schedule_message_deletion(chat_id, user_id, message_id, trigger_id=Non
         return False
 
 
+@sentry_profile()
 async def delete_scheduled_messages(bot, chat_id=None, trigger_id=None, user_id=None, message_id=None):
     try:
         with db_helper.session_scope() as db_session:
@@ -698,6 +725,7 @@ async def delete_scheduled_messages(bot, chat_id=None, trigger_id=None, user_id=
         return False
 
 
+@sentry_profile()
 async def schedule_message_deletion(chat_id, message_id, user_id = None, trigger_id = None, delay_seconds=None):
     """
     Schedule a message for deletion.
@@ -729,6 +757,7 @@ async def schedule_message_deletion(chat_id, message_id, user_id = None, trigger
         logger.error(f"Error scheduling message {message_id} for deletion: {traceback.format_exc()}")
         return False
 
+@sentry_profile()
 async def pin_message(bot, chat_id, message_id):
     try:
         await bot.pin_chat_message(chat_id, message_id)
@@ -740,6 +769,7 @@ async def pin_message(bot, chat_id, message_id):
     except Exception as e:
         logger.error(f"Error pinning message {message_id} in chat {chat_id}: {traceback.format_exc()}")
 
+@sentry_profile()
 async def unpin_message(bot, chat_id, message_id):
     try:
         await bot.unpin_chat_message(chat_id, message_id)
@@ -753,6 +783,7 @@ async def unpin_message(bot, chat_id, message_id):
 
 
 
+@sentry_profile()
 async def get_chat_mention(bot, chat_id: int) -> str:
     try:
         # Fetch chat details from the Telegram API
@@ -796,6 +827,7 @@ async def get_chat_mention(bot, chat_id: int) -> str:
             return f"{chat.chat_name} - {chat.invite_link}"
 
 
+@sentry_profile()
 async def get_auto_replies(chat_id, filter_delayed=False):
     """
     Fetch auto-reply settings for a specific chat, optionally filtering out replies that are currently delayed.
@@ -840,6 +872,7 @@ async def get_auto_replies(chat_id, filter_delayed=False):
         logger.error(f"Error fetching auto replies for chat_id {chat_id}: {traceback.format_exc()}")
         return []
 
+@sentry_profile()
 async def update_last_reply_time_and_increment_count(chat_id, auto_reply_id, new_time):
     try:
         with db_helper.session_scope() as db_session:
