@@ -662,18 +662,29 @@ async def unban_user(bot, chat_id, user_to_unban, global_unban=False):
 
 @sentry_profile()
 async def delete_message(bot, chat_id: int, message_id: int, delay_seconds: int = None) -> None:
-    if delay_seconds:
-        await asyncio.sleep(delay_seconds)
+    import asyncio
+    from telegram.error import BadRequest
+    import traceback
 
-    try:
-        await bot.delete_message(chat_id, message_id)
-    except BadRequest as e:
-        if "Message to delete not found" in str(e):
-            logger.info(f"Message with ID {message_id} in chat {chat_id} not found or already deleted.")
-        else:
-            logger.error(f"BadRequest Error: {e}. Traceback: {traceback.format_exc()}")
-    except Exception as e:
-        logger.error(f"Error: {traceback.format_exc()}")
+    async def do_delete():
+        try:
+            await bot.delete_message(chat_id, message_id)
+        except BadRequest as e:
+            if "Message to delete not found" in str(e):
+                logger.info(f"Message with ID {message_id} in chat {chat_id} not found or already deleted.")
+            else:
+                logger.error(f"BadRequest Error: {e}. Traceback: {traceback.format_exc()}")
+        except Exception as e:
+            logger.error(f"Error: {traceback.format_exc()}")
+
+    if delay_seconds:
+        asyncio.create_task(_delayed())
+    else:
+        await do_delete()
+
+    async def _delayed():
+        await asyncio.sleep(delay_seconds)
+        await do_delete()
 
 @sentry_profile()
 async def schedule_message_deletion(chat_id, user_id, message_id, trigger_id=None, delay_seconds=None):
