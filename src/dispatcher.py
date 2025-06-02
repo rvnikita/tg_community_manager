@@ -55,7 +55,8 @@ import src.helpers.message_helper as message_helper
 import src.helpers.spamcheck_helper as spamcheck_helper
 import src.helpers.spamcheck_helper_raw as spamcheck_helper_raw
 import helpers.spamcheck_helper_raw_structure as spamcheck_helper_raw_structure
-import src.helpers.embeddings_reply_helper as embeddings_reply_helper
+import src.helpers.embeddings_reply_helper as embeddings_reply_helpero
+import src.helpers.cache_helper as cache_helper
 
 logger = logging_helper.get_logger()
 
@@ -1352,6 +1353,10 @@ ssl_context = ssl.create_default_context()
 ssl_context.check_hostname = False
 ssl_context.verify_mode = ssl.CERT_NONE
 
+CAS_CACHE_OK_SECONDS = 5        # 5 secfor users not banned
+CAS_CACHE_BANNED_SECONDS = 3000   # 3000 sec for banned users (to allow fast unmute etc)
+CAS_CACHE_FAILED_SECONDS = 1   # 10 sec if API fails
+
 @sentry_profile()
 async def tg_cas_spamcheck(update, context):
     if not update.message:
@@ -1377,8 +1382,26 @@ async def tg_cas_spamcheck(update, context):
             admins = await chat_helper.get_chat_administrators(context.bot, chat_id)
             if any(a["user_id"] == user_id for a in admins):
                 continue
-            
-            #TODO:MED: Maybe I can cache value for short time (e.g. 5-10 second) or for long if we know that user is not CAS banned
+
+            # --- cache logic here ---
+            cache_key = f"cas_status:{user_id}"
+            cached = cache_helper.get_key(cache_key)
+            if cached is not None:
+                # Possible values: "ok", "banned", "not_found", "api_fail"
+                if cached == "ok":
+                    logger.info(f"CAS cache: user {user_id} is ok, skipping API check.")
+                    continue
+                if cached == "not_found":
+                    logger.info(f"CAS cache: user {user_id} not found in CAS, skipping API check.")
+                    continue
+                if cached == "banned":
+                    logger.info(f"CAS cache: user {user_id} previously banned, acting immediately.")
+                    # No continue: repeat the action below
+                if cached == "api_fail":
+                    logger.info(f"CAS cache: recent API fail for user {user_id}, skipping for now.")
+                    continue
+
+            # If not cached (or was "banned"), check API
             url = f"https://api.cas.chat/check?user_id={user_id}"
             resp = None
             for attempt in range(1, MAX_RETRIES + 1):
@@ -1409,6 +1432,7 @@ async def tg_cas_spamcheck(update, context):
                         break
 
             if not resp or resp.status != 200:
+                cache_helper.set_key(cache_key, "api_fail", CAS_CACHE_FAILED_SECONDS)
                 continue
 
             data = await resp.json()
@@ -1416,12 +1440,15 @@ async def tg_cas_spamcheck(update, context):
 
             if not data.get("ok", False):
                 if "Record not found" in desc:
+                    cache_helper.set_key(cache_key, "not_found", CAS_CACHE_OK_SECONDS)
                     logger.info(f"CAS API no record for user {user_id}")
                 else:
+                    cache_helper.set_key(cache_key, "api_fail", CAS_CACHE_FAILED_SECONDS)
                     logger.info(f"CAS API not ok for user {user_id}: {desc}")
                 continue
 
             if data.get("result", False):
+                cache_helper.set_key(cache_key, "banned", CAS_CACHE_BANNED_SECONDS)
                 logger.info(f"CAS API found user {user_id} is CAS banned: {desc}")
 
                 await chat_helper.mute_user(context.bot, chat_id, user_id, global_mute=True, reason="CAS spam check")
@@ -1441,8 +1468,8 @@ async def tg_cas_spamcheck(update, context):
                     embedding=None
                 )
                 logger.info(f"CAS check: muted user {user_id} in chat {chat_id}")
-
-
+            else:
+                cache_helper.set_key(cache_key, "ok", CAS_CACHE_OK_SECONDS)
 
 @sentry_profile()
 async def tg_thankyou(update, context):
