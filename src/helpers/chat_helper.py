@@ -674,13 +674,13 @@ async def delete_message(bot, chat_id: int, message_id: int, delay_seconds: int 
         except Exception as e:
             logger.error(f"Error: {traceback.format_exc()}")
 
+    async def _delayed():
+        await asyncio.sleep(delay_seconds)
+        await do_delete()
+
     if delay_seconds:
         asyncio.create_task(_delayed())
     else:
-        await do_delete()
-
-    async def _delayed():
-        await asyncio.sleep(delay_seconds)
         await do_delete()
 
 @sentry_profile()
