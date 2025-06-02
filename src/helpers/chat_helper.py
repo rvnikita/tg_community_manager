@@ -657,9 +657,6 @@ async def unban_user(bot, chat_id, user_to_unban, global_unban=False):
     except Exception as e:
         logger.error(f"General error in unban_user function: {e}. Traceback: {traceback.format_exc()}")
 
-
-
-
 @sentry_profile()
 async def delete_message(bot, chat_id: int, message_id: int, delay_seconds: int = None) -> None:
     import asyncio
@@ -687,23 +684,44 @@ async def delete_message(bot, chat_id: int, message_id: int, delay_seconds: int 
         await do_delete()
 
 @sentry_profile()
-async def schedule_message_deletion(chat_id, user_id, message_id, trigger_id=None, delay_seconds=None):
+async def schedule_message_deletion(
+    chat_id,
+    message_id,
+    user_id=None,
+    trigger_id=None,
+    delay_seconds=None
+):
+    """
+    Schedule a message for deletion.
+
+    :param chat_id: Chat ID where the message exists.
+    :param message_id: ID of the message to be scheduled for deletion.
+    :param user_id: User ID who sent the message (optional).
+    :param trigger_id: ID of the trigger/event (optional).
+    :param delay_seconds: Seconds after which the message should be deleted. If None, no automatic deletion time is set.
+    """
     try:
         with db_helper.session_scope() as db_session:
             from datetime import datetime, timedelta
 
-            scheduled_deletion_time = datetime.utcnow() + timedelta(seconds=delay_seconds) if delay_seconds is not None else None
+            scheduled_deletion_time = (
+                datetime.utcnow() + timedelta(seconds=delay_seconds)
+                if delay_seconds is not None else None
+            )
             new_deletion = db_helper.Message_Deletion(
                 chat_id=chat_id,
                 user_id=user_id,
                 message_id=message_id,
+                trigger_id=trigger_id,
                 status='scheduled',
-                scheduled_deletion_time=scheduled_deletion_time,
-                trigger_id=trigger_id  # Link the message to a specific event or trigger
+                scheduled_deletion_time=scheduled_deletion_time
             )
             db_session.add(new_deletion)
             db_session.commit()
-            logger.info(f"Message {message_id} scheduled for deletion with trigger ID {trigger_id}" if trigger_id else f"Message {message_id} scheduled for deletion without specific trigger")
+            if delay_seconds is not None:
+                logger.info(f"Scheduled message {message_id} for deletion at {scheduled_deletion_time}")
+            else:
+                logger.info(f"Message {message_id} scheduled for deletion without a specific time")
             return True
     except Exception as e:
         logger.error(f"Error scheduling message {message_id} for deletion: {traceback.format_exc()}")
@@ -739,39 +757,6 @@ async def delete_scheduled_messages(bot, chat_id=None, trigger_id=None, user_id=
             return True
     except Exception as e:
         logger.error(f"Error deleting messages for trigger ID {trigger_id}: {traceback.format_exc()}")
-        return False
-
-
-@sentry_profile()
-async def schedule_message_deletion(chat_id, message_id, user_id = None, trigger_id = None, delay_seconds=None):
-    """
-    Schedule a message for deletion.
-
-    :param chat_id: Chat ID where the message exists.
-    :param user_id: User ID who sent the message.
-    :param message_id: ID of the message to be scheduled for deletion.
-    :param reply_to_message_id: ID of the message that this message is replying to.
-    :param delay_seconds: Seconds after which the message should be deleted. If None, no automatic deletion time is set.
-    """
-    try:
-        with db_helper.session_scope() as db_session:
-            from datetime import datetime, timedelta
-
-            scheduled_deletion_time = datetime.utcnow() + timedelta(seconds=delay_seconds) if delay_seconds is not None else None
-            new_deletion = db_helper.Message_Deletion(
-                chat_id=chat_id,
-                user_id=user_id,
-                message_id=message_id,
-                trigger_id = trigger_id,
-                status='scheduled',
-                scheduled_deletion_time=scheduled_deletion_time
-            )
-            db_session.add(new_deletion)
-            db_session.commit()
-            logger.info(f"Scheduled message {message_id} for deletion at {scheduled_deletion_time}" if delay_seconds is not None else f"Message {message_id} scheduled for deletion without a specific time")
-            return True
-    except Exception as e:
-        logger.error(f"Error scheduling message {message_id} for deletion: {traceback.format_exc()}")
         return False
 
 @sentry_profile()
