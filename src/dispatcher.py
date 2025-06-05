@@ -1871,7 +1871,7 @@ async def tg_ping(update, context):
 # ────────────────── Application Factory ──────────────────
 
 def create_application():
-    start_healthcheck_server()
+    start_health_server()
 
     application = (
         ApplicationBuilder()
