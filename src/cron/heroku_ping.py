@@ -6,10 +6,14 @@ import src.helpers.logging_helper as logging_helper
 logger = logging_helper.get_logger()
 
 def check_health():
-    url = "http://localhost:8081/healthz"
+    app_name = os.getenv("HEROKU_APP_NAME")
+    if not app_name:
+        logger.error("HEROKU_APP_NAME is not set in environment")
+        return False
+    url = f"https://{app_name}.herokuapp.com/healthz"
     try:
-        resp = requests.get(url, timeout=5)
-        if resp.status_code == 200 and resp.text == "OK":
+        resp = requests.get(url, timeout=10)
+        if resp.status_code == 200 and resp.text.strip() == "OK":
             logger.info("Bot is healthy")
             return True
         logger.error(f"Unexpected health check response: {resp.status_code} {resp.text!r}")
@@ -18,7 +22,11 @@ def check_health():
     return False
 
 def restart_heroku():
-    url = f"https://api.heroku.com/apps/{os.getenv('HEROKU_APP_NAME')}/dynos"
+    app_name = os.getenv("HEROKU_APP_NAME")
+    if not app_name:
+        logger.error("HEROKU_APP_NAME is not set in environment")
+        return
+    url = f"https://api.heroku.com/apps/{app_name}/dynos"
     headers = {
         "Accept": "application/vnd.heroku+json; version=3",
         "Authorization": f"Bearer {os.getenv('HEROKU_API_KEY')}"
