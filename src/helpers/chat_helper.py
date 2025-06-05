@@ -1,4 +1,6 @@
+import sentry_sdk
 import psycopg2
+import os
 import configparser
 import os
 import json
@@ -22,8 +24,22 @@ import src.helpers.chat_helper as chat_helper
 import src.helpers.cache_helper as cache_helper
 
 
+import functools
+
+def sentry_profile(name=None):
+    def decorator(func):
+        @functools.wraps(func)
+        async def wrapper(*args, **kwargs):
+            tx_name = name or func.__name__
+            with sentry_sdk.start_transaction(name=tx_name):
+                return await func(*args, **kwargs)
+        return wrapper
+    return decorator
+
+
 logger = logging_helper.get_logger()
 
+@sentry_profile()
 async def send_message_to_admin(bot, chat_id, text: str, disable_web_page_preview: bool = True):
     chat_administrators = await chat_helper.get_chat_administrators(bot, chat_id)
 
@@ -117,6 +133,7 @@ def get_chat_config(chat_id=None, config_param=None, default=None):
             logger.error(f"Error: {traceback.format_exc()}")
             return default  # Return the default value in case of any error
 
+@sentry_profile()
 async def get_last_admin_permissions_check(chat_id):
     try:
         with db_helper.session_scope() as db_session:
@@ -127,6 +144,7 @@ async def get_last_admin_permissions_check(chat_id):
         logger.error(f"Error retrieving last admin permissions check for chat_id {chat_id}: {traceback.format_exc()}")
     return None
 
+@sentry_profile()
 async def set_last_admin_permissions_check(chat_id, timestamp):
     try:
         with db_helper.session_scope() as db_session:
@@ -142,6 +160,7 @@ async def set_last_admin_permissions_check(chat_id, timestamp):
         logger.error(f"Error updating last admin permissions check for chat_id {chat_id}: {traceback.format_exc()}")
         return False
 
+@sentry_profile()
 async def get_chat_administrators(bot, chat_id, cache_ttl=3600):
     """
     Get chat administrators with caching. Caches per chat_id for cache_ttl seconds.
@@ -182,6 +201,7 @@ async def get_chat_administrators(bot, chat_id, cache_ttl=3600):
         return []
 
 
+@sentry_profile()
 async def send_message(
     bot,
     chat_id,
@@ -206,6 +226,7 @@ async def send_message(
 
 
 
+@sentry_profile()
 async def send_scheduled_messages(bot):
     try:
         with db_helper.session_scope() as db_session:
@@ -276,10 +297,12 @@ async def send_scheduled_messages(bot):
 
 
 
+@sentry_profile()
 async def warn_user(bot, chat_id: int, user_id: int) -> None:
     # bot.send_message(chat_id, text=f"User {user_id} has been warned due to multiple reports.")
     pass
 
+@sentry_profile()
 async def mute_user(
     bot,
     chat_id: int,
@@ -291,6 +314,8 @@ async def mute_user(
     from datetime import datetime, timedelta, timezone
     from telegram.error import TelegramError, BadRequest
     import asyncio
+    import traceback
+    import re
 
     perms = ChatPermissions.no_permissions()
 
@@ -300,6 +325,89 @@ async def mute_user(
     else:
         until = None
         desc = "indefinitely"
+
+    async def mute_in_chat(chat_id_iter, db_session, bot_info):
+        delay = 0
+        try_count = 0
+        while True:
+            try:
+                chat_admins = await chat_helper.get_chat_administrators(bot, chat_id_iter)
+                if bot_info.id not in [admin["user_id"] for admin in chat_admins]:
+                    logger.info(
+                        f"Bot is not admin in chat {await chat_helper.get_chat_mention(bot, chat_id_iter)}"
+                    )
+                    return
+                await bot.restrict_chat_member(
+                    chat_id=chat_id_iter,
+                    user_id=user_id,
+                    permissions=perms,
+                    until_date=until
+                )
+                logger.info(
+                    f"User {user_id} has been globally muted in chat {await chat_helper.get_chat_mention(bot, chat_id_iter)} {desc}. Reason: {reason}"
+                )
+                return
+            except TelegramError as e:
+                if "Too Many Requests" in e.message:
+                    retry_after = getattr(e, "retry_after", None)
+                    if not retry_after:
+                        m = re.search(r'retry after (\d+)', e.message)
+                        retry_after = int(m.group(1)) if m else 5
+                    delay = retry_after if delay == 0 else delay * 2
+                    logger.warning(f"mute_user: 429 Too Many Requests. Sleeping for {delay} seconds before retrying chat {chat_id_iter}")
+                    await asyncio.sleep(delay)
+                    try_count += 1
+                    continue
+                elif "Bot is not a member of the group chat" in e.message:
+                    logger.info(
+                        f"Bot is not a member in chat {await chat_helper.get_chat_mention(bot, chat_id_iter)}"
+                    )
+                    return
+                elif "Group migrated to supergroup. New chat id" in e.message:
+                    new_chat_id = int(re.search(r"New chat id: (-\d+)", e.message).group(1))
+                    existing_chat = db_session.query(db_helper.Chat).filter(db_helper.Chat.id == new_chat_id).first()
+                    if not existing_chat:
+                        chat_to_update = db_session.query(db_helper.Chat).filter(db_helper.Chat.id == chat_id_iter).first()
+                        if chat_to_update:
+                            chat_to_update.id = new_chat_id
+                            db_session.commit()
+                            logger.info(
+                                f"Updated chat id from {chat_id_iter} to {new_chat_id}"
+                            )
+                    return
+                elif "bot was kicked from the supergroup chat" in e.message:
+                    logger.info(
+                        f"Bot was kicked from chat {await chat_helper.get_chat_mention(bot, chat_id_iter)}"
+                    )
+                    return
+                else:
+                    logger.error(
+                        f"mute_user: TELEGRAM ERROR muting user={user_id} in chat={chat_id_iter}: {e.message}"
+                    )
+                    return
+            except BadRequest as e:
+                if "There are no administrators in the private chat" in e.message:
+                    logger.info(
+                        f"Bot is not admin in chat {await chat_helper.get_chat_mention(bot, chat_id_iter)}"
+                    )
+                    return
+                elif "User_not_participant" in e.message:
+                    logger.info(
+                        f"User {user_id} is not in chat {chat_id_iter}"
+                    )
+                    return
+                logger.error(
+                    f"BadRequest. Chat: {await chat_helper.get_chat_mention(bot, chat_id_iter)}. Traceback: {traceback.format_exc()}"
+                )
+                return
+            except Exception as e:
+                if getattr(e, "message", None) == "Chat not found":
+                    return
+                else:
+                    logger.error(
+                        f"mute_user: UNEXPECTED ERROR muting user={user_id} in chat={chat_id_iter}: {traceback.format_exc()}"
+                    )
+                    return
 
     if not global_mute:
         try:
@@ -327,94 +435,14 @@ async def mute_user(
                 db_helper.Chat.active == True
             ).all()
             bot_info = await bot.get_me()
-            for chat in all_active_chats:
-                chat_id_iter = chat.id
-                try_count = 0
-                while True:
-                    try:
-                        chat_admins = await chat_helper.get_chat_administrators(bot, chat_id_iter)
-                        logger.info(f"Chat {chat_id_iter} admins: {chat_admins}. Bot info: {bot_info}")
-                        if bot_info.id not in [admin["user_id"] for admin in chat_admins]:
-                            logger.info(
-                                f"Bot is not admin in chat {await chat_helper.get_chat_mention(bot, chat_id_iter)}"
-                            )
-                            break
-                        await bot.restrict_chat_member(
-                            chat_id=chat_id_iter,
-                            user_id=user_id,
-                            permissions=perms,
-                            until_date=until
-                        )
-                        logger.info(
-                            f"User {user_id} has been globally muted in chat {await chat_helper.get_chat_mention(bot, chat_id_iter)} {desc}. Reason: {reason}"
-                        )
-                        await asyncio.sleep(1.5)  # throttle to avoid rate limit
-                        break  # success, move to next chat
-                    except TelegramError as e:
-                        # Rate limit handling
-                        if "Too Many Requests" in e.message:
-                            retry_after = getattr(e, "retry_after", None)
-                            if not retry_after:
-                                # try to parse from message, fallback to 5s
-                                m = re.search(r'retry after (\d+)', e.message)
-                                retry_after = int(m.group(1)) if m else 5
-                            logger.warning(f"mute_user: 429 Too Many Requests. Sleeping for {retry_after} seconds before retrying chat {chat_id_iter}")
-                            await asyncio.sleep(retry_after)
-                            try_count += 1
-                            continue  # retry same chat
-                        elif "Bot is not a member of the group chat" in e.message:
-                            logger.info(
-                                f"Bot is not a member in chat {await chat_helper.get_chat_mention(bot, chat_id_iter)}"
-                            )
-                            break
-                        elif "Group migrated to supergroup. New chat id" in e.message:
-                            new_chat_id = int(re.search(r"New chat id: (-\d+)", e.message).group(1))
-                            existing_chat = db_session.query(db_helper.Chat).filter(db_helper.Chat.id == new_chat_id).first()
-                            if not existing_chat:
-                                chat_to_update = db_session.query(db_helper.Chat).filter(db_helper.Chat.id == chat_id_iter).first()
-                                if chat_to_update:
-                                    chat_to_update.id = new_chat_id
-                                    db_session.commit()
-                                    logger.info(
-                                        f"Updated chat id from {chat_id_iter} to {new_chat_id}"
-                                    )
-                            break
-                        elif "bot was kicked from the supergroup chat" in e.message:
-                            logger.info(
-                                f"Bot was kicked from chat {await chat_helper.get_chat_mention(bot, chat_id_iter)}"
-                            )
-                            break
-                        else:
-                            logger.error(
-                                f"mute_user: TELEGRAM ERROR muting user={user_id} in chat={chat_id_iter}: {e.message}"
-                            )
-                            break
-                    except BadRequest as e:
-                        if "There are no administrators in the private chat" in e.message:
-                            logger.info(
-                                f"Bot is not admin in chat {await chat_helper.get_chat_mention(bot, chat_id_iter)}"
-                            )
-                            break
-                        elif "User_not_participant" in e.message:
-                            logger.info(
-                                f"User {user_id} is not in chat {chat_id_iter}"
-                            )
-                            break
-                        logger.error(
-                            f"BadRequest. Chat: {await chat_helper.get_chat_mention(bot, chat_id_iter)}. Traceback: {traceback.format_exc()}"
-                        )
-                        break
-                    except Exception as e:
-                        if getattr(e, "message", None) == "Chat not found":
-                            break
-                        else:
-                            logger.error(
-                                f"mute_user: UNEXPECTED ERROR muting user={user_id} in chat={chat_id_iter}: {traceback.format_exc()}"
-                            )
-                            break
+            tasks = [
+                mute_in_chat(chat.id, db_session, bot_info)
+                for chat in all_active_chats
+            ]
+            await asyncio.gather(*tasks)
 
 
-
+@sentry_profile()
 async def unmute_user(bot, chat_id, user_to_unmute, global_unmute=False):
     """
     Unmute a user by restoring full chat permissions.
@@ -475,6 +503,7 @@ async def unmute_user(bot, chat_id, user_to_unmute, global_unmute=False):
 
 
 
+@sentry_profile()
 async def ban_user(bot, chat_id, user_to_ban, global_ban=False, reason=None):
     with db_helper.session_scope() as db_session:
         try:
@@ -574,6 +603,7 @@ async def ban_user(bot, chat_id, user_to_ban, global_ban=False, reason=None):
             logger.error(f"Error: {traceback.format_exc()}")
             return None
 
+@sentry_profile()
 async def unban_user(bot, chat_id, user_to_unban, global_unban=False):
     """
     Unban a user from a chat or, if global_unban is True, from all active chats in the database.
@@ -627,46 +657,78 @@ async def unban_user(bot, chat_id, user_to_unban, global_unban=False):
     except Exception as e:
         logger.error(f"General error in unban_user function: {e}. Traceback: {traceback.format_exc()}")
 
-
-
-
+@sentry_profile()
 async def delete_message(bot, chat_id: int, message_id: int, delay_seconds: int = None) -> None:
-    if delay_seconds:
+    import asyncio
+    from telegram.error import BadRequest
+    import traceback
+
+    async def do_delete():
+        try:
+            await bot.delete_message(chat_id, message_id)
+        except BadRequest as e:
+            if "Message to delete not found" in str(e):
+                logger.info(f"Message with ID {message_id} in chat {chat_id} not found or already deleted.")
+            else:
+                logger.error(f"BadRequest Error: {e}. Traceback: {traceback.format_exc()}")
+        except Exception as e:
+            logger.error(f"Error: {traceback.format_exc()}")
+
+    async def _delayed():
         await asyncio.sleep(delay_seconds)
+        await do_delete()
 
-    try:
-        await bot.delete_message(chat_id, message_id)
-    except BadRequest as e:
-        if "Message to delete not found" in str(e):
-            logger.info(f"Message with ID {message_id} in chat {chat_id} not found or already deleted.")
-        else:
-            logger.error(f"BadRequest Error: {e}. Traceback: {traceback.format_exc()}")
-    except Exception as e:
-        logger.error(f"Error: {traceback.format_exc()}")
+    if delay_seconds:
+        asyncio.create_task(_delayed())
+    else:
+        await do_delete()
 
-async def schedule_message_deletion(chat_id, user_id, message_id, trigger_id=None, delay_seconds=None):
+@sentry_profile()
+async def schedule_message_deletion(
+    chat_id,
+    message_id,
+    user_id=None,
+    trigger_id=None,
+    delay_seconds=None
+):
+    """
+    Schedule a message for deletion.
+
+    :param chat_id: Chat ID where the message exists.
+    :param message_id: ID of the message to be scheduled for deletion.
+    :param user_id: User ID who sent the message (optional).
+    :param trigger_id: ID of the trigger/event (optional).
+    :param delay_seconds: Seconds after which the message should be deleted. If None, no automatic deletion time is set.
+    """
     try:
         with db_helper.session_scope() as db_session:
             from datetime import datetime, timedelta
 
-            scheduled_deletion_time = datetime.utcnow() + timedelta(seconds=delay_seconds) if delay_seconds is not None else None
+            scheduled_deletion_time = (
+                datetime.utcnow() + timedelta(seconds=delay_seconds)
+                if delay_seconds is not None else None
+            )
             new_deletion = db_helper.Message_Deletion(
                 chat_id=chat_id,
                 user_id=user_id,
                 message_id=message_id,
+                trigger_id=trigger_id,
                 status='scheduled',
-                scheduled_deletion_time=scheduled_deletion_time,
-                trigger_id=trigger_id  # Link the message to a specific event or trigger
+                scheduled_deletion_time=scheduled_deletion_time
             )
             db_session.add(new_deletion)
             db_session.commit()
-            logger.info(f"Message {message_id} scheduled for deletion with trigger ID {trigger_id}" if trigger_id else f"Message {message_id} scheduled for deletion without specific trigger")
+            if delay_seconds is not None:
+                logger.info(f"Scheduled message {message_id} for deletion at {scheduled_deletion_time}")
+            else:
+                logger.info(f"Message {message_id} scheduled for deletion without a specific time")
             return True
     except Exception as e:
         logger.error(f"Error scheduling message {message_id} for deletion: {traceback.format_exc()}")
         return False
 
 
+@sentry_profile()
 async def delete_scheduled_messages(bot, chat_id=None, trigger_id=None, user_id=None, message_id=None):
     try:
         with db_helper.session_scope() as db_session:
@@ -697,38 +759,7 @@ async def delete_scheduled_messages(bot, chat_id=None, trigger_id=None, user_id=
         logger.error(f"Error deleting messages for trigger ID {trigger_id}: {traceback.format_exc()}")
         return False
 
-
-async def schedule_message_deletion(chat_id, message_id, user_id = None, trigger_id = None, delay_seconds=None):
-    """
-    Schedule a message for deletion.
-
-    :param chat_id: Chat ID where the message exists.
-    :param user_id: User ID who sent the message.
-    :param message_id: ID of the message to be scheduled for deletion.
-    :param reply_to_message_id: ID of the message that this message is replying to.
-    :param delay_seconds: Seconds after which the message should be deleted. If None, no automatic deletion time is set.
-    """
-    try:
-        with db_helper.session_scope() as db_session:
-            from datetime import datetime, timedelta
-
-            scheduled_deletion_time = datetime.utcnow() + timedelta(seconds=delay_seconds) if delay_seconds is not None else None
-            new_deletion = db_helper.Message_Deletion(
-                chat_id=chat_id,
-                user_id=user_id,
-                message_id=message_id,
-                trigger_id = trigger_id,
-                status='scheduled',
-                scheduled_deletion_time=scheduled_deletion_time
-            )
-            db_session.add(new_deletion)
-            db_session.commit()
-            logger.info(f"Scheduled message {message_id} for deletion at {scheduled_deletion_time}" if delay_seconds is not None else f"Message {message_id} scheduled for deletion without a specific time")
-            return True
-    except Exception as e:
-        logger.error(f"Error scheduling message {message_id} for deletion: {traceback.format_exc()}")
-        return False
-
+@sentry_profile()
 async def pin_message(bot, chat_id, message_id):
     try:
         await bot.pin_chat_message(chat_id, message_id)
@@ -740,6 +771,7 @@ async def pin_message(bot, chat_id, message_id):
     except Exception as e:
         logger.error(f"Error pinning message {message_id} in chat {chat_id}: {traceback.format_exc()}")
 
+@sentry_profile()
 async def unpin_message(bot, chat_id, message_id):
     try:
         await bot.unpin_chat_message(chat_id, message_id)
@@ -753,6 +785,7 @@ async def unpin_message(bot, chat_id, message_id):
 
 
 
+@sentry_profile()
 async def get_chat_mention(bot, chat_id: int) -> str:
     try:
         # Fetch chat details from the Telegram API
@@ -796,6 +829,7 @@ async def get_chat_mention(bot, chat_id: int) -> str:
             return f"{chat.chat_name} - {chat.invite_link}"
 
 
+@sentry_profile()
 async def get_auto_replies(chat_id, filter_delayed=False):
     """
     Fetch auto-reply settings for a specific chat, optionally filtering out replies that are currently delayed.
@@ -840,6 +874,7 @@ async def get_auto_replies(chat_id, filter_delayed=False):
         logger.error(f"Error fetching auto replies for chat_id {chat_id}: {traceback.format_exc()}")
         return []
 
+@sentry_profile()
 async def update_last_reply_time_and_increment_count(chat_id, auto_reply_id, new_time):
     try:
         with db_helper.session_scope() as db_session:
