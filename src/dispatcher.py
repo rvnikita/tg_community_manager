@@ -1832,20 +1832,19 @@ class BotManager:
 import threading
 from aiohttp import web
 
-def start_healthcheck_server():
+def start_health_server():
     async def handle(request):
         return web.Response(text="OK")
-
     app = web.Application()
     app.router.add_get("/healthz", handle)
     runner = web.AppRunner(app)
-    
     async def run():
         await runner.setup()
-        site = web.TCPSite(runner, "0.0.0.0", 8081)
+        port = int(os.getenv("PORT", 8080))
+        site = web.TCPSite(runner, "0.0.0.0", port)
         await site.start()
-    import asyncio
-    asyncio.get_event_loop().create_task(run())
+    loop = asyncio.get_event_loop()
+    loop.create_task(run())
 
 # temporary heartbeat function to check if the bot is alive
 # TODO:MED: remove this function later
