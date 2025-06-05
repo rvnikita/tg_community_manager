@@ -1801,6 +1801,25 @@ class BotManager:
             else:
                 logger.error(f"Error: {traceback.format_exc()}")
 
+
+import threading
+from aiohttp import web
+
+def start_healthcheck_server():
+    async def handle(request):
+        return web.Response(text="OK")
+
+    app = web.Application()
+    app.router.add_get("/healthz", handle)
+    runner = web.AppRunner(app)
+    
+    async def run():
+        await runner.setup()
+        site = web.TCPSite(runner, "0.0.0.0", 8081)
+        await site.start()
+    import asyncio
+    asyncio.get_event_loop().create_task(run())
+
 # temporary heartbeat function to check if the bot is alive
 # TODO:MED: remove this function later
 @sentry_profile()
@@ -1826,6 +1845,8 @@ async def tg_ping(update, context):
 # ────────────────── Application Factory ──────────────────
 
 def create_application():
+    start_healthcheck_server()
+
     application = (
         ApplicationBuilder()
         .token(os.getenv("ENV_BOT_KEY"))

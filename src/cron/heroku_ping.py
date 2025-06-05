@@ -1,50 +1,23 @@
-#!/usr/bin/env python3
-import sys
-sys.path.insert(0, '../')
-
-import os
-import asyncio
 import requests
+import os
 
-from telethon import TelegramClient
-from telethon.sessions import StringSession
-
-import dotenv
 import src.helpers.logging_helper as logging_helper
 
-dotenv.load_dotenv("config/.env")
 logger = logging_helper.get_logger()
 
-async def health_check():
-    session_string = os.getenv("CAS_TELETHON_SESSION_STRING")
-    if not session_string:
-        logger.error("CAS_TELETHON_SESSION_STRING is missing in .env")
-        return
-
-    client = TelegramClient(
-        StringSession(session_string),
-        int(os.getenv("CAS_TELETHON_API_ID")),
-        os.getenv("CAS_TELETHON_API_HASH"),
-    )
-    await client.start()
-    me = await client.get_me()
-    logger.info(f"Logged in as {me.username} (id={me.id})")
-
+def check_health():
+    url = "http://localhost:8081/healthz"
     try:
-        async with client.conversation(os.getenv("ENV_BOT_USERNAME"), timeout=120) as conv:
-            await conv.send_message("/ping")
-            resp = await conv.get_response()
-            text = resp.raw_text or ""
-            if "Pong" in text:
-                logger.info("🏓 Ping-Pong: Pong received")
-                await client.disconnect()
-                return
-            logger.error(f"❌🏓 Ping-Pong: Unexpected reply: {text!r}")
-    except asyncio.TimeoutError:
-        logger.error("❌🏓 Ping-Pong: Timeout waiting for Pong")
+        resp = requests.get(url, timeout=5)
+        if resp.status_code == 200 and resp.text == "OK":
+            logger.info("Bot is healthy")
+            return True
+        logger.error(f"Unexpected health check response: {resp.status_code} {resp.text!r}")
     except Exception as e:
-        logger.error(f"❌🏓 Ping-Pong: Error during health check: {e}")
+        logger.error(f"Health check failed: {e}")
+    return False
 
+def restart_heroku():
     url = f"https://api.heroku.com/apps/{os.getenv('HEROKU_APP_NAME')}/dynos"
     headers = {
         "Accept": "application/vnd.heroku+json; version=3",
@@ -56,7 +29,6 @@ async def health_check():
     else:
         logger.error(f"Failed to restart Heroku ({resp.status_code}): {resp.text}")
 
-    await client.disconnect()
-
 if __name__ == "__main__":
-    asyncio.run(health_check())
+    if not check_health():
+        restart_heroku()
