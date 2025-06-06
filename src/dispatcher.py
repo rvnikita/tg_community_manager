@@ -1011,10 +1011,11 @@ async def tg_embeddings_auto_reply(update, context):
 
         row = embeddings_reply_helper.find_best_embeddings_trigger(chat_id, message_embedding)
 
-        logger.info(f"🥶 tg_embeddings_auto_reply found row: {row}")
-        
         if not row:
+            logger.debug(f"🥶 tg_embeddings_auto_reply no matching row found for chat_id {chat_id} and message_embedding {message_embedding}")
             return
+        else:
+            logger.info(f"🥶 tg_embeddings_auto_reply found row: {row}")
 
         content = embeddings_reply_helper.get_content_by_id(row["content_id"])
         if not content:
