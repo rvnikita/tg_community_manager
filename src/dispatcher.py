@@ -1321,16 +1321,16 @@ async def tg_ai_spamcheck(update, context):
                 "",
                 "╔═ AI-Spamcheck",
                 f"║ Probability  : {vis_emoji} {spam_prob:.5f}  (del≥{delete_thr}, mute≥{mute_thr})",
-                f"║ Action       : {action}",
-                f"║ User         : {user_ment}",
-                f"║ Chat         : {chat_name} ({chat_id})",
-                f"║ Engine       : {engine}",
-                f"║ Msg-log-ID   : {message_log_id}",
-                f"║ Fwd / Reply  : forwarded={forwarded}  reply_to={reply_to}",
                 f"╚═ Content     : {short_txt}",
-                f"      ↳ message_log_id={message_log_id}",
-                f"      ↳ raw_message={message.to_dict() if hasattr(message, 'to_dict') else None}",
+                f"            ↳ User: {user_ment}",
+                f"            ↳ Chat: {chat_name} ({chat_id})",
+                f"            ↳ Action: {action}",
+                f"            ↳ Engine: {engine}",
+                f"            ↳ Msg-log-ID: {message_log_id}",
+                f"            ↳ Fwd/Reply: forwarded={forwarded} reply_to={reply_to}",
+                f"            ↳ raw_message={message.to_dict() if hasattr(message, 'to_dict') else None}",
             ]
+
             logger.info("\n".join(log_lines))
 
     except Exception:
