@@ -5,31 +5,36 @@ import requests
 
 import sentry_sdk
 
-LOGGING_FORMAT = os.getenv("ENV_LOGGING_FORMAT", "%(asctime)s - %(levelname)s - %(message)s")
-LOGGING_LEVEL = os.getenv("ENV_LOGGING_LEVEL", "INFO").upper()
-ENABLE_TELEGRAM = os.getenv("LOG_TO_TELEGRAM", "false").lower() == "true"
-ENABLE_SENTRY = os.getenv("LOG_TO_SENTRY", "false").lower() == "true"
+def get_env_list(key, default=""):
+    v = os.getenv(key, default)
+    if not v:
+        return []
+    return [level.strip().upper() for level in v.split(",") if level.strip()]
+
+class LevelsFilter(logging.Filter):
+    def __init__(self, allowed_levels):
+        super().__init__()
+        self.allowed_levels = set(getattr(logging, level) for level in allowed_levels)
+    def filter(self, record):
+        return record.levelno in self.allowed_levels
 
 class SingleLineFormatter(logging.Formatter):
     def format(self, record):
         msg = super().format(record)
-        # Replace newlines with visible \n, preserving readability in log viewers
         return msg.replace("\n", "\\n")
 
 class TelegramLoggerHandler(logging.Handler):
-    def __init__(self, chat_id):
+    def __init__(self, chat_id, bot_key):
         super().__init__()
         self.chat_id = chat_id
+        self.bot_key = bot_key
 
     def emit(self, record):
         try:
             msg = self.format(record)
-            # Truncate if too long for Telegram
-            # if len(msg) > 3500:
-                # msg = msg[:3500] + "\\n...(truncated)"
             text = urllib.parse.quote(msg, safe="")
             url = (
-                f"https://api.telegram.org/bot{os.getenv('ENV_BOT_KEY')}"
+                f"https://api.telegram.org/bot{self.bot_key}"
                 f"/sendMessage?chat_id={self.chat_id}"
                 f"&text={text}&disable_web_page_preview=true"
             )
@@ -44,36 +49,58 @@ class TelegramLoggerHandler(logging.Handler):
 
 def get_logger():
     logger = logging.getLogger()
-    logger.setLevel(getattr(logging, LOGGING_LEVEL, logging.INFO))
-
     if logger.hasHandlers():
         logger.handlers.clear()
 
-    fmt = SingleLineFormatter(LOGGING_FORMAT)
+    log_format = os.getenv("LOGGING_FORMAT", "%(asctime)s - %(levelname)s - %(message)s")
 
-    console = logging.StreamHandler()
-    console.setFormatter(fmt)
-    logger.addHandler(console)
+    fmt = SingleLineFormatter(log_format)
 
-    if ENABLE_TELEGRAM:
-        info_id = os.getenv("ENV_INFO_CHAT_ID")
-        error_id = os.getenv("ENV_ERROR_CHAT_ID")
+    # Console handler
+    if os.getenv("LOGGING_CONSOLE_ENABLED", "false").lower() == "true":
+        console_levels = get_env_list("LOGGING_CONSOLE_LEVELS", "DEBUG,INFO,WARNING,ERROR,CRITICAL")
+        console = logging.StreamHandler()
+        console.setFormatter(fmt)
+        if console_levels:
+            console.setLevel(logging.DEBUG)  # allow all through, filter below
+            console.addFilter(LevelsFilter(console_levels))
+        logger.addHandler(console)
 
-        if info_id:
-            h = TelegramLoggerHandler(info_id)
-            h.setLevel(logging.INFO)
-            h.setFormatter(fmt)
-            logger.addHandler(h)
+    # Telegram handlers
+    bot_key = os.getenv("BOT_KEY")
+    # Telegram 1
+    if os.getenv("LOGGING_TELEGRAM_1_ENABLED", "false").lower() == "true":
+        chat_id_1 = os.getenv("LOGGING_TELEGRAM_1_CHAT_ID")
+        levels_1 = get_env_list("LOGGING_TELEGRAM_1_LEVELS", "INFO")
+        if bot_key and chat_id_1 and levels_1:
+            h1 = TelegramLoggerHandler(chat_id_1, bot_key)
+            h1.setFormatter(fmt)
+            h1.setLevel(logging.DEBUG)
+            h1.addFilter(LevelsFilter(levels_1))
+            logger.addHandler(h1)
+    # Telegram 2
+    if os.getenv("LOGGING_TELEGRAM_2_ENABLED", "false").lower() == "true":
+        chat_id_2 = os.getenv("LOGGING_TELEGRAM_2_CHAT_ID")
+        levels_2 = get_env_list("LOGGING_TELEGRAM_2_LEVELS", "ERROR,CRITICAL")
+        if bot_key and chat_id_2 and levels_2:
+            h2 = TelegramLoggerHandler(chat_id_2, bot_key)
+            h2.setFormatter(fmt)
+            h2.setLevel(logging.DEBUG)
+            h2.addFilter(LevelsFilter(levels_2))
+            logger.addHandler(h2)
 
-        if error_id:
-            h = TelegramLoggerHandler(error_id)
-            h.setLevel(logging.ERROR)
-            h.setFormatter(fmt)
-            logger.addHandler(h)
-
-    if ENABLE_SENTRY and os.getenv("SENTRY_DSN"):
-        sentry_sdk.init(dsn=os.getenv("SENTRY_DSN"), traces_sample_rate=1.0)
+    # Sentry handler (just init sentry SDK; Sentry integrates with logging by default)
+    if os.getenv("LOGGING_SENTRY_ENABLED", "false").lower() == "true":
+        sentry_dsn = os.getenv("LOGGING_SENTRY_DSN")
+        sentry_levels = get_env_list("LOGGING_SENTRY_LEVELS", "ERROR,CRITICAL")
+        if sentry_dsn:
+            sentry_sdk.init(dsn=sentry_dsn, traces_sample_rate=1.0)
+            sentry_logger = logging.getLogger("sentry_sdk")
+            sentry_logger.setLevel(logging.ERROR)
+            # Sentry's SDK automatically captures ERROR+ logs
+            # To restrict levels, you can use before_send or adjust root logger level if needed
 
     logging.getLogger("httpx").setLevel(logging.WARNING)
 
+    logger.setLevel(logging.DEBUG)  # lowest, let handlers filter
     return logger
