@@ -46,11 +46,11 @@ class TelegramLoggerHandler(logging.Handler):
             )
             resp = requests.get(url, timeout=5)
             if resp.status_code == 429:
-                print(f"TelegramLoggerHandler rate-limited: {resp.text}")
+                logging.getLogger().error(f"TelegramLoggerHandler rate-limited: {resp.text}")
             elif resp.status_code != 200:
-                print(f"TelegramLoggerHandler failed ({resp.status_code}): {resp.text}")
+                logging.getLogger().error(f"TelegramLoggerHandler failed ({resp.status_code}): {resp.text}")
         except Exception as e:
-            print(f"TelegramLoggerHandler.emit exception: {e}")
+            logging.getLogger().error(f"TelegramLoggerHandler.emit exception: {e}")
             self.handleError(record)
 
 def get_logger():
