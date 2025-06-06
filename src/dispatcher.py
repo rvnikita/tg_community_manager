@@ -1681,7 +1681,7 @@ async def tg_join_request(update, context):
 
 from telegram.ext import TypeHandler
 async def debug_all_updates(update, context):
-    logger.info(f"Update type: {type(update)} -- {update.to_dict()}")
+    logger.debug(f"Update type: {type(update)} -- {update.to_dict()}")
 
 #TODO:HIGH: THIS IS DEBUG TO UNDERSTAND WHY SPAMMERS JOIN ON NOT CAUGHT BY tg_new_member 
 from telegram.ext import ChatMemberHandler
@@ -1850,7 +1850,7 @@ def start_health_server():
 # TODO:MED: remove this function later
 @sentry_profile()
 async def tg_heartbeat(context):
-    logger.info("💓 heartbeat")
+    logger.debug("💓 heartbeat")
 
 async def global_error(update, context):
     logger.error("unhandled error", exc_info=context.error)
