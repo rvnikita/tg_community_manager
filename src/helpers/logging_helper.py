@@ -5,6 +5,8 @@ import requests
 
 import sentry_sdk
 
+# TODO:MED: Add extra={"log_importance": "high"} to important logger.info(...) calls for granular log filtering/routing. That will help to seprate importnat/less important logs that are still in INFO level.
+
 def get_env_list(key, default=""):
     v = os.getenv(key, default)
     if not v:
