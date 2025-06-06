@@ -25,6 +25,10 @@ class SingleLineFormatter(logging.Formatter):
         msg = super().format(record)
         return msg.replace("\n", "\\n")
 
+class MultiLineFormatter(logging.Formatter):
+    def format(self, record):
+        return super().format(record)
+
 class TelegramLoggerHandler(logging.Handler):
     def __init__(self, chat_id, bot_key):
         super().__init__()
@@ -56,13 +60,14 @@ def get_logger():
 
     log_format = os.getenv("LOGGING_FORMAT", "%(asctime)s - %(levelname)s - %(message)s")
 
-    fmt = SingleLineFormatter(log_format)
+    fmt_console = SingleLineFormatter(log_format)
+    fmt_telegram = MultiLineFormatter(log_format)
 
     # Console handler
     if os.getenv("LOGGING_CONSOLE_ENABLED", "false").lower() == "true":
         console_levels = get_env_list("LOGGING_CONSOLE_LEVELS", "DEBUG,INFO,WARNING,ERROR,CRITICAL")
         console = logging.StreamHandler()
-        console.setFormatter(fmt)
+        console.setFormatter(fmt_console)
         if console_levels:
             console.setLevel(logging.DEBUG)  # allow all through, filter below
             console.addFilter(LevelsFilter(console_levels))
@@ -76,7 +81,7 @@ def get_logger():
         levels_1 = get_env_list("LOGGING_TELEGRAM_1_LEVELS", "INFO")
         if bot_key and chat_id_1 and levels_1:
             h1 = TelegramLoggerHandler(chat_id_1, bot_key)
-            h1.setFormatter(fmt)
+            h1.setFormatter(fmt_telegram)
             h1.setLevel(logging.DEBUG)
             h1.addFilter(LevelsFilter(levels_1))
             logger.addHandler(h1)
@@ -86,7 +91,7 @@ def get_logger():
         levels_2 = get_env_list("LOGGING_TELEGRAM_2_LEVELS", "ERROR,CRITICAL")
         if bot_key and chat_id_2 and levels_2:
             h2 = TelegramLoggerHandler(chat_id_2, bot_key)
-            h2.setFormatter(fmt)
+            h2.setFormatter(fmt_telegram)
             h2.setLevel(logging.DEBUG)
             h2.addFilter(LevelsFilter(levels_2))
             logger.addHandler(h2)
