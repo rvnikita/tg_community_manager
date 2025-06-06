@@ -67,7 +67,7 @@ def get_logger():
         logger.addHandler(console)
 
     # Telegram handlers
-    bot_key = os.getenv("BOT_KEY")
+    bot_key = os.getenv("ENV_BOT_KEY")
     # Telegram 1
     if os.getenv("LOGGING_TELEGRAM_1_ENABLED", "false").lower() == "true":
         chat_id_1 = os.getenv("LOGGING_TELEGRAM_1_CHAT_ID")
