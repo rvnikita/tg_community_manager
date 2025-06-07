@@ -30,27 +30,29 @@ class MultiLineFormatter(logging.Formatter):
         return super().format(record)
 
 class TelegramLoggerHandler(logging.Handler):
-    def __init__(self, chat_id, bot_key):
+    def __init__(self, bot_token, chat_id):
         super().__init__()
+        self.bot_token = bot_token
         self.chat_id = chat_id
-        self.bot_key = bot_key
+        self.api_url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
+        self.max_length = 4000  # safe margin under Telegram's limit
 
     def emit(self, record):
         try:
             msg = self.format(record)
-            text = urllib.parse.quote(msg, safe="")
-            url = (
-                f"https://api.telegram.org/bot{self.bot_key}"
-                f"/sendMessage?chat_id={self.chat_id}"
-                f"&text={text}&disable_web_page_preview=true"
-            )
-            resp = requests.get(url, timeout=5)
-            if resp.status_code == 429:
-                logging.getLogger().error(f"TelegramLoggerHandler rate-limited: {resp.text}")
-            elif resp.status_code != 200:
-                logging.getLogger().error(f"TelegramLoggerHandler failed ({resp.status_code}): {resp.text}")
-        except Exception as e:
-            logging.getLogger().error(f"TelegramLoggerHandler.emit exception: {e}")
+            cut = False
+            if len(msg) > self.max_length:
+                msg = msg[:self.max_length - 3] + "...✂️"
+                cut = True
+            data = {
+                "chat_id": self.chat_id,
+                "text": msg,
+                "parse_mode": "Markdown",  # Or None if not using Markdown
+                "disable_web_page_preview": True
+            }
+            import requests
+            requests.post(self.api_url, data=data, timeout=5)
+        except Exception:
             self.handleError(record)
 
 def get_logger():
