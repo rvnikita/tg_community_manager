@@ -346,7 +346,7 @@ async def mute_user(
                 f"mute_user: UNEXPECTED ERROR muting user={user_id} in chat={chat_id}: {traceback.format_exc()}"
             )
     else:
-        mute_logs = []
+        chat_mentions = []
 
         async def mute_in_chat(chat_id_iter, db_session, bot_info):
             delay = 0
@@ -363,9 +363,7 @@ async def mute_user(
                         until_date=until
                     )
                     mention = await chat_helper.get_chat_mention(bot, chat_id_iter)
-                    mute_logs.append(
-                        f"User {user_id} has been globally muted in chat {mention} {desc}. Reason: {reason}"
-                    )
+                    chat_mentions.append(mention)
                     return
                 except TelegramError as e:
                     if "Too Many Requests" in e.message:
@@ -396,8 +394,13 @@ async def mute_user(
             ]
             await asyncio.gather(*tasks)
 
-        if mute_logs:
-            logger.info("\n" + "\n".join(mute_logs))
+        if chat_mentions:
+            msg = (
+                f"User {user_id} has been globally muted in chats: "
+                + "; ".join(chat_mentions)
+                + f". {desc}. Reason: {reason}"
+            )
+            logger.info(msg)
 
 
 @sentry_profile()
