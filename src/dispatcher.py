@@ -1322,7 +1322,7 @@ async def tg_ai_spamcheck(update, context):
                 "",
                 "╔═ AI-Spamcheck",
                 f"║ Probability  : {vis_emoji} {spam_prob:.5f}  (del≥{delete_thr}, mute≥{mute_thr})",
-                f"╚═ Content     : {short_txt}",
+                f"╚═ 📝 Content   : {short_txt}",
                 f"            ↳ User: {user_ment}",
                 f"            ↳ Chat: {chat_name} ({chat_id})",
                 f"            ↳ Action: {action}",
