@@ -369,7 +369,13 @@ async def tg_offtop(update, context):
 
                 return
 
-            await chat_helper.send_message(bot, chat_id, f"{warned_user_mention}, you've been warned {warn_count}/{number_of_reports_to_ban} times. Reason: {reason}", reply_to_message_id=warned_message_id)
+            await chat_helper.send_message(
+                bot,
+                chat_id,
+                f"{warned_user_mention}, you've been warned {warn_count}/{number_of_reports_to_ban} times. Reason: {reason}",
+                reply_to_message_id=warned_message_id,
+                delete_after=120,
+            )
             await chat_helper.delete_message(bot, chat_id, warned_message_id)
             await chat_helper.send_message_to_admin(bot, chat_id, f"{warning_admin_mention} warned {warned_user_mention} in chat {await chat_helper.get_chat_mention(bot, chat_id)}. Reason: {reason}. Total Warnings: {warn_count}/{number_of_reports_to_ban}")
 
@@ -533,7 +539,13 @@ async def tg_warn(update, context):
                         return
 
                 with sentry_sdk.start_span(op="warn_notify", description="Warn and notify"):
-                    await chat_helper.send_message(bot, chat_id, f"{warned_user_mention}, you've been warned {warn_count}/{number_of_reports_to_ban} times. Reason: {reason}", reply_to_message_id=warned_message_id)
+                    await chat_helper.send_message(
+                        bot,
+                        chat_id,
+                        f"{warned_user_mention}, you've been warned {warn_count}/{number_of_reports_to_ban} times. Reason: {reason}",
+                        reply_to_message_id=warned_message_id,
+                        delete_after=120,
+                    )
                     await chat_helper.delete_message(bot, chat_id, warned_message_id)
                     await chat_helper.send_message_to_admin(bot, chat_id, f"{warning_admin_mention} warned {warned_user_mention} in chat {await chat_helper.get_chat_mention(bot, chat_id)}. Reason: {reason}. Total Warnings: {warn_count}/{number_of_reports_to_ban}")
 
