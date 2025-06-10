@@ -38,17 +38,25 @@ class TelegramLoggerHandler(logging.Handler):
     def emit(self, record):
         try:
             msg = self.format(record)
-            text = urllib.parse.quote(msg, safe="")
-            url = (
-                f"https://api.telegram.org/bot{self.bot_key}"
-                f"/sendMessage?chat_id={self.chat_id}"
-                f"&text={text}&disable_web_page_preview=true"
-            )
-            resp = requests.get(url, timeout=5)
-            if resp.status_code == 429:
-                logging.getLogger().error(f"TelegramLoggerHandler rate-limited: {resp.text}")
-            elif resp.status_code != 200:
-                logging.getLogger().error(f"TelegramLoggerHandler failed ({resp.status_code}): {resp.text}")
+
+            chunks = [msg[i : i + 4096] for i in range(0, len(msg), 4096)] or [""]
+            for chunk in chunks:
+                text = urllib.parse.quote(chunk, safe="")
+                url = (
+                    f"https://api.telegram.org/bot{self.bot_key}"
+                    f"/sendMessage?chat_id={self.chat_id}"
+                    f"&text={text}&disable_web_page_preview=true"
+                )
+                resp = requests.get(url, timeout=5)
+                if resp.status_code == 429:
+                    logging.getLogger().error(
+                        f"TelegramLoggerHandler rate-limited: {resp.text}"
+                    )
+                    break
+                elif resp.status_code != 200:
+                    logging.getLogger().error(
+                        f"TelegramLoggerHandler failed ({resp.status_code}): {resp.text}"
+                    )
         except Exception as e:
             logging.getLogger().error(f"TelegramLoggerHandler.emit exception: {e}")
             self.handleError(record)
