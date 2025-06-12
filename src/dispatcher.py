@@ -54,7 +54,7 @@ import src.helpers.reporting_helper as reporting_helper
 import src.helpers.message_helper as message_helper
 import src.helpers.spamcheck_helper as spamcheck_helper
 import src.helpers.spamcheck_helper_raw as spamcheck_helper_raw
-import helpers.spamcheck_helper_raw_structure as spamcheck_helper_raw_structure
+import src.helpers.spamcheck_helper_raw_structure as spamcheck_helper_raw_structure
 import src.helpers.embeddings_reply_helper as embeddings_reply_helpero
 import src.helpers.cache_helper as cache_helper
 
