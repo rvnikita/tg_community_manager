@@ -272,6 +272,8 @@ class Message_Log(Base):
     reason_for_action = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     embedding = Column(Vector, nullable=True)  # Column to store message embeddings
+    image_description = Column(Text, nullable=True)
+    image_description_embedding = Column(Vector, nullable=True)
     used_for_training = Column(Boolean, default=False, nullable=False)
     manually_verified = Column(Boolean, default=False, nullable=False)
     is_forwarded = Column(Boolean, nullable=True)  # Column to store is message is forwarded
