@@ -676,7 +676,8 @@ async def tg_spam(update, context):
                 message_id=log_data["message_id"],
                 user_id=target_user_id,
                 is_spam=True,
-                manually_verified=True
+                manually_verified=True,
+                reason_for_action="User was globally banned due to /spam command issued by global admin"
             )
 
         # 4. For messages less than 24 hours old, delete them from all chats.
