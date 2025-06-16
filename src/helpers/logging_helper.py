@@ -40,12 +40,11 @@ class TelegramLoggerHandler(logging.Handler):
     def emit(self, record):
         try:
             msg = self.format(record)
-
-            chunks = [msg[i : i + 4096] for i in range(0, len(msg), 4096)] or [""]
+            chunks = [msg[i: i + 4096] for i in range(0, len(msg), 4096)] or [""]
             for chunk in chunks:
                 text = urllib.parse.quote(chunk, safe="")
                 url = (
-                    f"https://api.telegram.org/bot{self.bot_key}"
+                    f"https://api.telegram.org/bot{self.bot_token}"
                     f"/sendMessage?chat_id={self.chat_id}"
                     f"&text={text}&disable_web_page_preview=true"
                 )
@@ -79,7 +78,7 @@ def get_logger():
         console = logging.StreamHandler()
         console.setFormatter(fmt_console)
         if console_levels:
-            console.setLevel(logging.DEBUG)  # allow all through, filter below
+            console.setLevel(logging.DEBUG)
             console.addFilter(LevelsFilter(console_levels))
         logger.addHandler(console)
 
@@ -90,7 +89,7 @@ def get_logger():
         chat_id_1 = os.getenv("LOGGING_TELEGRAM_1_CHAT_ID")
         levels_1 = get_env_list("LOGGING_TELEGRAM_1_LEVELS", "INFO")
         if bot_key and chat_id_1 and levels_1:
-            h1 = TelegramLoggerHandler(chat_id_1, bot_key)
+            h1 = TelegramLoggerHandler(bot_key, chat_id_1)
             h1.setFormatter(fmt_telegram)
             h1.setLevel(logging.DEBUG)
             h1.addFilter(LevelsFilter(levels_1))
@@ -100,7 +99,7 @@ def get_logger():
         chat_id_2 = os.getenv("LOGGING_TELEGRAM_2_CHAT_ID")
         levels_2 = get_env_list("LOGGING_TELEGRAM_2_LEVELS", "ERROR,CRITICAL")
         if bot_key and chat_id_2 and levels_2:
-            h2 = TelegramLoggerHandler(chat_id_2, bot_key)
+            h2 = TelegramLoggerHandler(bot_key, chat_id_2)
             h2.setFormatter(fmt_telegram)
             h2.setLevel(logging.DEBUG)
             h2.addFilter(LevelsFilter(levels_2))
@@ -114,10 +113,8 @@ def get_logger():
             sentry_sdk.init(dsn=sentry_dsn, traces_sample_rate=1.0)
             sentry_logger = logging.getLogger("sentry_sdk")
             sentry_logger.setLevel(logging.ERROR)
-            # Sentry's SDK automatically captures ERROR+ logs
-            # To restrict levels, you can use before_send or adjust root logger level if needed
 
     logging.getLogger("httpx").setLevel(logging.WARNING)
 
-    logger.setLevel(logging.DEBUG)  # lowest, let handlers filter
+    logger.setLevel(logging.DEBUG)
     return logger
