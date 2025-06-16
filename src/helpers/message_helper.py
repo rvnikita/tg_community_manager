@@ -8,32 +8,9 @@ import src.helpers.logging_helper as logging_helper
 
 logger = logging_helper.get_logger()
 
-# TODO: add non required parameter "spam prediction probability" that would be used when we we log with spam detection part of the code. That will easier to filter and manually verify in batch. Not going to use it in the prediction itself.
-import datetime
-import traceback
-from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy import func
-import src.helpers.db_helper as db_helper
-import src.helpers.logging_helper as logging_helper
-
-logger = logging_helper.get_logger()
-
-import datetime, traceback
-from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy import func
-import src.helpers.db_helper as db_helper
-import src.helpers.logging_helper as logging_helper
-
-logger = logging_helper.get_logger()
-
-import datetime
-import traceback
-from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy import func
-import src.helpers.db_helper as db_helper
-import src.helpers.logging_helper as logging_helper
-
-logger = logging_helper.get_logger()
+# TODO: add non required parameter "spam prediction probability" that would be used when we log
+# with spam detection part of the code. That will easier to filter and manually verify in batch. Not
+# going to use it in the prediction itself.
 
 #TODO:MED: Add photo_descroption parameter (that we will get through recognition pf photo) to the message log. It will be used for spam detection and for manual verification. We can use it in the future for other things as well.
 def insert_or_update_message_log(
@@ -64,6 +41,17 @@ def insert_or_update_message_log(
                 logger.error(f"Invalid spam_prediction_probability value: {spam_prediction_probability}. Error: {e}")
                 spam_prediction_probability = None
 
+        # Respect database defaults for nullable=False boolean fields
+        if is_spam is None:
+            is_spam_present = False
+        else:
+            is_spam_present = True
+
+        if manually_verified is None:
+            manually_verified_present = False
+        else:
+            manually_verified_present = True
+
         with db_helper.session_scope() as db_session:
             # Build a dictionary for the values to insert.
             insert_values = {
@@ -87,6 +75,11 @@ def insert_or_update_message_log(
                 'spam_prediction_probability': spam_prediction_probability,
                 'raw_message': raw_message
             }
+
+            if not is_spam_present:
+                insert_values.pop('is_spam')
+            if not manually_verified_present:
+                insert_values.pop('manually_verified')
 
             # Try to get an existing row.
             existing = db_session.query(db_helper.Message_Log).filter_by(

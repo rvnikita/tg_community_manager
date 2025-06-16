@@ -40,19 +40,27 @@ class TelegramLoggerHandler(logging.Handler):
     def emit(self, record):
         try:
             msg = self.format(record)
-            cut = False
-            if len(msg) > self.max_length:
-                msg = msg[:self.max_length - 3] + "...✂️"
-                cut = True
-            data = {
-                "chat_id": self.chat_id,
-                "text": msg,
-                "parse_mode": "Markdown",  # Or None if not using Markdown
-                "disable_web_page_preview": True
-            }
-            import requests
-            requests.post(self.api_url, data=data, timeout=5)
-        except Exception:
+
+            chunks = [msg[i : i + 4096] for i in range(0, len(msg), 4096)] or [""]
+            for chunk in chunks:
+                text = urllib.parse.quote(chunk, safe="")
+                url = (
+                    f"https://api.telegram.org/bot{self.bot_key}"
+                    f"/sendMessage?chat_id={self.chat_id}"
+                    f"&text={text}&disable_web_page_preview=true"
+                )
+                resp = requests.get(url, timeout=5)
+                if resp.status_code == 429:
+                    logging.getLogger().error(
+                        f"TelegramLoggerHandler rate-limited: {resp.text}"
+                    )
+                    break
+                elif resp.status_code != 200:
+                    logging.getLogger().error(
+                        f"TelegramLoggerHandler failed ({resp.status_code}): {resp.text}"
+                    )
+        except Exception as e:
+            logging.getLogger().error(f"TelegramLoggerHandler.emit exception: {e}")
             self.handleError(record)
 
 def get_logger():
