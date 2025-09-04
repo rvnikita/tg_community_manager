@@ -544,18 +544,64 @@ async def ban_user(bot, chat_id, user_to_ban, global_ban=False, reason=None):
                             logger.error(f"Error: {traceback.format_exc()}")
                             continue
 
-                #check if user is already in User_Global_Ban table
-                banned_user = db_session.query(db_helper.User_Global_Ban).filter(db_helper.User_Global_Ban.user_id == user_to_ban).one_or_none()
+                # Ensure user exists in tg_user before writing global ban
+                existing_user = (
+                    db_session.query(db_helper.User)
+                    .filter(db_helper.User.id == user_to_ban)
+                    .one_or_none()
+                )
+
+                if existing_user is None:
+                    try:
+                        member = await bot.get_chat_member(chat_id, user_to_ban)
+                        tg_user = member.user if member else None
+                        if tg_user is None:
+                            logger.warning(
+                                f"Could not fetch user {user_to_ban}; skipping global ban record."
+                            )
+                            return
+
+                        db_session.add(
+                            db_helper.User(
+                                id=tg_user.id,
+                                first_name=tg_user.first_name,
+                                last_name=tg_user.last_name,
+                                username=tg_user.username,
+                                is_bot=tg_user.is_bot,
+                                is_anonymous=getattr(tg_user, "is_anonymous", None),
+                                user_raw=tg_user.to_dict(),
+                            )
+                        )
+                        db_session.flush()
+                    except TelegramError:
+                        logger.warning(
+                            f"Could not fetch user {user_to_ban}; skipping global ban record."
+                        )
+                        return
+                    except Exception:
+                        logger.warning(
+                            f"Could not fetch user {user_to_ban}; skipping global ban record. Traceback: {traceback.format_exc()}"
+                        )
+                        return
+
+                # check if user is already in User_Global_Ban table
+                banned_user = (
+                    db_session.query(db_helper.User_Global_Ban)
+                    .filter(db_helper.User_Global_Ban.user_id == user_to_ban)
+                    .one_or_none()
+                )
 
                 if banned_user is None:
                     # Add user to User_Global_Ban table
                     banned_user = db_helper.User_Global_Ban(
-                        user_id = user_to_ban,
-                        reason = reason,
+                        user_id=user_to_ban,
+                        reason=reason,
                     )
                     db_session.add(banned_user)
 
-                logger.info(f"User {user_to_ban} has been globally banned. Reason: {reason}")
+                logger.info(
+                    f"User {user_to_ban} has been globally banned. Reason: {reason}"
+                )
             else:
                 logger.info(f"User {user_to_ban} has been banned in chat {await chat_helper.get_chat_mention(bot, chat_id)}. Reason: {reason}")
 
