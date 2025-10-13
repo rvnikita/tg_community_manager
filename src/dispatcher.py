@@ -1094,7 +1094,7 @@ async def tg_log_message(update, context):
         message = update.message
         if message:
             user_id = message.from_user.id
-            user_nickname = message.from_user.username or message.from_user.first_name
+            user_nickname = message.from_user.username  # Store only username, NULL if not set
             chat_id = message.chat.id
             message_content = message.text or message.caption or "Non-text message"
             message_id = message.message_id
@@ -1412,10 +1412,10 @@ async def tg_cas_spamcheck(update, context):
     checks = []
     if update.message.new_chat_members:
         for member in update.message.new_chat_members:
-            checks.append((member.id, 0, member.username or member.first_name))
+            checks.append((member.id, 0, member.username))  # Store only username, NULL if not set
     else:
         msg = update.message
-        checks.append((msg.from_user.id, msg.message_id, msg.from_user.username or msg.from_user.first_name))
+        checks.append((msg.from_user.id, msg.message_id, msg.from_user.username))  # Store only username, NULL if not set
 
     MAX_RETRIES = 3
     RETRY_DELAY = 1  # seconds
@@ -1552,7 +1552,7 @@ async def tg_thankyou(update, context):
                                 id=target.id,
                                 first_name=target.first_name or "",
                                 last_name=target.last_name  or "",
-                                username=target.username   or ""
+                                username=target.username  # NULL if not set
                             )
                             db_session.add(user)
                         # Ensure the reacting user exists
@@ -1563,7 +1563,7 @@ async def tg_thankyou(update, context):
                                 id=reactor.id,
                                 first_name=reactor.first_name or "",
                                 last_name=reactor.last_name  or "",
-                                username=reactor.username   or ""
+                                username=reactor.username  # NULL if not set
                             )
                             db_session.add(judge)
 
