@@ -1184,8 +1184,11 @@ async def tg_spam_check(update, context):
         is_admin = any(admin["user_id"] == message.from_user.id for admin in chat_administrators)
         if is_admin:
             return
-        
+
         if message.from_user.id == 777000:  # Telegram's own bot TODO:MED: Maybe we need to check this differently as users could post through 777000 bot
+            return
+
+        if message.from_user.username == "GroupAnonymousBot":  # Anonymous group admin
             return
 
         if message:
@@ -1256,6 +1259,8 @@ async def tg_ai_spamcheck(update, context):
             if any(adm["user_id"] == user_id for adm in await chat_helper.get_chat_administrators(context.bot, chat_id)):
                 return
             if user_id == 777000:
+                return
+            if message.from_user.username == "GroupAnonymousBot":  # Anonymous group admin
                 return
 
         with sentry_sdk.start_span(op="config_and_message", description="Config, thresholds, and message fields"):
@@ -1419,6 +1424,9 @@ async def tg_cas_spamcheck(update, context):
         for user_id, message_id, nickname in checks:
             admins = await chat_helper.get_chat_administrators(context.bot, chat_id)
             if any(a["user_id"] == user_id for a in admins):
+                continue
+
+            if nickname == "GroupAnonymousBot":  # Anonymous group admin
                 continue
 
             # --- cache logic here ---
