@@ -1115,8 +1115,30 @@ async def tg_log_message(update, context):
                 # logger.info("No 'forward_origin' in message or sender_user data is missing.")
 
             #TODO:LOW: Maybe we don't need to calculate embedding and insert it in DB here as we will recalculate it later in tg_ai_spamcheck. But we should be careful as it seems like sometimes tg_ai_spamcheck is not called (or maybe called but not updating the message log in DB is there is something wrong with the probability calculation. That happens if "ai_spamcheck_enabled": false in chat config)
-            embedding =await openai_helper.generate_embedding(message_content)
+            embedding = await openai_helper.generate_embedding(message_content)
 
+            # Process image if present
+            image_description = None
+            image_description_embedding = None
+            if message.photo:
+                try:
+                    # Get the highest resolution photo
+                    photo = message.photo[-1]
+                    file = await context.bot.get_file(photo.file_id)
+                    # Get the file URL directly from Telegram
+                    image_url = file.file_path
+
+                    # Analyze image with OpenAI Vision
+                    image_description = await openai_helper.analyze_image_with_vision(image_url)
+
+                    if image_description:
+                        # Generate embedding from the image description
+                        image_description_embedding = await openai_helper.generate_embedding(image_description)
+                        logger.info(f"Image analyzed and embedded for message {message_id}")
+                    else:
+                        logger.warning(f"Failed to analyze image for message {message_id}")
+                except Exception as e:
+                    logger.error(f"Error processing image for message {message_id}: {traceback.format_exc()}")
 
             # Log the message, treating forwarded messages differently if needed
             message_log_id = message_helper.insert_or_update_message_log(
@@ -1135,7 +1157,9 @@ async def tg_log_message(update, context):
                 manually_verified=False,
                 reply_to_message_id=message.reply_to_message.message_id if message.reply_to_message else None,
                 is_forwarded=is_forwarded,
-                raw_message=update.message.to_dict() if hasattr(update.message, 'to_dict') else None
+                raw_message=update.message.to_dict() if hasattr(update.message, 'to_dict') else None,
+                image_description=image_description,
+                image_description_embedding=image_description_embedding
             )
 
             logger.debug(f"Message logged with ID: {message_log_id} in chat {chat_id}.")
