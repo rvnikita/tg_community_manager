@@ -30,7 +30,9 @@ def insert_or_update_message_log(
     is_forwarded=None,
     reply_to_message_id=None,
     spam_prediction_probability=None,
-    raw_message=None
+    raw_message=None,
+    image_description=None,
+    image_description_embedding=None
 ):
     try:
         # Convert spam_prediction_probability to float if provided.
@@ -73,7 +75,9 @@ def insert_or_update_message_log(
                 'is_forwarded': is_forwarded,
                 'reply_to_message_id': reply_to_message_id,
                 'spam_prediction_probability': spam_prediction_probability,
-                'raw_message': raw_message
+                'raw_message': raw_message,
+                'image_description': image_description,
+                'image_description_embedding': image_description_embedding
             }
 
             if not is_spam_present:
@@ -92,7 +96,8 @@ def insert_or_update_message_log(
                     'user_id', 'user_nickname', 'user_current_rating', 'message_content',
                     'action_type', 'reporting_id', 'reporting_id_nickname',
                     'reason_for_action', 'is_spam', 'manually_verified', 'is_forwarded',
-                    'reply_to_message_id', 'spam_prediction_probability', 'embedding', 'raw_message'
+                    'reply_to_message_id', 'spam_prediction_probability', 'embedding', 'raw_message',
+                    'image_description', 'image_description_embedding'
                 ):
                     if insert_values.get(key) is None:
                         insert_values[key] = getattr(existing, key)
@@ -107,7 +112,8 @@ def insert_or_update_message_log(
                 'message_content', 'user_id', 'user_nickname', 'user_current_rating',
                 'is_spam', 'action_type', 'reporting_id', 'reporting_id_nickname',
                 'reason_for_action', 'embedding', 'manually_verified', 'is_forwarded',
-                'reply_to_message_id', 'spam_prediction_probability', 'raw_message'
+                'reply_to_message_id', 'spam_prediction_probability', 'raw_message',
+                'image_description', 'image_description_embedding'
             ):
                 if insert_values.get(key) is not None:
                     update_dict[key] = insert_values.get(key)

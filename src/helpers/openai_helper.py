@@ -57,6 +57,38 @@ async def generate_embedding(text):
         logger.error(f"Failed to retrieve embedding: {traceback.format_exc()}")
         return None
 
+async def analyze_image_with_vision(image_url):
+    """
+    Asynchronously analyze an image using OpenAI Vision API.
+    Args:
+        image_url (str): URL or base64 data URI of the image to analyze.
+    Returns:
+        str or None: The image description, or None on failure.
+    """
+    try:
+        response = await async_client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": "Describe this image in detail, focusing on any text, objects, and context that might be relevant for spam detection."},
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": image_url
+                            }
+                        }
+                    ]
+                }
+            ],
+            max_tokens=300
+        )
+        return response.choices[0].message.content
+    except Exception:
+        logger.error(f"Failed to analyze image with vision: {traceback.format_exc()}")
+        return None
+
 async def update_embeddings():
     """
     Asynchronously update embeddings for messages without embeddings and non-empty content.
