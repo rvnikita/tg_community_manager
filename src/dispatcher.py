@@ -1276,7 +1276,7 @@ async def tg_ai_spamcheck(update, context):
                 chat_id                     = chat_id,
                 message_id                  = message.message_id,
                 user_id                     = user_id,
-                user_nickname               = message.from_user.first_name,
+                user_nickname               = message.from_user.username or message.from_user.first_name,
                 user_current_rating         = rating_helper.get_rating(user_id, chat_id),
                 message_content             = text,
                 action_type                 = "spam detection",
