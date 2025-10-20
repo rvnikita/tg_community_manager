@@ -171,46 +171,66 @@ async def get_user_info_text(user_id: int, chat_id: int) -> str:
                              .scalar() or 0
 
         # Find users who interacted with this person via replies
-        # Create aliases for self-join
+        # Prioritize non-banned users with least spam, then by interaction count
         from sqlalchemy.orm import aliased
+        from sqlalchemy import case
+
         msg = aliased(db_helper.Message_Log)
         target_msg = aliased(db_helper.Message_Log)
+        spam_log = aliased(db_helper.Message_Log)
 
-        # Users this person replied to
-        replied_to_ids = session.query(target_msg.user_id.distinct()) \
-            .join(msg, msg.reply_to_message_id == target_msg.message_id) \
-            .filter(
-                msg.user_id == user_id,
-                msg.chat_id == chat_id,
-                target_msg.user_id != user_id
-            ).all()
+        # Build query to count interactions and spam messages
+        # This finds all reply interactions (both directions) and counts them
+        interacted_users = session.query(
+            db_helper.User,
+            func.count(msg.id).label('interaction_count'),
+            func.coalesce(
+                func.sum(case((spam_log.is_spam == True, 1), else_=0)),
+                0
+            ).label('spam_count')
+        ).select_from(msg).join(
+            target_msg,
+            msg.reply_to_message_id == target_msg.message_id
+        ).join(
+            db_helper.User,
+            # Join the other user (not the target user_id)
+            db_helper.User.id == case(
+                (msg.user_id == user_id, target_msg.user_id),
+                else_=msg.user_id
+            )
+        ).outerjoin(
+            db_helper.User_Global_Ban,
+            db_helper.User.id == db_helper.User_Global_Ban.user_id
+        ).outerjoin(
+            spam_log,
+            (spam_log.user_id == db_helper.User.id) &
+            (spam_log.chat_id == chat_id)
+        ).filter(
+            # Either this person replied to someone, or someone replied to this person
+            ((msg.user_id == user_id) | (target_msg.user_id == user_id)),
+            # In this specific chat
+            msg.chat_id == chat_id,
+            # Don't match self-replies
+            msg.user_id != target_msg.user_id,
+            # Exclude globally banned users
+            db_helper.User_Global_Ban.user_id.is_(None),
+            # Only users with usernames
+            db_helper.User.username.isnot(None)
+        ).group_by(
+            db_helper.User.id
+        ).order_by(
+            func.coalesce(
+                func.sum(case((spam_log.is_spam == True, 1), else_=0)),
+                0
+            ).asc(),  # Least spam first (0, 1, 2, ...)
+            func.count(msg.id).desc()  # Then most interactions
+        ).limit(10).all()
 
-        # Users who replied to this person
-        replied_by_ids = session.query(msg.user_id.distinct()) \
-            .join(target_msg, msg.reply_to_message_id == target_msg.message_id) \
-            .filter(
-                target_msg.user_id == user_id,
-                msg.chat_id == chat_id,
-                msg.user_id != user_id
-            ).all()
-
-        # Combine and deduplicate
-        interacted_user_ids = set()
-        for (uid,) in replied_to_ids:
-            interacted_user_ids.add(uid)
-        for (uid,) in replied_by_ids:
-            interacted_user_ids.add(uid)
-
-        # Get usernames (limit to 10)
-        interacted_usernames = []
-        if interacted_user_ids:
-            users = session.query(db_helper.User).filter(
-                db_helper.User.id.in_(list(interacted_user_ids)[:10])
-            ).all()
-
-            for u in users:
-                if u.username:
-                    interacted_usernames.append(f"@{u.username}")
+        # Format usernames with rating
+        interacted_usernames = [
+            f"@{user.username}({rating_helper.get_rating(user.id, chat_id)})"
+            for user, interaction_count, spam_count in interacted_users
+        ]
 
     full_name = (first_name + ' ' + last_name).strip() or '[no name]'
 
