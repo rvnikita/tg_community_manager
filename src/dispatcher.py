@@ -254,17 +254,18 @@ async def tg_info(update, context):
             )
             return
 
-        # fetch and extract user fields inside session
-        with db_helper.session_scope() as session:
-            u = session.query(db_helper.User).filter_by(id=target_user_id).first()
-            if not u:
-                await chat_helper.send_message(
-                    context.bot, chat_id,
-                    f"No data for user {target_user_id}.",
-                    reply_to_message_id=message.message_id,
-                    delete_after=120
-                )
-                return
+        # Get user info text using shared helper
+        info_text = await user_helper.get_user_info_text(target_user_id, chat_id)
+
+        # If user not found, the helper returns an error message
+        if info_text.startswith("No data for user"):
+            await chat_helper.send_message(
+                context.bot, chat_id,
+                info_text,
+                reply_to_message_id=message.message_id,
+                delete_after=120
+            )
+            return
             created_at = u.created_at or datetime.now(timezone.utc)
             first_name = u.first_name or ''
             last_name = u.last_name or ''

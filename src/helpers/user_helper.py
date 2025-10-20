@@ -1,4 +1,5 @@
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy import func
 import traceback
 from datetime import datetime, timezone
 
@@ -126,3 +127,104 @@ def db_upsert_user(user_id, chat_id, username, last_message_datetime, first_name
                 cache_helper.set_key(cache_key, new_data, expire=3600)
     except Exception as e:
         logger.error(f"Error: {traceback.format_exc()}")
+
+
+async def get_user_info_text(user_id: int, chat_id: int) -> str:
+    """
+    Generate formatted user info text for /info command and InfoAction.
+
+    Returns a formatted string with user details including:
+    - Username and full name
+    - Days since account creation
+    - Rating in the chat
+    - Message counts (this chat and all chats)
+
+    Args:
+        user_id: Telegram user ID
+        chat_id: Telegram chat ID
+
+    Returns:
+        Formatted info text string
+    """
+    with db_helper.session_scope() as session:
+        u = session.query(db_helper.User).filter_by(id=user_id).first()
+        if not u:
+            return f"No data for user {user_id}."
+
+        created_at = u.created_at or datetime.now(timezone.utc)
+        first_name = u.first_name or ''
+        last_name = u.last_name or ''
+        username = u.username
+
+    now = datetime.now(timezone.utc)
+    days_since = (now - created_at).days
+    rating = rating_helper.get_rating(user_id, chat_id)
+
+    # count messages and find interacted users
+    with db_helper.session_scope() as session:
+        chat_count = session.query(func.count(db_helper.Message_Log.id)) \
+                            .filter(db_helper.Message_Log.user_id == user_id,
+                                    db_helper.Message_Log.chat_id == chat_id) \
+                            .scalar() or 0
+        total_count = session.query(func.count(db_helper.Message_Log.id)) \
+                             .filter(db_helper.Message_Log.user_id == user_id) \
+                             .scalar() or 0
+
+        # Find users who interacted with this person via replies
+        # Create aliases for self-join
+        from sqlalchemy.orm import aliased
+        msg = aliased(db_helper.Message_Log)
+        target_msg = aliased(db_helper.Message_Log)
+
+        # Users this person replied to
+        replied_to_ids = session.query(target_msg.user_id.distinct()) \
+            .join(msg, msg.reply_to_message_id == target_msg.message_id) \
+            .filter(
+                msg.user_id == user_id,
+                msg.chat_id == chat_id,
+                target_msg.user_id != user_id
+            ).all()
+
+        # Users who replied to this person
+        replied_by_ids = session.query(msg.user_id.distinct()) \
+            .join(target_msg, msg.reply_to_message_id == target_msg.message_id) \
+            .filter(
+                target_msg.user_id == user_id,
+                msg.chat_id == chat_id,
+                msg.user_id != user_id
+            ).all()
+
+        # Combine and deduplicate
+        interacted_user_ids = set()
+        for (uid,) in replied_to_ids:
+            interacted_user_ids.add(uid)
+        for (uid,) in replied_by_ids:
+            interacted_user_ids.add(uid)
+
+        # Get usernames (limit to 10)
+        interacted_usernames = []
+        if interacted_user_ids:
+            users = session.query(db_helper.User).filter(
+                db_helper.User.id.in_(list(interacted_user_ids)[:10])
+            ).all()
+
+            for u in users:
+                if u.username:
+                    interacted_usernames.append(f"@{u.username}")
+
+    full_name = (first_name + ' ' + last_name).strip() or '[no name]'
+
+    info_text = (
+        f"👤 {'@'+username if username else '[no username]'}\n"
+        f"🪪 {full_name}\n"
+        f"📅 Joined: {days_since} days ago\n"
+        f"⭐ Rating: {rating}\n"
+        f"✉️ Messages (this chat): {chat_count}\n"
+        f"✉️ Messages (all chats): {total_count}"
+    )
+
+    # Add interaction info if available
+    if interacted_usernames:
+        info_text += f"\n🤝 Possible people who can know: {', '.join(interacted_usernames)}"
+
+    return info_text
