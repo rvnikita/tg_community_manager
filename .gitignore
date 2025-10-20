@@ -8,6 +8,7 @@
 
 # Ignore files temp debug files
 /src/temp.py
+/temp_scripts/
 
 # Ignore session files
 *.session
