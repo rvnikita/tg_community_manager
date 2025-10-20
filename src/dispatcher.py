@@ -57,6 +57,7 @@ import src.helpers.spamcheck_helper_raw as spamcheck_helper_raw
 import src.helpers.spamcheck_helper_raw_structure as spamcheck_helper_raw_structure
 import src.helpers.embeddings_reply_helper as embeddings_reply_helpero
 import src.helpers.cache_helper as cache_helper
+import src.helpers.trigger_action_helper as trigger_action_helper
 
 logger = logging_helper.get_logger()
 
@@ -266,35 +267,6 @@ async def tg_info(update, context):
                 delete_after=120
             )
             return
-            created_at = u.created_at or datetime.now(timezone.utc)
-            first_name = u.first_name or ''
-            last_name = u.last_name or ''
-            username = u.username
-
-        now = datetime.now(timezone.utc)
-        days_since = (now - created_at).days
-        rating = rating_helper.get_rating(target_user_id, chat_id)
-
-        # count messages
-        with db_helper.session_scope() as session:
-            chat_count = session.query(func.count(db_helper.Message_Log.id)) \
-                                .filter(db_helper.Message_Log.user_id == target_user_id,
-                                        db_helper.Message_Log.chat_id == chat_id) \
-                                .scalar() or 0
-            total_count = session.query(func.count(db_helper.Message_Log.id)) \
-                                 .filter(db_helper.Message_Log.user_id == target_user_id) \
-                                 .scalar() or 0
-
-        full_name = (first_name + ' ' + last_name).strip() or '[no name]'
-
-        info_text = (
-            f"👤 {'@'+username if username else '[no username]'}\n"
-            f"🪪 {full_name}\n"
-            f"📅 Joined: {days_since} days ago\n"
-            f"⭐ Rating: {rating}\n"
-            f"✉️ Messages (this chat): {chat_count}\n"
-            f"✉️ Messages (all chats): {total_count}"
-        )
 
         await chat_helper.send_message(
             context.bot, chat_id, info_text,
@@ -1965,10 +1937,11 @@ def create_application():
     application.add_handler(CommandHandler(["pin", "p"], tg_pin, filters.ChatType.GROUPS), group=9)
     application.add_handler(CommandHandler(["unpin", "up"], tg_unpin, filters.ChatType.GROUPS), group=9)
     application.add_handler(CommandHandler(["help", "h"], tg_help), group=10)
-    application.add_handler(MessageHandler((filters.TEXT | filters.CAPTION), tg_auto_reply), group=11)
-    application.add_handler(CommandHandler(["info", "i"], tg_info), group=12)
-    application.add_handler(CommandHandler(["ping", "p"], tg_ping), group=13)
-    application.add_handler(MessageHandler((filters.TEXT | filters.CAPTION), tg_embeddings_auto_reply), group=14)
+    application.add_handler(MessageHandler((filters.TEXT | filters.CAPTION) & filters.ChatType.GROUPS, trigger_action_helper.execute_chains_for_message), group=11)
+    application.add_handler(MessageHandler((filters.TEXT | filters.CAPTION), tg_auto_reply), group=12)
+    application.add_handler(CommandHandler(["info", "i"], tg_info), group=13)
+    application.add_handler(CommandHandler(["ping", "p"], tg_ping), group=14)
+    application.add_handler(MessageHandler((filters.TEXT | filters.CAPTION), tg_embeddings_auto_reply), group=15)
 
     signal.signal(signal.SIGTERM, lambda s, f: application.stop())
     return application

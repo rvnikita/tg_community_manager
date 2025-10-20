@@ -385,6 +385,97 @@ class Scheduled_Message_Config(Base):
                 f"last_sent={self.last_sent}, error_count={self.error_count})>")
 
 
+class Trigger_Action_Chain(Base):
+    """Trigger-action chain for custom per-chat message handling"""
+    __table_args__ = (
+        PrimaryKeyConstraint('id', name='trigger_action_chain_pkey'),
+        Index('ix_trigger_action_chain_chat_id_enabled', 'chat_id', 'enabled'),
+    )
+
+    id = Column(BigInteger, Identity(start=1, increment=1), primary_key=True)
+    chat_id = Column(BigInteger, ForeignKey(Chat.id), nullable=False, index=True)
+    name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    priority = Column(Integer, nullable=False, server_default=text('100'))
+    enabled = Column(Boolean, nullable=False, server_default=text('true'))
+    created_at = Column(DateTime(True), server_default=text('now()'))
+
+    # Relationships
+    chat = relationship('Chat')
+    triggers = relationship('Chain_Trigger', back_populates='chain', cascade='all, delete-orphan')
+    actions = relationship('Chain_Action', back_populates='chain', cascade='all, delete-orphan')
+    execution_logs = relationship('Chain_Execution_Log', back_populates='chain')
+
+    def __repr__(self):
+        return f"<Trigger_Action_Chain(id={self.id}, chat_id={self.chat_id}, name='{self.name}', priority={self.priority}, enabled={self.enabled})>"
+
+
+class Chain_Trigger(Base):
+    """Trigger condition with JSON-based config"""
+    __table_args__ = (
+        PrimaryKeyConstraint('id', name='chain_trigger_pkey'),
+        Index('ix_chain_trigger_chain_id', 'chain_id'),
+    )
+
+    id = Column(BigInteger, Identity(start=1, increment=1), primary_key=True)
+    chain_id = Column(BigInteger, ForeignKey(Trigger_Action_Chain.id, ondelete='CASCADE'), nullable=False)
+    trigger_type = Column(String, nullable=False)  # 'regex', 'llm_boolean', etc.
+    order = Column(Integer, nullable=False, server_default=text('0'))
+    config = Column(JSON, nullable=False)  # All trigger config in JSON
+    created_at = Column(DateTime(True), server_default=text('now()'))
+
+    # Relationships
+    chain = relationship('Trigger_Action_Chain', back_populates='triggers')
+
+    def __repr__(self):
+        return f"<Chain_Trigger(id={self.id}, chain_id={self.chain_id}, trigger_type='{self.trigger_type}', order={self.order})>"
+
+
+class Chain_Action(Base):
+    """Action with JSON-based config"""
+    __table_args__ = (
+        PrimaryKeyConstraint('id', name='chain_action_pkey'),
+        Index('ix_chain_action_chain_id', 'chain_id'),
+    )
+
+    id = Column(BigInteger, Identity(start=1, increment=1), primary_key=True)
+    chain_id = Column(BigInteger, ForeignKey(Trigger_Action_Chain.id, ondelete='CASCADE'), nullable=False)
+    action_type = Column(String, nullable=False)  # 'reply', 'info', etc.
+    order = Column(Integer, nullable=False)
+    config = Column(JSON, nullable=False)  # All action config in JSON
+    created_at = Column(DateTime(True), server_default=text('now()'))
+
+    # Relationships
+    chain = relationship('Trigger_Action_Chain', back_populates='actions')
+
+    def __repr__(self):
+        return f"<Chain_Action(id={self.id}, chain_id={self.chain_id}, action_type='{self.action_type}', order={self.order})>"
+
+
+class Chain_Execution_Log(Base):
+    """Log of chain executions for debugging"""
+    __table_args__ = (
+        PrimaryKeyConstraint('id', name='chain_execution_log_pkey'),
+        Index('ix_chain_execution_log_chain_id', 'chain_id'),
+        Index('ix_chain_execution_log_chat_id', 'chat_id'),
+    )
+
+    id = Column(BigInteger, Identity(start=1, increment=1), primary_key=True)
+    chain_id = Column(BigInteger, ForeignKey(Trigger_Action_Chain.id, ondelete='CASCADE'), nullable=False)
+    chat_id = Column(BigInteger, nullable=False)
+    message_id = Column(BigInteger, nullable=False)
+    user_id = Column(BigInteger, nullable=False)
+    triggered_at = Column(DateTime(True), server_default=text('now()'))
+    trigger_results = Column(JSON, nullable=True)
+    actions_executed = Column(JSON, nullable=True)
+    success = Column(Boolean, nullable=False)
+    error_message = Column(Text, nullable=True)
+
+    # Relationships
+    chain = relationship('Trigger_Action_Chain', back_populates='execution_logs')
+
+    def __repr__(self):
+        return f"<Chain_Execution_Log(id={self.id}, chain_id={self.chain_id}, chat_id={self.chat_id}, message_id={self.message_id}, success={self.success})>"
 
 
 
