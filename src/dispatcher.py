@@ -547,6 +547,7 @@ async def tg_ban(update, context):
                 return
 
             command_parts = message.text.split()  # Split the message into parts
+
             if len(command_parts) > 1:  # if the command has more than one part (means it has a user ID or username parameter)
                 if '@' in command_parts[1]:  # if the second part is a username
                     user = db_session.query(db_helper.User).filter(db_helper.User.username == command_parts[1][1:]).first()  # Remove @ and query
@@ -808,6 +809,27 @@ async def tg_gban(update, context):
             await chat_helper.delete_message(bot, chat_id, message.message_id)  # clean up the command message
 
             command_parts = message.text.split()  # Split the message into parts
+            info_chat_id = os.getenv('ENV_INFO_CHAT_ID')
+            error_chat_id = os.getenv('ENV_ERROR_CHAT_ID')
+
+            is_info_chat = False
+            if info_chat_id:
+                try:
+                    is_info_chat = chat_id == int(info_chat_id)
+                except ValueError:
+                    logger.warning(
+                        "ENV_INFO_CHAT_ID is set to a non-integer value. Falling back to default gb ban behaviour."
+                    )
+
+            is_error_chat = False
+            if error_chat_id:
+                try:
+                    is_error_chat = chat_id == int(error_chat_id)
+                except ValueError:
+                    logger.warning(
+                        "ENV_ERROR_CHAT_ID is set to a non-integer value. Falling back to default gb ban behaviour."
+                    )
+
             if len(command_parts) > 1:  # if the command has more than one part (means it has a user ID or username parameter)
                 ban_reason = f"User was globally banned by {message.text} command."
                 if '@' in command_parts[1]:  # if the second part is a username
@@ -821,7 +843,7 @@ async def tg_gban(update, context):
                 else:
                     await message.reply_text("Invalid format. Use gban @username or gban user_id.")
                     return
-            elif chat_id == int(os.getenv('ENV_INFO_CHAT_ID')) or chat_id == int(os.getenv('ENV_ERROR_CHAT_ID')):
+            elif is_info_chat or is_error_chat:
                 ban_reason = f"User was globally banned by {message.text} command in info chat. Message: {message.reply_to_message.text}"
                 if not message.reply_to_message:
                     await message.reply_text("Please reply to a message containing usernames to ban.")
