@@ -809,11 +809,38 @@ async def tg_unspam(update, context):
                 manually_verified=True
             )
 
+        # Step 4: Clear all reports for the user across all chats
+        reports_cleared = 0
+        with db_helper.session_scope() as session:
+            # Get all chats where this user has reports
+            chat_ids_with_reports = session.query(db_helper.Report.chat_id).filter(
+                db_helper.Report.reported_user_id == target_user_id
+            ).distinct().all()
+            chat_ids_with_reports = [row[0] for row in chat_ids_with_reports]
+
+        # Clear reports in each chat
+        for report_chat_id in chat_ids_with_reports:
+            success, previous_count = await reporting_helper.clear_reports(
+                report_chat_id,
+                target_user_id,
+                message.from_user.id
+            )
+            if success and previous_count > 0:
+                reports_cleared += previous_count
+                logger.info(f"Cleared {previous_count} reports for user {target_user_id} in chat {report_chat_id}")
+
         target_mention = user_helper.get_user_mention(target_user_id, chat_id)
+
+        # Build status message with reports info
+        status_parts = ["unbanned", "unmuted", "message logs updated"]
+        if reports_cleared > 0:
+            status_parts.append(f"{reports_cleared} reports cleared")
+        status_message = ", ".join(status_parts)
+
         await chat_helper.send_message(
             context.bot,
             chat_id,
-            f"User {target_mention} has been unspammed (unbanned, unmuted, and message logs updated).",
+            f"User {target_mention} has been unspammed ({status_message}).",
             reply_to_message_id=message.message_id
         )
     except Exception as e:
