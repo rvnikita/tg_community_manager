@@ -369,40 +369,41 @@ async def tg_set_report(update, context):
             await chat_helper.send_message(context.bot, chat_id, "You must be an admin to use this command.", reply_to_message_id=message.message_id, delete_after=120)
             return
 
-        reported_user_id = None
         command_parts = message.text.split()
+
         # Verify that the command is correctly formatted with at least two arguments
         if len(command_parts) < 3:
             await chat_helper.send_message(context.bot, chat_id, "Usage: /set_report [@username or user_id] [report_count]", reply_to_message_id=message.message_id)
             return
 
-        new_report_count = int(command_parts[2])  # This is the desired report count
+        # Parse the new report count
+        try:
+            new_report_count = int(command_parts[2])
+        except ValueError:
+            await chat_helper.send_message(context.bot, chat_id, "Invalid number for report count. Please specify an integer.", reply_to_message_id=message.message_id)
+            return
 
-        # Determine the target user ID based on the input method
-        if message.reply_to_message:
-            reported_user_id = message.reply_to_message.from_user.id
-        elif command_parts[1].isdigit():  # Direct user ID input
-            reported_user_id = int(command_parts[1])
-        elif '@' in command_parts[1]:  # Username input
-            reported_user_id = user_helper.get_user_id(username=command_parts[1][1:])
-            if reported_user_id is None:
-                await chat_helper.send_message(context.bot, chat_id, f"No user found with username {command_parts[1]}.", reply_to_message_id=message.message_id)
-                return
-        else:
+        # Extract user ID using helper
+        reported_user_id = user_helper.extract_user_id_from_command(message, command_parts, allow_reply=True)
+
+        if reported_user_id is None:
             await chat_helper.send_message(context.bot, chat_id, "Invalid format. Use /set_report @username or /set_report user_id report_count.", reply_to_message_id=message.message_id)
             return
 
-        # Get the current total reports to calculate the needed adjustment
-        current_reports = await reporting_helper.get_total_reports(chat_id, reported_user_id)
-        adjustment = new_report_count - current_reports
+        # Set report count using helper
+        success, current_reports, adjustment = await reporting_helper.set_report_count(
+            chat_id,
+            reported_user_id,
+            message.from_user.id,
+            new_report_count,
+            "Adjusting with /set_report command"
+        )
 
-        # Apply the adjustment to set the new report count
-        if adjustment != 0:
-            await reporting_helper.add_report(reported_user_id, message.from_user.id, "Adjusting with /set_report command", chat_id, adjustment)
+        if not success:
+            await chat_helper.send_message(context.bot, chat_id, "Failed to set report count. Please try again.", reply_to_message_id=message.message_id)
+            return
 
-        await chat_helper.send_message(context.bot, chat_id, f"Report count for user ID: {reported_user_id} set to {new_report_count}.")
-    except ValueError:
-        await chat_helper.send_message(context.bot, chat_id, "Invalid number for report count. Please specify an integer.", reply_to_message_id=message.message_id)
+        await chat_helper.send_message(context.bot, chat_id, f"Report count for {user_helper.get_user_mention(reported_user_id, chat_id)} set to {new_report_count}.")
     except Exception as error:
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
         logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
@@ -422,39 +423,26 @@ async def tg_ur(update, context):
             await chat_helper.send_message(context.bot, chat_id, "You must be an admin to use this command.", reply_to_message_id=message.message_id, delete_after=120)
             return
 
-        reported_user_id = None
+        # Extract user ID using helper
         command_parts = message.text.split()
+        reported_user_id = user_helper.extract_user_id_from_command(message, command_parts, allow_reply=True)
 
-        # Determine the target user ID based on the input method
-        if message.reply_to_message:
-            reported_user_id = message.reply_to_message.from_user.id
-        elif len(command_parts) >= 2:
-            if command_parts[1].isdigit():  # Direct user ID input
-                reported_user_id = int(command_parts[1])
-            elif '@' in command_parts[1]:  # Username input
-                reported_user_id = user_helper.get_user_id(username=command_parts[1][1:])
-                if reported_user_id is None:
-                    await chat_helper.send_message(context.bot, chat_id, f"No user found with username {command_parts[1]}.", reply_to_message_id=message.message_id)
-                    return
-            else:
-                await chat_helper.send_message(context.bot, chat_id, "Usage: /ur [@username or user_id] or reply to a message", reply_to_message_id=message.message_id)
-                return
-        else:
+        if reported_user_id is None:
             await chat_helper.send_message(context.bot, chat_id, "Usage: /ur [@username or user_id] or reply to a message", reply_to_message_id=message.message_id)
             return
 
-        # Get the current total reports to calculate the needed adjustment
-        current_reports = await reporting_helper.get_total_reports(chat_id, reported_user_id)
+        # Clear reports using helper
+        success, previous_count = await reporting_helper.clear_reports(chat_id, reported_user_id, message.from_user.id)
 
-        if current_reports == 0:
+        if not success:
+            await chat_helper.send_message(context.bot, chat_id, "Failed to clear reports. Please try again.", reply_to_message_id=message.message_id)
+            return
+
+        if previous_count == 0:
             await chat_helper.send_message(context.bot, chat_id, f"User {user_helper.get_user_mention(reported_user_id, chat_id)} has no reports.", reply_to_message_id=message.message_id)
             return
 
-        # Apply the adjustment to set reports to 0
-        adjustment = 0 - current_reports
-        await reporting_helper.add_report(reported_user_id, message.from_user.id, "Clearing reports with /ur command", chat_id, adjustment)
-
-        await chat_helper.send_message(context.bot, chat_id, f"Reports cleared for {user_helper.get_user_mention(reported_user_id, chat_id)}. (Previous: {current_reports})")
+        await chat_helper.send_message(context.bot, chat_id, f"Reports cleared for {user_helper.get_user_mention(reported_user_id, chat_id)}. (Previous: {previous_count})")
     except Exception as error:
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
         logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")

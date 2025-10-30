@@ -16,6 +16,45 @@ def get_user_id(username: str):
         u = session.query(db_helper.User).filter_by(username=username).first()
         return u.id if u else None
 
+def extract_user_id_from_command(message, command_parts, allow_reply=True):
+    """
+    Extract user ID from a command message using multiple methods:
+    1. Reply to message (if allow_reply=True)
+    2. Direct user ID as argument
+    3. Username with @ prefix as argument
+
+    Args:
+        message: The telegram message object
+        command_parts: List of command parts (message.text.split())
+        allow_reply: Whether to check for reply_to_message (default: True)
+
+    Returns:
+        int: User ID if found
+        None: If no user could be identified
+    """
+    try:
+        # Method 1: Extract from reply
+        if allow_reply and message.reply_to_message:
+            return message.reply_to_message.from_user.id
+
+        # Method 2 & 3: Extract from command arguments
+        if len(command_parts) >= 2:
+            user_identifier = command_parts[1]
+
+            # Method 2: Direct user ID
+            if user_identifier.isdigit():
+                return int(user_identifier)
+
+            # Method 3: Username with @ prefix
+            if '@' in user_identifier:
+                username = user_identifier[1:] if user_identifier.startswith('@') else user_identifier
+                return get_user_id(username=username)
+
+        return None
+    except Exception as e:
+        logger.error(f"Error extracting user ID from command: {e}. Traceback: {traceback.format_exc()}")
+        return None
+
 def get_user_mention(user_id: int, chat_id: int | None = None) -> str:
     """
     Build a mention string including:
