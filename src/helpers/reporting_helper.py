@@ -8,7 +8,7 @@ import src.helpers.logging_helper as logging_helper
 
 logger = logging_helper.get_logger()
 
-async def add_report(reported_user_id, reporting_user_id, reported_message_id, chat_id, report_power):
+async def add_report(reported_user_id, reporting_user_id, reported_message_id, chat_id, report_power, reason=None):
     try:
         with db_helper.session_scope() as db_session:
             report = db_helper.Report(
@@ -16,7 +16,8 @@ async def add_report(reported_user_id, reporting_user_id, reported_message_id, c
                 reporting_user_id=reporting_user_id,
                 reported_message_id=reported_message_id,
                 chat_id=chat_id,
-                report_power=report_power
+                report_power=report_power,
+                reason=reason
             )
             db_session.add(report)
             db_session.commit()
@@ -90,7 +91,15 @@ async def set_report_count(chat_id, reported_user_id, admin_user_id, new_count, 
 
         # Only add a report if there's an actual adjustment needed
         if adjustment != 0:
-            success = await add_report(reported_user_id, admin_user_id, reason, chat_id, adjustment)
+            # Use 0 as reported_message_id for admin adjustments, and store the reason in the reason field
+            success = await add_report(
+                reported_user_id=reported_user_id,
+                reporting_user_id=admin_user_id,
+                reported_message_id=0,  # 0 indicates admin adjustment, not a real message
+                chat_id=chat_id,
+                report_power=adjustment,
+                reason=reason
+            )
             if not success:
                 return False, current_reports, 0
 
