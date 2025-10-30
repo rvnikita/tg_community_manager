@@ -409,6 +409,58 @@ async def tg_set_report(update, context):
 
 
 @sentry_profile()
+async def tg_ur(update, context):
+    """Clear reports for a user - sets report count to 0"""
+    try:
+        chat_id = update.effective_chat.id
+        message = update.message
+
+        # Verify if the command issuer is an administrator
+        chat_administrators = await chat_helper.get_chat_administrators(context.bot, chat_id)
+        is_admin = any(admin["user_id"] == message.from_user.id for admin in chat_administrators)
+        if not is_admin:
+            await chat_helper.send_message(context.bot, chat_id, "You must be an admin to use this command.", reply_to_message_id=message.message_id, delete_after=120)
+            return
+
+        reported_user_id = None
+        command_parts = message.text.split()
+
+        # Determine the target user ID based on the input method
+        if message.reply_to_message:
+            reported_user_id = message.reply_to_message.from_user.id
+        elif len(command_parts) >= 2:
+            if command_parts[1].isdigit():  # Direct user ID input
+                reported_user_id = int(command_parts[1])
+            elif '@' in command_parts[1]:  # Username input
+                reported_user_id = user_helper.get_user_id(username=command_parts[1][1:])
+                if reported_user_id is None:
+                    await chat_helper.send_message(context.bot, chat_id, f"No user found with username {command_parts[1]}.", reply_to_message_id=message.message_id)
+                    return
+            else:
+                await chat_helper.send_message(context.bot, chat_id, "Usage: /ur [@username or user_id] or reply to a message", reply_to_message_id=message.message_id)
+                return
+        else:
+            await chat_helper.send_message(context.bot, chat_id, "Usage: /ur [@username or user_id] or reply to a message", reply_to_message_id=message.message_id)
+            return
+
+        # Get the current total reports to calculate the needed adjustment
+        current_reports = await reporting_helper.get_total_reports(chat_id, reported_user_id)
+
+        if current_reports == 0:
+            await chat_helper.send_message(context.bot, chat_id, f"User {user_helper.get_user_mention(reported_user_id, chat_id)} has no reports.", reply_to_message_id=message.message_id)
+            return
+
+        # Apply the adjustment to set reports to 0
+        adjustment = 0 - current_reports
+        await reporting_helper.add_report(reported_user_id, message.from_user.id, "Clearing reports with /ur command", chat_id, adjustment)
+
+        await chat_helper.send_message(context.bot, chat_id, f"Reports cleared for {user_helper.get_user_mention(reported_user_id, chat_id)}. (Previous: {current_reports})")
+    except Exception as error:
+        update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
+        logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
+
+
+@sentry_profile()
 async def tg_pin(update, context):
     try:
         chat_id = update.effective_chat.id
@@ -1937,6 +1989,7 @@ def create_application():
     application.add_handler(CommandHandler(["offtop", "o"], tg_offtop, filters.ChatType.GROUPS), group=4)
     application.add_handler(CommandHandler(["set_rating"], tg_set_rating, filters.ChatType.GROUPS), group=4)
     application.add_handler(CommandHandler(["set_report"], tg_set_report, filters.ChatType.GROUPS), group=4)
+    application.add_handler(CommandHandler(["ur", "unreport"], tg_ur, filters.ChatType.GROUPS), group=4)
     application.add_handler(CommandHandler(["get_rating", "gr"], tg_get_rating, filters.ChatType.GROUPS), group=4)
     application.add_handler(ChatJoinRequestHandler(tg_join_request), group=5)
     application.add_handler(CommandHandler(["ban", "b"], tg_ban, filters.ChatType.GROUPS), group=6)
