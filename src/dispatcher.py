@@ -57,6 +57,7 @@ import src.helpers.spamcheck_helper_raw as spamcheck_helper_raw
 import src.helpers.spamcheck_helper_raw_structure as spamcheck_helper_raw_structure
 import src.helpers.embeddings_reply_helper as embeddings_reply_helpero
 import src.helpers.cache_helper as cache_helper
+import src.helpers.trigger_action_helper as trigger_action_helper
 
 logger = logging_helper.get_logger()
 
@@ -254,46 +255,18 @@ async def tg_info(update, context):
             )
             return
 
-        # fetch and extract user fields inside session
-        with db_helper.session_scope() as session:
-            u = session.query(db_helper.User).filter_by(id=target_user_id).first()
-            if not u:
-                await chat_helper.send_message(
-                    context.bot, chat_id,
-                    f"No data for user {target_user_id}.",
-                    reply_to_message_id=message.message_id,
-                    delete_after=120
-                )
-                return
-            created_at = u.created_at or datetime.now(timezone.utc)
-            first_name = u.first_name or ''
-            last_name = u.last_name or ''
-            username = u.username
+        # Get user info text using shared helper
+        info_text = await user_helper.get_user_info_text(target_user_id, chat_id)
 
-        now = datetime.now(timezone.utc)
-        days_since = (now - created_at).days
-        rating = rating_helper.get_rating(target_user_id, chat_id)
-
-        # count messages
-        with db_helper.session_scope() as session:
-            chat_count = session.query(func.count(db_helper.Message_Log.id)) \
-                                .filter(db_helper.Message_Log.user_id == target_user_id,
-                                        db_helper.Message_Log.chat_id == chat_id) \
-                                .scalar() or 0
-            total_count = session.query(func.count(db_helper.Message_Log.id)) \
-                                 .filter(db_helper.Message_Log.user_id == target_user_id) \
-                                 .scalar() or 0
-
-        full_name = (first_name + ' ' + last_name).strip() or '[no name]'
-
-        info_text = (
-            f"👤 {'@'+username if username else '[no username]'}\n"
-            f"🪪 {full_name}\n"
-            f"📅 Joined: {days_since} days ago\n"
-            f"⭐ Rating: {rating}\n"
-            f"✉️ Messages (this chat): {chat_count}\n"
-            f"✉️ Messages (all chats): {total_count}"
-        )
+        # If user not found, the helper returns an error message
+        if info_text.startswith("No data for user"):
+            await chat_helper.send_message(
+                context.bot, chat_id,
+                info_text,
+                reply_to_message_id=message.message_id,
+                delete_after=120
+            )
+            return
 
         await chat_helper.send_message(
             context.bot, chat_id, info_text,
@@ -574,6 +547,7 @@ async def tg_ban(update, context):
                 return
 
             command_parts = message.text.split()  # Split the message into parts
+
             if len(command_parts) > 1:  # if the command has more than one part (means it has a user ID or username parameter)
                 if '@' in command_parts[1]:  # if the second part is a username
                     user = db_session.query(db_helper.User).filter(db_helper.User.username == command_parts[1][1:]).first()  # Remove @ and query
@@ -835,6 +809,27 @@ async def tg_gban(update, context):
             await chat_helper.delete_message(bot, chat_id, message.message_id)  # clean up the command message
 
             command_parts = message.text.split()  # Split the message into parts
+            info_chat_id = os.getenv('ENV_INFO_CHAT_ID')
+            error_chat_id = os.getenv('ENV_ERROR_CHAT_ID')
+
+            is_info_chat = False
+            if info_chat_id:
+                try:
+                    is_info_chat = chat_id == int(info_chat_id)
+                except ValueError:
+                    logger.warning(
+                        "ENV_INFO_CHAT_ID is set to a non-integer value. Falling back to default gb ban behaviour."
+                    )
+
+            is_error_chat = False
+            if error_chat_id:
+                try:
+                    is_error_chat = chat_id == int(error_chat_id)
+                except ValueError:
+                    logger.warning(
+                        "ENV_ERROR_CHAT_ID is set to a non-integer value. Falling back to default gb ban behaviour."
+                    )
+
             if len(command_parts) > 1:  # if the command has more than one part (means it has a user ID or username parameter)
                 ban_reason = f"User was globally banned by {message.text} command."
                 if '@' in command_parts[1]:  # if the second part is a username
@@ -848,7 +843,7 @@ async def tg_gban(update, context):
                 else:
                     await message.reply_text("Invalid format. Use gban @username or gban user_id.")
                     return
-            elif chat_id == int(os.getenv('ENV_INFO_CHAT_ID')) or chat_id == int(os.getenv('ENV_ERROR_CHAT_ID')):
+            elif is_info_chat or is_error_chat:
                 ban_reason = f"User was globally banned by {message.text} command in info chat. Message: {message.reply_to_message.text}"
                 if not message.reply_to_message:
                     await message.reply_text("Please reply to a message containing usernames to ban.")
@@ -1305,7 +1300,7 @@ async def tg_ai_spamcheck(update, context):
                 chat_id                     = chat_id,
                 message_id                  = message.message_id,
                 user_id                     = user_id,
-                user_nickname               = message.from_user.first_name,
+                user_nickname               = message.from_user.username or message.from_user.first_name,
                 user_current_rating         = rating_helper.get_rating(user_id, chat_id),
                 message_content             = text,
                 action_type                 = "spam detection",
@@ -1964,10 +1959,11 @@ def create_application():
     application.add_handler(CommandHandler(["pin", "p"], tg_pin, filters.ChatType.GROUPS), group=9)
     application.add_handler(CommandHandler(["unpin", "up"], tg_unpin, filters.ChatType.GROUPS), group=9)
     application.add_handler(CommandHandler(["help", "h"], tg_help), group=10)
-    application.add_handler(MessageHandler((filters.TEXT | filters.CAPTION), tg_auto_reply), group=11)
-    application.add_handler(CommandHandler(["info", "i"], tg_info), group=12)
-    application.add_handler(CommandHandler(["ping", "p"], tg_ping), group=13)
-    application.add_handler(MessageHandler((filters.TEXT | filters.CAPTION), tg_embeddings_auto_reply), group=14)
+    application.add_handler(MessageHandler((filters.TEXT | filters.CAPTION) & filters.ChatType.GROUPS, trigger_action_helper.execute_chains_for_message), group=11)
+    application.add_handler(MessageHandler((filters.TEXT | filters.CAPTION), tg_auto_reply), group=12)
+    application.add_handler(CommandHandler(["info", "i"], tg_info), group=13)
+    application.add_handler(CommandHandler(["ping", "p"], tg_ping), group=14)
+    application.add_handler(MessageHandler((filters.TEXT | filters.CAPTION), tg_embeddings_auto_reply), group=15)
 
     signal.signal(signal.SIGTERM, lambda s, f: application.stop())
     return application

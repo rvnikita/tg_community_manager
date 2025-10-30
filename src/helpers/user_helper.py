@@ -1,4 +1,5 @@
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy import func
 import traceback
 from datetime import datetime, timezone
 
@@ -126,3 +127,124 @@ def db_upsert_user(user_id, chat_id, username, last_message_datetime, first_name
                 cache_helper.set_key(cache_key, new_data, expire=3600)
     except Exception as e:
         logger.error(f"Error: {traceback.format_exc()}")
+
+
+async def get_user_info_text(user_id: int, chat_id: int) -> str:
+    """
+    Generate formatted user info text for /info command and InfoAction.
+
+    Returns a formatted string with user details including:
+    - Username and full name
+    - Days since account creation
+    - Rating in the chat
+    - Message counts (this chat and all chats)
+
+    Args:
+        user_id: Telegram user ID
+        chat_id: Telegram chat ID
+
+    Returns:
+        Formatted info text string
+    """
+    with db_helper.session_scope() as session:
+        u = session.query(db_helper.User).filter_by(id=user_id).first()
+        if not u:
+            return f"No data for user {user_id}."
+
+        created_at = u.created_at or datetime.now(timezone.utc)
+        first_name = u.first_name or ''
+        last_name = u.last_name or ''
+        username = u.username
+
+    now = datetime.now(timezone.utc)
+    days_since = (now - created_at).days
+    rating = rating_helper.get_rating(user_id, chat_id)
+
+    # count messages and find interacted users
+    with db_helper.session_scope() as session:
+        chat_count = session.query(func.count(db_helper.Message_Log.id)) \
+                            .filter(db_helper.Message_Log.user_id == user_id,
+                                    db_helper.Message_Log.chat_id == chat_id) \
+                            .scalar() or 0
+        total_count = session.query(func.count(db_helper.Message_Log.id)) \
+                             .filter(db_helper.Message_Log.user_id == user_id) \
+                             .scalar() or 0
+
+        # Find users who interacted with this person via replies
+        # Prioritize non-banned users with least spam, then by interaction count
+        from sqlalchemy.orm import aliased
+        from sqlalchemy import case
+
+        msg = aliased(db_helper.Message_Log)
+        target_msg = aliased(db_helper.Message_Log)
+        spam_log = aliased(db_helper.Message_Log)
+
+        # Build query to count interactions and spam messages
+        # This finds all reply interactions (both directions) and counts them
+        interacted_users = session.query(
+            db_helper.User,
+            func.count(msg.id).label('interaction_count'),
+            func.coalesce(
+                func.sum(case((spam_log.is_spam == True, 1), else_=0)),
+                0
+            ).label('spam_count')
+        ).select_from(msg).join(
+            target_msg,
+            msg.reply_to_message_id == target_msg.message_id
+        ).join(
+            db_helper.User,
+            # Join the other user (not the target user_id)
+            db_helper.User.id == case(
+                (msg.user_id == user_id, target_msg.user_id),
+                else_=msg.user_id
+            )
+        ).outerjoin(
+            db_helper.User_Global_Ban,
+            db_helper.User.id == db_helper.User_Global_Ban.user_id
+        ).outerjoin(
+            spam_log,
+            (spam_log.user_id == db_helper.User.id) &
+            (spam_log.chat_id == chat_id)
+        ).filter(
+            # Either this person replied to someone, or someone replied to this person
+            ((msg.user_id == user_id) | (target_msg.user_id == user_id)),
+            # In this specific chat
+            msg.chat_id == chat_id,
+            # Don't match self-replies
+            msg.user_id != target_msg.user_id,
+            # Exclude globally banned users
+            db_helper.User_Global_Ban.user_id.is_(None),
+            # Only users with usernames
+            db_helper.User.username.isnot(None)
+        ).group_by(
+            db_helper.User.id
+        ).order_by(
+            func.coalesce(
+                func.sum(case((spam_log.is_spam == True, 1), else_=0)),
+                0
+            ).asc(),  # Least spam first (0, 1, 2, ...)
+            func.count(msg.id).desc()  # Then most interactions
+        ).limit(10).all()
+
+        # Format usernames with rating
+        interacted_usernames = [
+            f"@{user.username}({rating_helper.get_rating(user.id, chat_id)})"
+            for user, interaction_count, spam_count in interacted_users
+        ]
+
+    full_name = (first_name + ' ' + last_name).strip() or '[no name]'
+
+    info_text = (
+        f"👤 {'@'+username if username else '[no username]'}\n"
+        f"🪪 {full_name}\n"
+        f"📅 Joined: {days_since} days ago\n"
+        f"⭐ Rating: {rating}\n"
+        f"✉️ Messages (this chat): {chat_count}\n"
+        f"✉️ Messages (all chats): {total_count}"
+    )
+
+    # Add interaction info if available
+    if interacted_usernames:
+        info_text += f"\n🤝 Possible people who can know: {', '.join(interacted_usernames)}"
+
+    return info_text

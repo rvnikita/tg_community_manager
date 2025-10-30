@@ -5,6 +5,7 @@ import configparser
 import traceback
 import asyncio
 import os
+import json
 
 import src.helpers.logging_helper as logging_helper
 from src.helpers.db_helper import session_scope, Message_Log
@@ -87,6 +88,52 @@ async def analyze_image_with_vision(image_url):
         return response.choices[0].message.content
     except Exception:
         logger.error(f"Failed to analyze image with vision: {traceback.format_exc()}")
+        return None
+
+async def call_openai_structured(prompt: str, response_format: dict, model: str = "gpt-4o-mini"):
+    """
+    Call OpenAI with structured output using JSON schema.
+
+    This function is used for trigger-action chains and other features that need
+    structured, validated responses from the LLM.
+
+    Args:
+        prompt (str): The prompt to send to the LLM
+        response_format (dict): JSON schema defining expected output structure
+        model (str): Model to use (must support structured output). Default: gpt-4o-mini
+
+    Returns:
+        dict or None: Parsed JSON response as dict, or None on error
+
+    Example:
+        schema = {
+            "type": "object",
+            "properties": {
+                "matches": {"type": "boolean"},
+                "reason": {"type": "string"}
+            },
+            "required": ["matches", "reason"]
+        }
+        result = await call_openai_structured("Is this spam?", schema)
+        # Returns: {"matches": true, "reason": "Contains promotional content"}
+    """
+    try:
+        response = await async_client.chat.completions.create(
+            model=model,
+            messages=[{"role": "user", "content": prompt}],
+            response_format={
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "response_schema",
+                    "schema": response_format,
+                    "strict": True
+                }
+            }
+        )
+        content = response.choices[0].message.content
+        return json.loads(content) if content else None
+    except Exception:
+        logger.error(f"Error in structured OpenAI call: {traceback.format_exc()}")
         return None
 
 async def update_embeddings():

@@ -1,8 +1,8 @@
 requests
-python-telegram-bot
-psycopg2
+python-telegram-bot>=22.5
+psycopg2-binary
 configparser
-openai
+openai>=2.0.0
 numpy
 sqlalchemy
 alembic
