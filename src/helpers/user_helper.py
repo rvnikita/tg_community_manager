@@ -276,6 +276,7 @@ async def get_user_info_text(user_id: int, chat_id: int) -> str:
     info_text = (
         f"👤 {'@'+username if username else '[no username]'}\n"
         f"🪪 {full_name}\n"
+        f"🆔 User ID: {user_id}\n"
         f"📅 Joined: {days_since} days ago\n"
         f"⭐ Rating: {rating}\n"
         f"✉️ Messages (this chat): {chat_count}\n"
