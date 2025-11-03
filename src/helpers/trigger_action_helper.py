@@ -211,6 +211,11 @@ class InfoAction(BaseAction):
     async def execute(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
         """Show user info for message author"""
         try:
+            # Skip user info for messages from linked channels
+            if update.message.sender_chat:
+                logger.debug(f"InfoAction {self.action_id}: skipping for channel message from {update.message.sender_chat.id}")
+                return True
+
             user = update.message.from_user
             chat = update.message.chat
 
