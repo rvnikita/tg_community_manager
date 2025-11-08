@@ -197,6 +197,19 @@ class ReplyAction(BaseAction):
             logger.info(f"ReplyAction {self.action_id}: sent reply")
             return True
         except Exception as e:
+            # If reply fails (e.g., message deleted), try sending as regular message
+            if "Message to be replied not found" in str(e):
+                try:
+                    await context.bot.send_message(
+                        chat_id=update.message.chat.id,
+                        text=self.text
+                    )
+                    logger.info(f"ReplyAction {self.action_id}: sent as regular message (original deleted)")
+                    return True
+                except Exception as send_error:
+                    logger.error(f"ReplyAction {self.action_id} fallback failed: {send_error}")
+                    return False
+
             logger.error(f"ReplyAction {self.action_id} failed: {e}")
             return False
 
@@ -223,6 +236,23 @@ class InfoAction(BaseAction):
             return True
 
         except Exception as e:
+            # If reply fails (e.g., message deleted), try sending as regular message
+            if "Message to be replied not found" in str(e):
+                try:
+                    user = update.message.from_user
+                    chat = update.message.chat
+                    info_text = await get_user_info_text(user.id, chat.id)
+
+                    await context.bot.send_message(
+                        chat_id=chat.id,
+                        text=info_text
+                    )
+                    logger.info(f"InfoAction {self.action_id}: sent as regular message (original deleted)")
+                    return True
+                except Exception as send_error:
+                    logger.error(f"InfoAction {self.action_id} fallback failed: {send_error}")
+                    return False
+
             logger.error(f"InfoAction {self.action_id} failed: {e}")
             return False
 
