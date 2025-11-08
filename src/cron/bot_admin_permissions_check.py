@@ -37,6 +37,12 @@ async def admin_permissions_check():
             for chat_row in chat_rows:
                 chat_id = chat_row['id']
                 chat_name = chat_row['chat_name']
+
+                # Skip invalid chat IDs (0 is not a valid Telegram chat ID)
+                if chat_id == 0:
+                    logger.warning(f"Skipping invalid chat ID 0 for chat '{chat_name}'. This record should be cleaned up.")
+                    continue
+
                 try:
                     logger.info(f"Checking admin permissions for {chat_name} ({chat_id})")
 

@@ -166,6 +166,11 @@ async def get_chat_administrators(bot, chat_id, cache_ttl=3600):
     Get chat administrators with caching. Caches per chat_id for cache_ttl seconds.
     Returns a list of dicts: [{user_id, is_bot, status}]
     """
+    # Validate chat_id (0 is not a valid Telegram chat ID)
+    if chat_id == 0:
+        logger.error(f"Invalid chat_id 0 passed to get_chat_administrators. Returning empty list.")
+        return []
+
     cache_key = f"chat_admins:{chat_id}"
     admins_json = cache_helper.get_key(cache_key)
     if admins_json:
