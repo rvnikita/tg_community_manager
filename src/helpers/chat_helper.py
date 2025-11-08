@@ -201,6 +201,12 @@ async def get_chat_administrators(bot, chat_id, cache_ttl=3600):
         else:
             cache_helper.set_key(cache_key, json.dumps(admins_data), expire=cache_ttl)
         return admins_data
+    except BadRequest as e:
+        if "Topic_closed" in str(e):
+            logger.warning(f"Topic is closed in chat {chat_id}. Cannot get administrators. Returning empty list.")
+        else:
+            logger.error(f"BadRequest getting chat administrators for chat {chat_id}: {e}")
+        return []
     except Exception as e:
         logger.error(f"Error getting chat administrators for chat {chat_id}: {traceback.format_exc()}")
         return []

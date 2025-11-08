@@ -62,6 +62,8 @@ async def admin_permissions_check():
                 except BadRequest as e:
                     if "Chat not found" in str(e):
                         logger.info(f"Chat not found for {chat_name} ({chat_id}).")
+                    elif "Topic_closed" in str(e):
+                        logger.info(f"Topic is closed in chat {chat_name} ({chat_id}). Skipping admin check for this chat.")
                     else:
                         logger.error(f"Error checking admin permissions for {chat_name} ({chat_id}): {e.message}")
                 except Forbidden as e:
