@@ -152,6 +152,28 @@ No configuration needed. Automatically shows:
 - Rating in the chat
 - Message counts
 
+### SpamAction
+
+Marks the message author as a spammer, globally bans them, and deletes their messages. This action performs the same operations as the `/spam` command:
+- Globally bans the user
+- Marks all their messages as spam in the database
+- Deletes all their messages from the last 24 hours
+- Deletes the triggering message
+
+**Config format:**
+```json
+{
+    "reason": "Optional custom reason for the ban"
+}
+```
+
+**Example:**
+```json
+{
+    "reason": "Commercial spam detected by keyword filter"
+}
+```
+
 ## Usage Examples
 
 ### Example 1: Simple Keyword Detection
@@ -200,7 +222,55 @@ session.commit()
 session.close()
 ```
 
-### Example 2: Multi-Trigger Chain with LLM
+### Example 2: Keyword-Based Spam Detection with Automatic Ban
+
+Detect commercial spam by keywords (like restaurant advertisements) and automatically ban the user.
+
+**Create chain:**
+```python
+from src.helpers.db_helper import Session, Trigger_Action_Chain, Chain_Trigger, Chain_Action
+
+session = Session()
+
+# Create chain
+chain = Trigger_Action_Chain(
+    chat_id=-1001688952630,
+    name="Restaurant spam detection",
+    description="Detect restaurant/commercial spam and ban user",
+    priority=50,  # Higher priority than other chains
+    enabled=True
+)
+session.add(chain)
+session.flush()
+
+# Add trigger for restaurant spam keywords
+trigger = Chain_Trigger(
+    chain_id=chain.id,
+    trigger_type="regex",
+    order=0,
+    config={
+        "pattern": r"Crystal Restaurant|Sunny Isles|бронь столиков|reservation|встречаем новый год",
+        "flags": ["IGNORECASE"]
+    }
+)
+session.add(trigger)
+
+# Add spam action to ban user and delete messages
+action = Chain_Action(
+    chain_id=chain.id,
+    action_type="spam",
+    order=0,
+    config={
+        "reason": "Commercial spam - restaurant advertisement"
+    }
+)
+session.add(action)
+
+session.commit()
+session.close()
+```
+
+### Example 3: Multi-Trigger Chain with LLM
 
 Use regex for fast filtering, then LLM for accurate detection.
 
@@ -391,6 +461,7 @@ class CustomAction(BaseAction):
 ACTION_REGISTRY = {
     "reply": ReplyAction,
     "info": InfoAction,
+    "spam": SpamAction,
     "custom": CustomAction,  # add here
 }
 ```

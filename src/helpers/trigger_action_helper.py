@@ -17,18 +17,22 @@ Trigger Types:
 Action Types:
 - reply: Send a reply message
 - info: Apply /info command to show user info
+- spam: Mark user as spammer, globally ban, and delete their messages
 """
 
 import re
 import json
 import logging
 from typing import Dict, Any
+from datetime import datetime, timedelta
 from telegram import Update
 from telegram.ext import ContextTypes
 
 from src.helpers.db_helper import Session, Trigger_Action_Chain, Chain_Trigger, Chain_Action, Chain_Execution_Log
+from src.helpers.db_helper import Message_Log
 from src.helpers.openai_helper import call_openai_structured
 from src.helpers.user_helper import get_user_info_text
+from src.helpers import chat_helper, message_helper
 
 logger = logging.getLogger(__name__)
 
@@ -257,6 +261,92 @@ class InfoAction(BaseAction):
             return False
 
 
+class SpamAction(BaseAction):
+    """Action that marks user as spammer, globally bans them, and deletes their messages
+
+    This action performs the same operations as the /spam command:
+    - Globally bans the user
+    - Marks all their messages as spam in the database
+    - Deletes all their messages from the last 24 hours
+    - Deletes the triggering message
+
+    Config format:
+    {
+        "reason": "Optional custom reason for the ban"
+    }
+    """
+
+    async def execute(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
+        """Execute spam action on message author"""
+        try:
+            user = update.message.from_user
+            chat_id = update.message.chat.id
+            message_id = update.message.message_id
+            target_user_id = user.id
+
+            reason = self.config.get("reason", "Automatic spam detection via trigger-action chain")
+
+            # 1. Delete the spam message
+            await chat_helper.delete_message(context.bot, chat_id, message_id)
+            logger.info(f"SpamAction {self.action_id}: deleted message {message_id}")
+
+            # 2. Globally ban the user
+            await chat_helper.ban_user(
+                context.bot,
+                chat_id,
+                target_user_id,
+                global_ban=True,
+                reason=reason
+            )
+            logger.info(f"SpamAction {self.action_id}: globally banned user {target_user_id}")
+
+            # 3. Mark all messages from this user as spam
+            with Session() as session:
+                logs = session.query(Message_Log).filter(
+                    Message_Log.user_id == target_user_id
+                ).all()
+                logs_data = [
+                    {"chat_id": log.chat_id, "message_id": log.message_id}
+                    for log in logs
+                ]
+
+            for log_data in logs_data:
+                message_helper.insert_or_update_message_log(
+                    chat_id=log_data["chat_id"],
+                    message_id=log_data["message_id"],
+                    user_id=target_user_id,
+                    is_spam=True,
+                    manually_verified=True,
+                    reason_for_action=reason
+                )
+            logger.info(f"SpamAction {self.action_id}: marked {len(logs_data)} messages as spam")
+
+            # 4. Delete all messages from the last 24 hours
+            cutoff = datetime.now() - timedelta(hours=24)
+            with Session() as session:
+                recent_logs = session.query(Message_Log).filter(
+                    Message_Log.user_id == target_user_id,
+                    Message_Log.created_at >= cutoff
+                ).all()
+                recent_logs_data = [
+                    {"chat_id": log.chat_id, "message_id": log.message_id}
+                    for log in recent_logs
+                ]
+
+            for log_data in recent_logs_data:
+                try:
+                    await chat_helper.delete_message(context.bot, log_data["chat_id"], log_data["message_id"])
+                except Exception as exc:
+                    logger.warning(f"SpamAction {self.action_id}: Failed to delete message {log_data['message_id']}: {exc}")
+
+            logger.info(f"SpamAction {self.action_id}: deleted {len(recent_logs_data)} recent messages")
+            return True
+
+        except Exception as e:
+            logger.error(f"SpamAction {self.action_id} failed: {e}")
+            return False
+
+
 # ============================================================================
 # Factory Functions
 # ============================================================================
@@ -269,6 +359,7 @@ TRIGGER_REGISTRY = {
 ACTION_REGISTRY = {
     "reply": ReplyAction,
     "info": InfoAction,
+    "spam": SpamAction,
 }
 
 
