@@ -33,25 +33,21 @@ class MultiLineFormatter(logging.Formatter):
         return super().format(record)
 
 class TelegramLoggerHandler(logging.Handler):
-    def __init__(self, bot_token, chat_id, rate_limit_per_minute=20, timeout=5, max_retries=0):
+    def __init__(self, bot_token, chat_id, rate_limit_per_minute=20):
         super().__init__()
         self.bot_token = bot_token
         self.chat_id = chat_id
         self.api_url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
         self.max_length = 4000  # safe margin under Telegram's limit
-        self.timeout = timeout
-        self.max_retries = max_retries
 
         # Rate limiting: track timestamps of recent messages
         self.rate_limit_per_minute = rate_limit_per_minute
         self.message_timestamps = deque(maxlen=rate_limit_per_minute)
         self.lock = Lock()
 
-        # Backoff tracking for 429 errors and network errors
+        # Backoff tracking for 429 errors
         self.backoff_until = 0
         self.dropped_count = 0
-        self.consecutive_errors = 0
-        self.max_consecutive_errors = 5  # After this many errors, increase backoff
 
     def _should_send(self):
         """Check if we can send a message based on rate limiting and backoff."""
@@ -78,28 +74,9 @@ class TelegramLoggerHandler(logging.Handler):
         with self.lock:
             self.message_timestamps.append(time.time())
 
-    def _handle_error(self, error_type, error_msg, increase_backoff=True):
-        """
-        Handle errors without triggering recursive logging.
-        Only logs to console/sentry, never back to TelegramLoggerHandler.
-        """
-        self.consecutive_errors += 1
-
-        # If we've had too many consecutive errors, increase backoff
-        if increase_backoff and self.consecutive_errors >= self.max_consecutive_errors:
-            backoff_duration = min(300, 30 * (self.consecutive_errors // self.max_consecutive_errors))
-            self.backoff_until = max(self.backoff_until, time.time() + backoff_duration)
-
-        # Only log the first few errors to prevent spam
-        # After that, just silently drop and track in dropped_count
-        if self.consecutive_errors <= 3:
-            # Get a logger that won't route back to this handler
-            internal_logger = logging.getLogger('TelegramLoggerHandler.internal')
-            internal_logger.error(f"{error_type}: {error_msg}")
-
     def emit(self, record):
-        # Prevent recursive logging from this handler's internal loggers
-        if record.name.startswith('TelegramLoggerHandler'):
+        # Prevent recursive logging from this handler
+        if record.name == 'TelegramLoggerHandler':
             return
 
         try:
@@ -124,57 +101,40 @@ class TelegramLoggerHandler(logging.Handler):
                     f"/sendMessage?chat_id={self.chat_id}"
                     f"&text={text}&disable_web_page_preview=true"
                 )
+                resp = requests.get(url, timeout=5)
 
-                try:
-                    resp = requests.get(url, timeout=self.timeout)
+                if resp.status_code == 429:
+                    # Extract retry_after from response if available
+                    try:
+                        retry_after = resp.json().get('parameters', {}).get('retry_after', 60)
+                    except:
+                        retry_after = 60
 
-                    if resp.status_code == 429:
-                        # Extract retry_after from response if available
-                        try:
-                            retry_after = resp.json().get('parameters', {}).get('retry_after', 60)
-                        except:
-                            retry_after = 60
+                    # Set backoff period
+                    self.backoff_until = time.time() + retry_after
 
-                        # Set backoff period
-                        self.backoff_until = time.time() + retry_after
-                        self._handle_error(
-                            "TelegramLoggerHandler rate-limited",
-                            f"Backing off for {retry_after}s. Response: {resp.text}",
-                            increase_backoff=False
-                        )
-                        break
-
-                    elif resp.status_code != 200:
-                        self._handle_error(
-                            "TelegramLoggerHandler HTTP error",
-                            f"Status {resp.status_code}: {resp.text}"
-                        )
-                        break
-
-                    else:
-                        # Successfully sent, reset error counter
-                        self._record_send()
-                        self.consecutive_errors = 0
-
-                except requests.exceptions.Timeout:
-                    self._handle_error(
-                        "TelegramLoggerHandler timeout",
-                        f"Request timed out after {self.timeout}s"
+                    # Use a separate logger to avoid recursion
+                    telegram_logger = logging.getLogger('TelegramLoggerHandler')
+                    telegram_logger.error(
+                        f"TelegramLoggerHandler rate-limited by Telegram API. "
+                        f"Backing off for {retry_after}s. Response: {resp.text}"
                     )
                     break
-
-                except requests.exceptions.RequestException as e:
-                    self._handle_error(
-                        "TelegramLoggerHandler network error",
-                        str(e)
+                elif resp.status_code != 200:
+                    # Use a separate logger to avoid recursion
+                    telegram_logger = logging.getLogger('TelegramLoggerHandler')
+                    telegram_logger.error(
+                        f"TelegramLoggerHandler failed ({resp.status_code}): {resp.text}"
                     )
-                    break
+                else:
+                    # Successfully sent, record it
+                    self._record_send()
 
         except Exception as e:
-            # Catch-all for unexpected errors
-            self._handle_error("TelegramLoggerHandler unexpected error", str(e))
-            # Don't call handleError to avoid potential recursion
-            pass
+            # Use a separate logger to avoid recursion
+            telegram_logger = logging.getLogger('TelegramLoggerHandler')
+            telegram_logger.error(f"TelegramLoggerHandler.emit exception: {e}")
+            self.handleError(record)
 
 def get_logger():
     logger = logging.getLogger()
