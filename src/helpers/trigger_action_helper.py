@@ -27,6 +27,7 @@ from typing import Dict, Any
 from datetime import datetime, timedelta
 from telegram import Update
 from telegram.ext import ContextTypes
+from sqlalchemy import or_
 
 from src.helpers.db_helper import Session, Trigger_Action_Chain, Chain_Trigger, Chain_Action, Chain_Execution_Log
 from src.helpers.db_helper import Message_Log
@@ -398,6 +399,10 @@ async def execute_chains_for_message(update: Update, context: ContextTypes.DEFAU
 
     This is the main entry point called from message handlers.
     Chains are executed in priority order (lower priority = higher precedence).
+
+    Chains are loaded from two sources:
+    1. Chains scoped to the specific chat (chat_id matches)
+    2. Chains scoped to the chat's group (group_id matches)
     """
     if not update.message or not update.message.chat:
         return
@@ -408,17 +413,34 @@ async def execute_chains_for_message(update: Update, context: ContextTypes.DEFAU
 
     session = Session()
     try:
-        # Get all enabled chains for this chat, ordered by priority
-        chains = session.query(Trigger_Action_Chain).filter(
-            Trigger_Action_Chain.chat_id == chat_id,
-            Trigger_Action_Chain.enabled == True
-        ).order_by(Trigger_Action_Chain.priority).all()
+        # Get the chat's group_id (if any)
+        from src.helpers.db_helper import Chat
+        chat = session.query(Chat).filter(Chat.id == chat_id).first()
+        group_id = chat.group_id if chat else None
+
+        # Build query to get all enabled chains for this chat or group
+        # Chain is applicable if:
+        # - chat_id matches this chat, OR
+        # - group_id matches this chat's group
+        if group_id:
+            chains = session.query(Trigger_Action_Chain).filter(
+                Trigger_Action_Chain.enabled == True,
+                or_(
+                    Trigger_Action_Chain.chat_id == chat_id,
+                    Trigger_Action_Chain.group_id == group_id
+                )
+            ).order_by(Trigger_Action_Chain.priority).all()
+        else:
+            chains = session.query(Trigger_Action_Chain).filter(
+                Trigger_Action_Chain.enabled == True,
+                Trigger_Action_Chain.chat_id == chat_id
+            ).order_by(Trigger_Action_Chain.priority).all()
 
         if not chains:
-            logger.debug(f"No enabled chains for chat {chat_id}")
+            logger.debug(f"No enabled chains for chat {chat_id}" + (f" (group {group_id})" if group_id else ""))
             return
 
-        logger.info(f"Processing {len(chains)} chains for message {message_id} in chat {chat_id}")
+        logger.info(f"Processing {len(chains)} chains for message {message_id} in chat {chat_id}" + (f" (group {group_id})" if group_id else ""))
 
         for chain in chains:
             await execute_single_chain(chain, update, context, session)

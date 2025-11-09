@@ -6,7 +6,11 @@ The trigger-action chain system provides flexible, customizable message handling
 
 Chains consist of:
 - **Triggers**: Conditions that evaluate messages (regex, LLM boolean checks, etc.)
-- **Actions**: Operations to perform when triggers match (reply, show info, etc.)
+- **Actions**: Operations to perform when triggers match (reply, show info, spam ban, etc.)
+
+Chains can be scoped to:
+- **Specific chat**: Set `chat_id`, leave `group_id` as NULL
+- **Chat group**: Set `group_id`, leave `chat_id` as NULL - applies to all chats in that group
 
 All configuration is stored in JSON format, making the system easily extensible.
 
@@ -16,8 +20,11 @@ All configuration is stored in JSON format, making the system easily extensible.
 
 **Trigger_Action_Chain**
 - Main chain entity with priority and enabled status
-- Multiple chains can exist per chat
+- Can be scoped to a specific chat (`chat_id`) or all chats in a group (`group_id`)
+- Exactly one of `chat_id` or `group_id` must be set (enforced by database check constraint)
+- Multiple chains can exist per chat or group
 - Chains execute in priority order (lower number = higher priority)
+- When a message arrives in a chat, both chat-specific and group-level chains are executed
 
 **Chain_Trigger**
 - Evaluates message conditions
@@ -270,7 +277,58 @@ session.commit()
 session.close()
 ```
 
-### Example 3: Multi-Trigger Chain with LLM
+### Example 3: Group-Level Spam Detection
+
+Create a chain that applies to all chats in a group (e.g., all community chats).
+
+**Create chain:**
+```python
+from src.helpers.db_helper import Session, Trigger_Action_Chain, Chain_Trigger, Chain_Action
+
+session = Session()
+
+# Create chain for group_id = 1 (applies to all chats in this group)
+chain = Trigger_Action_Chain(
+    chat_id=None,  # NULL - not scoped to specific chat
+    group_id=1,     # Applies to all chats in group 1
+    name="Group-wide restaurant spam filter",
+    description="Automatically ban restaurant spam across all community chats",
+    priority=50,
+    enabled=True
+)
+session.add(chain)
+session.flush()
+
+# Add trigger for commercial spam
+trigger = Chain_Trigger(
+    chain_id=chain.id,
+    trigger_type="regex",
+    order=0,
+    config={
+        "pattern": r"бронь столиков|reservation|забронировать",
+        "flags": ["IGNORECASE"]
+    }
+)
+session.add(trigger)
+
+# Add spam action
+action = Chain_Action(
+    chain_id=chain.id,
+    action_type="spam",
+    order=0,
+    config={
+        "reason": "Commercial spam detected (group-level filter)"
+    }
+)
+session.add(action)
+
+session.commit()
+session.close()
+```
+
+**Note**: This chain will execute for messages in ANY chat that belongs to `group_id=1`. This is useful for applying the same spam filters across multiple related chats without duplicating the chain for each chat.
+
+### Example 4: Multi-Trigger Chain with LLM
 
 Use regex for fast filtering, then LLM for accurate detection.
 

@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, BigInteger, Boolean, Column, DateTime, Identity, Integer, Float, JSON, PrimaryKeyConstraint, String, Text, UniqueConstraint, text, ForeignKey, Index, Time
+from sqlalchemy import create_engine, BigInteger, Boolean, Column, DateTime, Identity, Integer, Float, JSON, PrimaryKeyConstraint, String, Text, UniqueConstraint, text, ForeignKey, Index, Time, CheckConstraint
 from sqlalchemy.orm import Session, DeclarativeBase, declared_attr, relationship, backref
 from sqlalchemy.sql.sqltypes import NullType
 from sqlalchemy.orm import sessionmaker
@@ -386,14 +386,28 @@ class Scheduled_Message_Config(Base):
 
 
 class Trigger_Action_Chain(Base):
-    """Trigger-action chain for custom per-chat message handling"""
+    """Trigger-action chain for custom per-chat or per-group message handling
+
+    Chains can be scoped to:
+    - A specific chat (chat_id is set, group_id is NULL)
+    - All chats in a group (group_id is set, chat_id is NULL)
+
+    Exactly one of chat_id or group_id must be set.
+    """
     __table_args__ = (
         PrimaryKeyConstraint('id', name='trigger_action_chain_pkey'),
         Index('ix_trigger_action_chain_chat_id_enabled', 'chat_id', 'enabled'),
+        Index('ix_trigger_action_chain_group_id_enabled', 'group_id', 'enabled'),
+        # Ensure exactly one of chat_id or group_id is set
+        CheckConstraint(
+            '(chat_id IS NOT NULL AND group_id IS NULL) OR (chat_id IS NULL AND group_id IS NOT NULL)',
+            name='trigger_action_chain_chat_or_group_check'
+        ),
     )
 
     id = Column(BigInteger, Identity(start=1, increment=1), primary_key=True)
-    chat_id = Column(BigInteger, ForeignKey(Chat.id), nullable=False, index=True)
+    chat_id = Column(BigInteger, ForeignKey(Chat.id), nullable=True, index=True)
+    group_id = Column(Integer, ForeignKey(Chat_Group.id), nullable=True, index=True)
     name = Column(String, nullable=False)
     description = Column(Text, nullable=True)
     priority = Column(Integer, nullable=False, server_default=text('100'))
@@ -402,12 +416,14 @@ class Trigger_Action_Chain(Base):
 
     # Relationships
     chat = relationship('Chat')
+    chat_group = relationship('Chat_Group')
     triggers = relationship('Chain_Trigger', back_populates='chain', cascade='all, delete-orphan')
     actions = relationship('Chain_Action', back_populates='chain', cascade='all, delete-orphan')
     execution_logs = relationship('Chain_Execution_Log', back_populates='chain')
 
     def __repr__(self):
-        return f"<Trigger_Action_Chain(id={self.id}, chat_id={self.chat_id}, name='{self.name}', priority={self.priority}, enabled={self.enabled})>"
+        scope = f"chat_id={self.chat_id}" if self.chat_id else f"group_id={self.group_id}"
+        return f"<Trigger_Action_Chain(id={self.id}, {scope}, name='{self.name}', priority={self.priority}, enabled={self.enabled})>"
 
 
 class Chain_Trigger(Base):
