@@ -21,3 +21,4 @@ venv
 .vscode/launch.json
 tg-community-manager-db.session.sql
 .vscode/settings.json
+settings.local.json
