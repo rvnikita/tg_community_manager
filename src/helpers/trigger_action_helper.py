@@ -413,6 +413,25 @@ async def execute_chains_for_message(update: Update, context: ContextTypes.DEFAU
 
     session = Session()
     try:
+        # Check if user is globally banned or message is spam - skip trigger-action chains if so
+        if user_id:
+            from src.helpers.db_helper import User_Global_Ban
+            global_ban = session.query(User_Global_Ban).filter(User_Global_Ban.user_id == user_id).first()
+            if global_ban:
+                logger.info(f"Skipping trigger-action chains for globally banned user {user_id} in chat {chat_id}")
+                return
+
+        # Check if message is marked as spam
+        from src.helpers.db_helper import Message_Log
+        message_log = session.query(Message_Log).filter(
+            Message_Log.message_id == message_id,
+            Message_Log.chat_id == chat_id
+        ).first()
+
+        if message_log and message_log.is_spam:
+            logger.info(f"Skipping trigger-action chains for spam message {message_id} in chat {chat_id}")
+            return
+
         # Get the chat's group_id (if any)
         from src.helpers.db_helper import Chat
         chat = session.query(Chat).filter(Chat.id == chat_id).first()
