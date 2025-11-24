@@ -979,6 +979,8 @@ async def tg_broadcast_group(update, context):
         message = update.message
         chat_id = update.effective_chat.id
 
+        logger.info(f"tg_broadcast_group triggered: has_photo={bool(message.photo)}, text={message.text}, caption={message.caption}")
+
         # Check if the command was sent by a global admin of the bot
         if message.from_user.id != int(os.getenv('ENV_BOT_ADMIN_ID')):
             await message.reply_text("You must be a global bot admin to use this command.")
@@ -2225,13 +2227,19 @@ def create_application():
     application.add_handler(CommandHandler(["unspam", "us"], tg_unspam), group=6)
     # Broadcast handlers support both text commands and commands with photos (captions)
     application.add_handler(MessageHandler(
-        (filters.TEXT | (filters.PHOTO & filters.CAPTION)) &
-        filters.Regex(r'^/(broadcast_group|bg)\s'),
+        filters.TEXT & filters.Regex(r'^/(broadcast_group|bg)\s'),
         tg_broadcast_group
     ), group=6)
     application.add_handler(MessageHandler(
-        (filters.TEXT | (filters.PHOTO & filters.CAPTION)) &
-        filters.Regex(r'^/(broadcast_chat|bc)\s'),
+        filters.PHOTO & filters.CaptionRegex(r'^/(broadcast_group|bg)\s'),
+        tg_broadcast_group
+    ), group=6)
+    application.add_handler(MessageHandler(
+        filters.TEXT & filters.Regex(r'^/(broadcast_chat|bc)\s'),
+        tg_broadcast_chat
+    ), group=6)
+    application.add_handler(MessageHandler(
+        filters.PHOTO & filters.CaptionRegex(r'^/(broadcast_chat|bc)\s'),
         tg_broadcast_chat
     ), group=6)
     application.add_handler(
