@@ -979,8 +979,6 @@ async def tg_broadcast_group(update, context):
         message = update.message
         chat_id = update.effective_chat.id
 
-        logger.info(f"tg_broadcast_group triggered: has_photo={bool(message.photo)}, text={message.text}, caption={message.caption}")
-
         # Check if the command was sent by a global admin of the bot
         if message.from_user.id != int(os.getenv('ENV_BOT_ADMIN_ID')):
             await message.reply_text("You must be a global bot admin to use this command.")
@@ -1072,15 +1070,16 @@ async def tg_broadcast_group(update, context):
                     logger.error(f"Failed to broadcast to chat {target_chat.id}: {traceback.format_exc()}")
 
             # Report results
-            media_type = "photo+message" if photo_file_id else "message"
-            result_message = f"Broadcast {media_type} to group '{chat_group.name}' (id: {group_id}) completed.\n"
-            result_message += f"Success: {success_count}, Errors: {error_count}"
-            if errors:
-                result_message += f"\n\nErrors:\n" + "\n".join(errors[:5])
-                if len(errors) > 5:
-                    result_message += f"\n... and {len(errors) - 5} more errors"
+            if error_count == 0:
+                result_message = f"✅ Broadcast complete! Sent to {success_count}/{len(chats)} chats in group '{chat_group.name}'."
+            else:
+                result_message = f"⚠️ Broadcast completed with errors: {success_count}/{len(chats)} succeeded, {error_count} failed."
+                if errors:
+                    result_message += f"\n\nErrors:\n" + "\n".join(errors[:5])
+                    if len(errors) > 5:
+                        result_message += f"\n... and {len(errors) - 5} more errors"
 
-            await chat_helper.send_message(bot, chat_id, result_message, delete_after=30)
+            await message.reply_text(result_message)
 
     except Exception as error:
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
@@ -1156,19 +1155,10 @@ async def tg_broadcast_chat(update, context):
                 # Send text message only
                 await chat_helper.send_message(bot, target_chat_id, broadcast_message)
 
-            media_type = "Photo+message" if photo_file_id else "Message"
-            await chat_helper.send_message(
-                bot, chat_id,
-                f"{media_type} successfully sent to chat {target_chat_id}.",
-                delete_after=10
-            )
+            await message.reply_text(f"✅ Message successfully sent to chat {target_chat_id}.")
 
         except Exception as e:
-            await chat_helper.send_message(
-                bot, chat_id,
-                f"Failed to send message to chat {target_chat_id}: {str(e)}",
-                delete_after=10
-            )
+            await message.reply_text(f"❌ Failed to send message to chat {target_chat_id}: {str(e)}")
             logger.error(f"Failed to broadcast to chat {target_chat_id}: {traceback.format_exc()}")
 
     except Exception as error:
