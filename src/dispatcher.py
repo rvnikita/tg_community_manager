@@ -1078,7 +1078,11 @@ async def tg_broadcast_group(update, context):
 
     except Exception as error:
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
-        logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
+        logger.error(f"Error in tg_broadcast_group: {traceback.format_exc()} | Update: {update_str}")
+        try:
+            await update.message.reply_text(f"Error executing broadcast: {str(error)[:200]}")
+        except:
+            pass
 
 
 @sentry_profile()
@@ -1158,7 +1162,11 @@ async def tg_broadcast_chat(update, context):
 
     except Exception as error:
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
-        logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
+        logger.error(f"Error in tg_broadcast_chat: {traceback.format_exc()} | Update: {update_str}")
+        try:
+            await update.message.reply_text(f"Error executing broadcast: {str(error)[:200]}")
+        except:
+            pass
 
 
 #TODO:MED: May be we need to make it more complicated (e.g. with ai embeddings) and move big part of it to separate auto_deply_helper
