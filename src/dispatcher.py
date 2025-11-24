@@ -967,6 +967,164 @@ async def tg_gban(update, context):
         logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
 
 
+@sentry_profile()
+async def tg_broadcast_group(update, context):
+    """
+    Broadcast a message to all chats in a specific group.
+    Usage: /broadcast_group <group_id> <message> or /bg <group_id> <message>
+    Only available to bot admin.
+    """
+    try:
+        message = update.message
+        chat_id = update.effective_chat.id
+
+        # Check if the command was sent by a global admin of the bot
+        if message.from_user.id != int(os.getenv('ENV_BOT_ADMIN_ID')):
+            await message.reply_text("You must be a global bot admin to use this command.")
+            return
+
+        await chat_helper.delete_message(bot, chat_id, message.message_id)  # clean up the command message
+
+        # Parse command: /bg <group_id> <message>
+        command_text = message.text or message.caption or ""
+        parts = command_text.split(maxsplit=2)
+
+        if len(parts) < 3:
+            await chat_helper.send_message(
+                bot, chat_id,
+                "Usage: /broadcast_group <group_id> <message>\nExample: /bg 1 Hello everyone!",
+                delete_after=10
+            )
+            return
+
+        try:
+            group_id = int(parts[1])
+        except ValueError:
+            await chat_helper.send_message(
+                bot, chat_id,
+                f"Invalid group_id: {parts[1]}. Must be an integer.",
+                delete_after=10
+            )
+            return
+
+        broadcast_message = parts[2]
+
+        with db_helper.session_scope() as db_session:
+            # Get the group and its chats
+            chat_group = db_session.query(db_helper.Chat_Group).filter(
+                db_helper.Chat_Group.id == group_id
+            ).first()
+
+            if not chat_group:
+                await chat_helper.send_message(
+                    bot, chat_id,
+                    f"Group with id {group_id} not found.",
+                    delete_after=10
+                )
+                return
+
+            chats = db_session.query(db_helper.Chat).filter(
+                db_helper.Chat.group_id == group_id
+            ).all()
+
+            if not chats:
+                await chat_helper.send_message(
+                    bot, chat_id,
+                    f"No chats found in group '{chat_group.name}' (id: {group_id}).",
+                    delete_after=10
+                )
+                return
+
+            # Broadcast to all chats
+            success_count = 0
+            error_count = 0
+            errors = []
+
+            for target_chat in chats:
+                try:
+                    await chat_helper.send_message(bot, target_chat.id, broadcast_message)
+                    success_count += 1
+                except Exception as e:
+                    error_count += 1
+                    errors.append(f"Chat {target_chat.id}: {str(e)[:50]}")
+                    logger.error(f"Failed to broadcast to chat {target_chat.id}: {traceback.format_exc()}")
+
+            # Report results
+            result_message = f"Broadcast to group '{chat_group.name}' (id: {group_id}) completed.\n"
+            result_message += f"Success: {success_count}, Errors: {error_count}"
+            if errors:
+                result_message += f"\n\nErrors:\n" + "\n".join(errors[:5])
+                if len(errors) > 5:
+                    result_message += f"\n... and {len(errors) - 5} more errors"
+
+            await chat_helper.send_message(bot, chat_id, result_message, delete_after=30)
+
+    except Exception as error:
+        update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
+        logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
+
+
+@sentry_profile()
+async def tg_broadcast_chat(update, context):
+    """
+    Broadcast a message to a specific chat.
+    Usage: /broadcast_chat <chat_id> <message> or /bc <chat_id> <message>
+    Only available to bot admin.
+    """
+    try:
+        message = update.message
+        chat_id = update.effective_chat.id
+
+        # Check if the command was sent by a global admin of the bot
+        if message.from_user.id != int(os.getenv('ENV_BOT_ADMIN_ID')):
+            await message.reply_text("You must be a global bot admin to use this command.")
+            return
+
+        await chat_helper.delete_message(bot, chat_id, message.message_id)  # clean up the command message
+
+        # Parse command: /bc <chat_id> <message>
+        command_text = message.text or message.caption or ""
+        parts = command_text.split(maxsplit=2)
+
+        if len(parts) < 3:
+            await chat_helper.send_message(
+                bot, chat_id,
+                "Usage: /broadcast_chat <chat_id> <message>\nExample: /bc -1001234567890 Hello everyone!",
+                delete_after=10
+            )
+            return
+
+        try:
+            target_chat_id = int(parts[1])
+        except ValueError:
+            await chat_helper.send_message(
+                bot, chat_id,
+                f"Invalid chat_id: {parts[1]}. Must be an integer.",
+                delete_after=10
+            )
+            return
+
+        broadcast_message = parts[2]
+
+        try:
+            await chat_helper.send_message(bot, target_chat_id, broadcast_message)
+            await chat_helper.send_message(
+                bot, chat_id,
+                f"Message successfully sent to chat {target_chat_id}.",
+                delete_after=10
+            )
+        except Exception as e:
+            await chat_helper.send_message(
+                bot, chat_id,
+                f"Failed to send message to chat {target_chat_id}: {str(e)}",
+                delete_after=10
+            )
+            logger.error(f"Failed to broadcast to chat {target_chat_id}: {traceback.format_exc()}")
+
+    except Exception as error:
+        update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
+        logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
+
 
 #TODO:MED: May be we need to make it more complicated (e.g. with ai embeddings) and move big part of it to separate auto_deply_helper
 @sentry_profile()
@@ -1203,6 +1361,8 @@ async def tg_log_message(update, context):
                     logger.error(f"Error processing image for message {message_id}: {traceback.format_exc()}")
 
             # Log the message, treating forwarded messages differently if needed
+            # Note: is_spam is intentionally set to None so that spam detection can set it
+            # without being overwritten by this function (they run in parallel)
             message_log_id = message_helper.insert_or_update_message_log(
                 chat_id=chat_id,
                 message_id=message_id,
@@ -1214,9 +1374,9 @@ async def tg_log_message(update, context):
                 reporting_id=user_id,
                 reporting_id_nickname=user_nickname,
                 reason_for_action=reason_for_action,
-                is_spam=False,
+                is_spam=None,  # Let spam detection set this value
                 embedding=embedding,
-                manually_verified=False,
+                manually_verified=None,  # Let spam detection set this value
                 reply_to_message_id=message.reply_to_message.message_id if message.reply_to_message else None,
                 is_forwarded=is_forwarded,
                 raw_message=update.message.to_dict() if hasattr(update.message, 'to_dict') else None,
@@ -2011,6 +2171,8 @@ def create_application():
     application.add_handler(CommandHandler(["gban", "g", "gb"], tg_gban), group=6)
     application.add_handler(CommandHandler(["spam", "s"], tg_spam), group=6)
     application.add_handler(CommandHandler(["unspam", "us"], tg_unspam), group=6)
+    application.add_handler(CommandHandler(["broadcast_group", "bg"], tg_broadcast_group), group=6)
+    application.add_handler(CommandHandler(["broadcast_chat", "bc"], tg_broadcast_chat), group=6)
     application.add_handler(
         MessageHandler(
             (filters.TEXT
