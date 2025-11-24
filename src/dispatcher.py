@@ -970,8 +970,9 @@ async def tg_gban(update, context):
 @sentry_profile()
 async def tg_broadcast_group(update, context):
     """
-    Broadcast a message to all chats in a specific group.
+    Broadcast a message (with optional photo) to all chats in a specific group.
     Usage: /broadcast_group <group_id> <message> or /bg <group_id> <message>
+    Can also be used with a photo attachment - the photo will be sent to all chats.
     Only available to bot admin.
     """
     try:
@@ -992,7 +993,7 @@ async def tg_broadcast_group(update, context):
         if len(parts) < 3:
             await chat_helper.send_message(
                 bot, chat_id,
-                "Usage: /broadcast_group <group_id> <message>\nExample: /bg 1 Hello everyone!",
+                "Usage: /broadcast_group <group_id> <message>\nExample: /bg 1 Hello everyone!\nYou can also attach a photo.",
                 delete_after=10
             )
             return
@@ -1008,6 +1009,12 @@ async def tg_broadcast_group(update, context):
             return
 
         broadcast_message = parts[2]
+
+        # Check if there's a photo attached
+        photo_file_id = None
+        if message.photo:
+            # Get the highest resolution photo
+            photo_file_id = message.photo[-1].file_id
 
         with db_helper.session_scope() as db_session:
             # Get the group and its chats
@@ -1042,7 +1049,16 @@ async def tg_broadcast_group(update, context):
 
             for target_chat in chats:
                 try:
-                    await chat_helper.send_message(bot, target_chat.id, broadcast_message)
+                    if photo_file_id:
+                        # Send photo with caption
+                        await bot.send_photo(
+                            chat_id=target_chat.id,
+                            photo=photo_file_id,
+                            caption=broadcast_message
+                        )
+                    else:
+                        # Send text message only
+                        await chat_helper.send_message(bot, target_chat.id, broadcast_message)
                     success_count += 1
                 except Exception as e:
                     error_count += 1
@@ -1050,7 +1066,8 @@ async def tg_broadcast_group(update, context):
                     logger.error(f"Failed to broadcast to chat {target_chat.id}: {traceback.format_exc()}")
 
             # Report results
-            result_message = f"Broadcast to group '{chat_group.name}' (id: {group_id}) completed.\n"
+            media_type = "photo+message" if photo_file_id else "message"
+            result_message = f"Broadcast {media_type} to group '{chat_group.name}' (id: {group_id}) completed.\n"
             result_message += f"Success: {success_count}, Errors: {error_count}"
             if errors:
                 result_message += f"\n\nErrors:\n" + "\n".join(errors[:5])
@@ -1067,8 +1084,9 @@ async def tg_broadcast_group(update, context):
 @sentry_profile()
 async def tg_broadcast_chat(update, context):
     """
-    Broadcast a message to a specific chat.
+    Broadcast a message (with optional photo) to a specific chat.
     Usage: /broadcast_chat <chat_id> <message> or /bc <chat_id> <message>
+    Can also be used with a photo attachment - the photo will be sent to the chat.
     Only available to bot admin.
     """
     try:
@@ -1089,7 +1107,7 @@ async def tg_broadcast_chat(update, context):
         if len(parts) < 3:
             await chat_helper.send_message(
                 bot, chat_id,
-                "Usage: /broadcast_chat <chat_id> <message>\nExample: /bc -1001234567890 Hello everyone!",
+                "Usage: /broadcast_chat <chat_id> <message>\nExample: /bc -1001234567890 Hello everyone!\nYou can also attach a photo.",
                 delete_after=10
             )
             return
@@ -1106,11 +1124,28 @@ async def tg_broadcast_chat(update, context):
 
         broadcast_message = parts[2]
 
+        # Check if there's a photo attached
+        photo_file_id = None
+        if message.photo:
+            # Get the highest resolution photo
+            photo_file_id = message.photo[-1].file_id
+
         try:
-            await chat_helper.send_message(bot, target_chat_id, broadcast_message)
+            if photo_file_id:
+                # Send photo with caption
+                await bot.send_photo(
+                    chat_id=target_chat_id,
+                    photo=photo_file_id,
+                    caption=broadcast_message
+                )
+            else:
+                # Send text message only
+                await chat_helper.send_message(bot, target_chat_id, broadcast_message)
+
+            media_type = "Photo+message" if photo_file_id else "Message"
             await chat_helper.send_message(
                 bot, chat_id,
-                f"Message successfully sent to chat {target_chat_id}.",
+                f"{media_type} successfully sent to chat {target_chat_id}.",
                 delete_after=10
             )
         except Exception as e:
