@@ -1008,14 +1008,17 @@ async def tg_broadcast_group(update, context):
 
         broadcast_message = parts[2]
 
-        # Send immediate acknowledgment
-        status_msg = await message.reply_text("Processing broadcast...")
-
         # Check if there's a photo attached
         photo_file_id = None
         if message.photo:
             # Get the highest resolution photo
             photo_file_id = message.photo[-1].file_id
+
+        # Delete command message
+        try:
+            await chat_helper.delete_message(bot, chat_id, message.message_id)
+        except:
+            pass  # Ignore if deletion fails
 
         with db_helper.session_scope() as db_session:
             # Get the group and its chats
@@ -1024,7 +1027,11 @@ async def tg_broadcast_group(update, context):
             ).first()
 
             if not chat_group:
-                await status_msg.edit_text(f"❌ Group with id {group_id} not found.")
+                await chat_helper.send_message(
+                    bot, chat_id,
+                    f"Group with id {group_id} not found.",
+                    delete_after=10
+                )
                 return
 
             chats = db_session.query(db_helper.Chat).filter(
@@ -1032,15 +1039,17 @@ async def tg_broadcast_group(update, context):
             ).all()
 
             if not chats:
-                await status_msg.edit_text(f"❌ No chats found in group '{chat_group.name}' (id: {group_id}).")
+                await chat_helper.send_message(
+                    bot, chat_id,
+                    f"No chats found in group '{chat_group.name}' (id: {group_id}).",
+                    delete_after=10
+                )
                 return
 
             # Broadcast to all chats
             success_count = 0
             error_count = 0
             errors = []
-
-            await status_msg.edit_text(f"Broadcasting to {len(chats)} chats in group '{chat_group.name}'...")
 
             for target_chat in chats:
                 try:
@@ -1062,20 +1071,14 @@ async def tg_broadcast_group(update, context):
 
             # Report results
             media_type = "photo+message" if photo_file_id else "message"
-            status_emoji = "✅" if error_count == 0 else "⚠️"
-            result_message = f"{status_emoji} Broadcast {media_type} to group '{chat_group.name}' (id: {group_id}) completed.\n"
+            result_message = f"Broadcast {media_type} to group '{chat_group.name}' (id: {group_id}) completed.\n"
             result_message += f"Success: {success_count}, Errors: {error_count}"
             if errors:
                 result_message += f"\n\nErrors:\n" + "\n".join(errors[:5])
                 if len(errors) > 5:
                     result_message += f"\n... and {len(errors) - 5} more errors"
 
-            # Update the status message with results
-            await status_msg.edit_text(result_message)
-
-            # Delete command message only in groups (not in DMs)
-            if update.effective_chat.type in ['group', 'supergroup']:
-                await chat_helper.delete_message(bot, chat_id, message.message_id)
+            await chat_helper.send_message(bot, chat_id, result_message, delete_after=30)
 
     except Exception as error:
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
@@ -1108,27 +1111,36 @@ async def tg_broadcast_chat(update, context):
         parts = command_text.split(maxsplit=2)
 
         if len(parts) < 3:
-            await message.reply_text(
-                "Usage: /broadcast_chat <chat_id> <message>\nExample: /bc -1001234567890 Hello everyone!\nYou can also attach a photo."
+            await chat_helper.send_message(
+                bot, chat_id,
+                "Usage: /broadcast_chat <chat_id> <message>\nExample: /bc -1001234567890 Hello everyone!\nYou can also attach a photo.",
+                delete_after=10
             )
             return
 
         try:
             target_chat_id = int(parts[1])
         except ValueError:
-            await message.reply_text(f"❌ Invalid chat_id: {parts[1]}. Must be an integer.")
+            await chat_helper.send_message(
+                bot, chat_id,
+                f"Invalid chat_id: {parts[1]}. Must be an integer.",
+                delete_after=10
+            )
             return
 
         broadcast_message = parts[2]
-
-        # Send immediate acknowledgment
-        status_msg = await message.reply_text("Sending...")
 
         # Check if there's a photo attached
         photo_file_id = None
         if message.photo:
             # Get the highest resolution photo
             photo_file_id = message.photo[-1].file_id
+
+        # Delete command message
+        try:
+            await chat_helper.delete_message(bot, chat_id, message.message_id)
+        except:
+            pass  # Ignore if deletion fails
 
         try:
             if photo_file_id:
@@ -1143,14 +1155,18 @@ async def tg_broadcast_chat(update, context):
                 await chat_helper.send_message(bot, target_chat_id, broadcast_message)
 
             media_type = "Photo+message" if photo_file_id else "Message"
-            await status_msg.edit_text(f"✅ {media_type} successfully sent to chat {target_chat_id}.")
-
-            # Delete command message only in groups (not in DMs)
-            if update.effective_chat.type in ['group', 'supergroup']:
-                await chat_helper.delete_message(bot, chat_id, message.message_id)
+            await chat_helper.send_message(
+                bot, chat_id,
+                f"{media_type} successfully sent to chat {target_chat_id}.",
+                delete_after=10
+            )
 
         except Exception as e:
-            await status_msg.edit_text(f"❌ Failed to send message to chat {target_chat_id}: {str(e)}")
+            await chat_helper.send_message(
+                bot, chat_id,
+                f"Failed to send message to chat {target_chat_id}: {str(e)}",
+                delete_after=10
+            )
             logger.error(f"Failed to broadcast to chat {target_chat_id}: {traceback.format_exc()}")
 
     except Exception as error:
@@ -2207,8 +2223,17 @@ def create_application():
     application.add_handler(CommandHandler(["gban", "g", "gb"], tg_gban), group=6)
     application.add_handler(CommandHandler(["spam", "s"], tg_spam), group=6)
     application.add_handler(CommandHandler(["unspam", "us"], tg_unspam), group=6)
-    application.add_handler(CommandHandler(["broadcast_group", "bg"], tg_broadcast_group), group=6)
-    application.add_handler(CommandHandler(["broadcast_chat", "bc"], tg_broadcast_chat), group=6)
+    # Broadcast handlers support both text commands and commands with photos (captions)
+    application.add_handler(MessageHandler(
+        (filters.TEXT | (filters.PHOTO & filters.CAPTION)) &
+        filters.Regex(r'^/(broadcast_group|bg)\s'),
+        tg_broadcast_group
+    ), group=6)
+    application.add_handler(MessageHandler(
+        (filters.TEXT | (filters.PHOTO & filters.CAPTION)) &
+        filters.Regex(r'^/(broadcast_chat|bc)\s'),
+        tg_broadcast_chat
+    ), group=6)
     application.add_handler(
         MessageHandler(
             (filters.TEXT
