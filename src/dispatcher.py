@@ -1479,6 +1479,20 @@ async def tg_spam_check(update, context):
                             # Ban the user for using a filtered language
                             await chat_helper.delete_message(bot, message.chat.id, message.message_id)
                             await chat_helper.ban_user(bot, message.chat.id, message.from_user.id, reason=f"Filtered language used. Message {message.text}. Chat: {await chat_helper.get_chat_mention(bot, message.chat.id)}", global_ban=True)
+
+                            # Log the ban action
+                            message_helper.insert_or_update_message_log(
+                                chat_id=message.chat.id,
+                                message_id=message.message_id,
+                                user_id=message.from_user.id,
+                                user_nickname=user_helper.get_user_mention(message.from_user.id, message.chat.id),
+                                user_current_rating=rating_helper.get_rating(message.from_user.id, message.chat.id),
+                                message_content=message.text,
+                                action_type="aggressive_antispam_ban",
+                                reason_for_action=f"Filtered language ({lang}) detected. Chat: {await chat_helper.get_chat_mention(bot, message.chat.id)}",
+                                is_spam=True
+                            )
+
                             await chat_helper.send_message(bot, message.chat.id, f"User {user_helper.get_user_mention(message.from_user.id, message.chat.id)} has been banned based on language filter. - {lang}", delete_after=120)
                             return  # exit the function as the user has already been banned
                     except langdetect.lang_detect_exception.LangDetectException as e:
@@ -1492,8 +1506,44 @@ async def tg_spam_check(update, context):
                     # Ban the user for sending an APK file
                     await chat_helper.delete_message(bot, message.chat.id, message.message_id)
                     await chat_helper.ban_user(bot, message.chat.id, message.from_user.id, reason=f"APK file uploaded. Chat: {await chat_helper.get_chat_mention(bot, message.chat.id)}", global_ban=True)
+
+                    # Log the ban action
+                    message_helper.insert_or_update_message_log(
+                        chat_id=message.chat.id,
+                        message_id=message.message_id,
+                        user_id=message.from_user.id,
+                        user_nickname=user_helper.get_user_mention(message.from_user.id, message.chat.id),
+                        user_current_rating=rating_helper.get_rating(message.from_user.id, message.chat.id),
+                        message_content=f"APK file: {message.document.file_name}",
+                        action_type="aggressive_antispam_ban",
+                        reason_for_action=f"APK file uploaded ({message.document.file_name}). Chat: {await chat_helper.get_chat_mention(bot, message.chat.id)}",
+                        is_spam=True
+                    )
+
                     await chat_helper.send_message(bot, message.chat.id, f"User {user_helper.get_user_mention(message.from_user.id, message.chat.id)} has been banned for uploading an APK file.", delete_after=120)
                     return  # exit the function as the user has already been banned
+
+            # Check for story redirects (100% spam)
+            if message and message.story:
+                # Ban the user for sharing a story redirect
+                await chat_helper.delete_message(bot, message.chat.id, message.message_id)
+                await chat_helper.ban_user(bot, message.chat.id, message.from_user.id, reason=f"Story redirect shared. Chat: {await chat_helper.get_chat_mention(bot, message.chat.id)}", global_ban=True)
+
+                # Log the ban action
+                message_helper.insert_or_update_message_log(
+                    chat_id=message.chat.id,
+                    message_id=message.message_id,
+                    user_id=message.from_user.id,
+                    user_nickname=user_helper.get_user_mention(message.from_user.id, message.chat.id),
+                    user_current_rating=rating_helper.get_rating(message.from_user.id, message.chat.id),
+                    message_content=f"Story redirect (story_id: {message.story.id})",
+                    action_type="aggressive_antispam_ban",
+                    reason_for_action=f"Story redirect shared. Chat: {await chat_helper.get_chat_mention(bot, message.chat.id)}",
+                    is_spam=True
+                )
+
+                await chat_helper.send_message(bot, message.chat.id, f"User {user_helper.get_user_mention(message.from_user.id, message.chat.id)} has been banned for sharing a story redirect.", delete_after=120)
+                return  # exit the function as the user has already been banned
 
     except Exception as error:
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
