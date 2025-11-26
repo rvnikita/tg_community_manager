@@ -23,7 +23,7 @@ bot = Bot(os.getenv('ENV_BOT_KEY'),
 current_path = os.getcwd()
 print("Current Working Directory:", current_path)
 
-model = load('ml_models/svm_spam_model.joblib')
+model = load('ml_models/xgb_spam_model.joblib')
 scaler = load('ml_models/scaler.joblib')
 
 async def generate_features(user_id, chat_id, message_text=None, embedding=None, is_forwarded=None, reply_to_message_id=None):
@@ -67,14 +67,15 @@ async def generate_features(user_id, chat_id, message_text=None, embedding=None,
             reply_to_message_id = reply_to_message_id or 0
 
             # Construct the feature array in the same order as used during training:
-            # Order: embedding, user_rating_value, time_difference, chat_id, user_id, message_length,
+            # Order: embedding, user_rating_value, time_difference, chat_id, message_length,
             # spam_count, not_spam_count, is_forwarded, reply_to_message_id, has_telegram_nick
+            # NOTE: user_id removed to prevent overfitting on specific users
             feature_array = np.array([
                 *embedding,
                 float(user_rating_value),
                 float(time_difference),
-                float(chat_id),
-                float(user_id),
+                float(chat_id),  # KEPT: Context matters - different chats have different norms
+                # float(user_id),  # REMOVED: Prevents overfitting - new users appear constantly
                 float(message_length),
                 float(spam_count),
                 float(not_spam_count),

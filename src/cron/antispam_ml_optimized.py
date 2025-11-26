@@ -5,7 +5,7 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.impute import SimpleImputer
-from sklearn.svm import SVC
+from xgboost import XGBClassifier
 import traceback
 from joblib import dump
 import asyncio
@@ -20,7 +20,7 @@ from sqlalchemy import func, or_, and_, case
 logger = logging_helper.get_logger()
 
 async def train_spam_classifier():
-    """Train a spam classifier using SVM on message embeddings and additional features.
+    """Train a spam classifier using XGBoost on message embeddings and additional features.
     This version learns from messages that are either manually verified
     or have extreme spam prediction probabilities (very high or very low).
     """
@@ -99,8 +99,8 @@ async def train_spam_classifier():
                     [
                         message_data.user_current_rating,
                         time_difference,
-                        message_data.chat_id,
-                        message_data.user_id,
+                        message_data.chat_id,  # KEPT: Different chats have different spam patterns/norms
+                        # message_data.user_id,  # REMOVED: Causes overfitting - new users appear constantly
                         message_length,
                         message_data.spam_count,
                         message_data.not_spam_count,
@@ -129,7 +129,7 @@ async def train_spam_classifier():
             logger.info(f"Class distribution before splitting: {dict(zip(unique_classes, class_counts))}")
 
             X_train, X_test, y_train, y_test, ids_train, ids_test = train_test_split(
-                features, labels, list(message_contents.keys()), test_size=0.005, stratify=labels
+                features, labels, list(message_contents.keys()), test_size=0.2, stratify=labels, random_state=42
             )
 
             unique_train_classes, train_class_counts = np.unique(y_train, return_counts=True)
@@ -141,16 +141,23 @@ async def train_spam_classifier():
             X_train = scaler.transform(X_train)
             X_test = scaler.transform(X_test)
 
-            logger.info("Training SVM model...")
+            logger.info("Training XGBoost model...")
             train_start_time = time.time()
-            model = SVC(kernel='rbf', probability=True, C=1.0, gamma='scale')
+            model = XGBClassifier(
+                n_estimators=100,
+                max_depth=6,
+                learning_rate=0.1,
+                n_jobs=-1,
+                random_state=42,
+                eval_metric='logloss'
+            )
             model.fit(X_train, y_train)
             train_time = time.time() - train_start_time
 
             accuracy = model.score(X_test, y_test)
             logger.info(f"Model training completed in {train_time:.2f} seconds. Accuracy: {accuracy}")
 
-            dump(model, 'ml_models/svm_spam_model.joblib')
+            dump(model, 'ml_models/xgb_spam_model.joblib')
             dump(scaler, 'ml_models/scaler.joblib')
 
             y_pred = model.predict(X_test)
