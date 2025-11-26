@@ -143,7 +143,7 @@ async def train_spam_classifier():
 
             logger.info("Training SVM model...")
             train_start_time = time.time()
-            model = SVC(kernel='rbf', probability=True, C=1.0, gamma='scale', n_jobs=-1)
+            model = SVC(kernel='rbf', probability=True, C=1.0, gamma='scale')
             model.fit(X_train, y_train)
             train_time = time.time() - train_start_time
 
