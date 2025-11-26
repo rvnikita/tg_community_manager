@@ -10,11 +10,12 @@ import traceback
 from joblib import dump
 import asyncio
 import re
+import time
 
 import src.helpers.spamcheck_helper as spamcheck_helper
 import src.helpers.db_helper as db_helper
 import src.helpers.logging_helper as logging_helper
-from sqlalchemy import func, or_, and_
+from sqlalchemy import func, or_, and_, case
 
 logger = logging_helper.get_logger()
 
@@ -26,6 +27,20 @@ async def train_spam_classifier():
     try:
         with db_helper.session_scope() as session:
             logger.info("Fetching messages from the database for training...")
+
+            # Create a subquery to pre-aggregate spam counts per user
+            # This is MUCH faster than window functions on large datasets
+            spam_counts_subquery = (
+                session.query(
+                    db_helper.Message_Log.user_id,
+                    func.sum(case((db_helper.Message_Log.is_spam == True, 1), else_=0)).label('spam_count'),
+                    func.sum(case((db_helper.Message_Log.is_spam == False, 1), else_=0)).label('not_spam_count')
+                )
+                .group_by(db_helper.Message_Log.user_id)
+                .subquery()
+            )
+
+            start_time = time.time()
             query = (session.query(
                         db_helper.Message_Log.id,
                         db_helper.Message_Log.embedding,
@@ -38,19 +53,14 @@ async def train_spam_classifier():
                         db_helper.Message_Log.reply_to_message_id,
                         db_helper.User_Status.created_at.label('status_created_at'),
                         db_helper.User.created_at.label('user_created_at'),
-                        func.count(db_helper.Message_Log.is_spam).over(
-                            partition_by=[db_helper.Message_Log.user_id],
-                            order_by=db_helper.Message_Log.user_id
-                        ).label('spam_count'),
-                        func.count(db_helper.Message_Log.is_spam).over(
-                            partition_by=[db_helper.Message_Log.user_id],
-                            order_by=db_helper.Message_Log.user_id
-                        ).label('not_spam_count')
+                        func.coalesce(spam_counts_subquery.c.spam_count, 0).label('spam_count'),
+                        func.coalesce(spam_counts_subquery.c.not_spam_count, 0).label('not_spam_count')
                     )
-                    .outerjoin(db_helper.User_Status, 
+                    .outerjoin(db_helper.User_Status,
                                (db_helper.User_Status.user_id == db_helper.Message_Log.user_id) &
                                (db_helper.User_Status.chat_id == db_helper.Message_Log.chat_id))
                     .join(db_helper.User, db_helper.User.id == db_helper.Message_Log.user_id)
+                    .outerjoin(spam_counts_subquery, spam_counts_subquery.c.user_id == db_helper.Message_Log.user_id)
                     .filter(
                         db_helper.Message_Log.embedding != None,
                         db_helper.Message_Log.message_content != None,
@@ -63,7 +73,8 @@ async def train_spam_classifier():
                     .order_by(db_helper.Message_Log.id.desc())
             )
             messages_data = query.all()
-            logger.info(f"Fetched {len(messages_data)} messages.")
+            query_time = time.time() - start_time
+            logger.info(f"Fetched {len(messages_data)} messages in {query_time:.2f} seconds.")
             if not messages_data:
                 logger.info("No messages to process.")
                 return None
@@ -73,6 +84,7 @@ async def train_spam_classifier():
             message_contents = {}
 
             logger.info("Processing messages data for feature extraction...")
+            feature_start_time = time.time()
             for message_data in messages_data:
                 # Use the status creation time if available, otherwise use the user creation time.
                 joined_date = message_data.status_created_at if message_data.status_created_at else message_data.user_created_at
@@ -101,7 +113,8 @@ async def train_spam_classifier():
                 labels.append(message_data.is_spam)
                 message_contents[message_data.id] = message_data.message_content
 
-            logger.info("Completed processing messages data.")
+            feature_time = time.time() - feature_start_time
+            logger.info(f"Completed processing messages data in {feature_time:.2f} seconds.")
             if not features:
                 logger.info("No features to train on.")
                 return None
@@ -128,11 +141,14 @@ async def train_spam_classifier():
             X_train = scaler.transform(X_train)
             X_test = scaler.transform(X_test)
 
+            logger.info("Training SVM model...")
+            train_start_time = time.time()
             model = SVC(kernel='rbf', probability=True, C=1.0, gamma='scale')
             model.fit(X_train, y_train)
+            train_time = time.time() - train_start_time
 
             accuracy = model.score(X_test, y_test)
-            logger.info(f"Model accuracy: {accuracy}")
+            logger.info(f"Model training completed in {train_time:.2f} seconds. Accuracy: {accuracy}")
 
             dump(model, 'ml_models/svm_spam_model.joblib')
             dump(scaler, 'ml_models/scaler.joblib')
