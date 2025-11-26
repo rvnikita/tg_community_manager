@@ -1451,7 +1451,16 @@ async def tg_spam_check(update, context):
         if is_admin:
             return
 
-        if message.from_user.id == 777000:  # Telegram's own bot TODO:MED: Maybe we need to check this differently as users could post through 777000 bot
+        # User 777000 is Telegram's service account for channel posts → discussion chats
+        # These are legitimate channel posts, not spam
+        if message.from_user.id == 777000:
+            message_helper.insert_or_update_message_log(
+                chat_id=message.chat.id,
+                message_id=message.message_id,
+                is_spam=False,
+                manually_verified=True
+            )
+            logger.debug(f"Message from user 777000 (channel post) marked as non-spam in chat {message.chat.id}")
             return
 
         if message.from_user.username == "GroupAnonymousBot":  # Anonymous group admin
