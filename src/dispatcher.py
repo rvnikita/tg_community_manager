@@ -1493,7 +1493,7 @@ async def tg_spam_check(update, context):
                                 is_spam=True
                             )
 
-                            await chat_helper.send_message(bot, message.chat.id, f"User {user_helper.get_user_mention(message.from_user.id, message.chat.id)} has been banned based on language filter. - {lang}", delete_after=120)
+                            logger.info(f"User {user_helper.get_user_mention(message.from_user.id, message.chat.id)} has been banned based on language filter: {lang}")
                             return  # exit the function as the user has already been banned
                     except langdetect.lang_detect_exception.LangDetectException as e:
                         if "No features in text." in str(e):
@@ -1520,7 +1520,7 @@ async def tg_spam_check(update, context):
                         is_spam=True
                     )
 
-                    await chat_helper.send_message(bot, message.chat.id, f"User {user_helper.get_user_mention(message.from_user.id, message.chat.id)} has been banned for uploading an APK file.", delete_after=120)
+                    logger.info(f"User {user_helper.get_user_mention(message.from_user.id, message.chat.id)} has been banned for uploading an APK file: {message.document.file_name}")
                     return  # exit the function as the user has already been banned
 
             # Check for story redirects (100% spam)
@@ -1542,7 +1542,7 @@ async def tg_spam_check(update, context):
                     is_spam=True
                 )
 
-                await chat_helper.send_message(bot, message.chat.id, f"User {user_helper.get_user_mention(message.from_user.id, message.chat.id)} has been banned for sharing a story redirect.", delete_after=120)
+                logger.info(f"User {user_helper.get_user_mention(message.from_user.id, message.chat.id)} has been banned for sharing a story redirect (story_id: {message.story.id})")
                 return  # exit the function as the user has already been banned
 
     except Exception as error:
