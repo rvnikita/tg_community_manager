@@ -19,4 +19,4 @@ telethon
 sentry_sdk
 sentry-sdk[profiling]
 python-telegram-bot[job-queue]
-aiohttpxgboost==3.1.2
+xgboost==3.1.2
