@@ -86,7 +86,8 @@ class Chat(Base):
       // The emoji that indicate a positive reaction or agreement to increase user rating
       "like_reactions": [
         "👍",
-        "❤️"
+        "❤️",
+        "🔥"
       ],
 
       // The words that indicate a negative reaction or disagreement to decrease user rating
