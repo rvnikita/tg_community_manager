@@ -2299,7 +2299,7 @@ class BotManager:
     def run(self):
         try:
             self.application = create_application()
-            self.application.run_polling()
+            self.application.run_polling(allowed_updates=["message", "edited_message", "channel_post", "edited_channel_post", "message_reaction", "message_reaction_count", "inline_query", "chosen_inline_result", "callback_query", "shipping_query", "pre_checkout_query", "poll", "poll_answer", "my_chat_member", "chat_member", "chat_join_request"])
         except Exception as e:
             if "Event loop is closed" in str(e):
                 logger.info("Received shutdown signal, exiting gracefully")
@@ -2440,7 +2440,7 @@ class BotManager:
     def run(self):
         try:
             self.application = create_application()
-            self.application.run_polling()
+            self.application.run_polling(allowed_updates=["message", "edited_message", "channel_post", "edited_channel_post", "message_reaction", "message_reaction_count", "inline_query", "chosen_inline_result", "callback_query", "shipping_query", "pre_checkout_query", "poll", "poll_answer", "my_chat_member", "chat_member", "chat_join_request"])
         except Exception as e:
             if "Event loop is closed" in str(e):
                 logger.info("Received shutdown signal, exiting gracefully")
