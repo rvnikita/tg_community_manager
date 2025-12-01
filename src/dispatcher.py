@@ -1937,11 +1937,13 @@ async def tg_message_reaction(update, context):
     try:
         reaction_update = update.message_reaction
         if not reaction_update:
+            logger.info("DEBUG: No reaction_update in update")
             return
 
         # Skip anonymous reactions
         reactor_user = reaction_update.user
         if reactor_user is None:
+            logger.info("DEBUG: Anonymous reaction, skipping")
             return
 
         chat_id = reaction_update.chat.id
@@ -1953,12 +1955,17 @@ async def tg_message_reaction(update, context):
         new_emojis = set(extract_emoji_list(reaction_update.new_reaction))
         newly_added = new_emojis - old_emojis
 
+        logger.info(f"DEBUG: Reaction in chat {chat_id}, msg {message_id}, reactor {reactor_user_id}, newly_added={newly_added}")
+
         if not newly_added:
+            logger.info("DEBUG: No newly added reactions")
             return  # No new reactions added
 
         # Get reaction config
         like_reactions = chat_helper.get_chat_config(chat_id, "like_reactions") or []
         dislike_reactions = chat_helper.get_chat_config(chat_id, "dislike_reactions") or []
+
+        logger.info(f"DEBUG: Config - like_reactions={like_reactions}, dislike_reactions={dislike_reactions}")
 
         # Determine rating change
         rating_change = None
@@ -1971,7 +1978,10 @@ async def tg_message_reaction(update, context):
                 break
 
         if rating_change is None:
+            logger.info(f"DEBUG: No matching reaction in config, newly_added={newly_added}")
             return  # No matching reaction
+
+        logger.info(f"DEBUG: Rating change determined: {rating_change}")
 
         # Get message author from database
         with db_helper.session_scope() as db_session:
@@ -1981,13 +1991,15 @@ async def tg_message_reaction(update, context):
             ).first()
 
             if not message_log or not message_log.user_id:
+                logger.info(f"DEBUG: Message not found in Message_Log (msg_id={message_id}, chat_id={chat_id})")
                 return  # Message not found or no author
 
             message_author_id = message_log.user_id
+            logger.info(f"DEBUG: Message author found: {message_author_id}")
 
             # Skip self-reactions
             if reactor_user_id == message_author_id:
-                logger.info(f"Self-reaction ignored: user {reactor_user_id}")
+                logger.info(f"DEBUG: Self-reaction ignored: user {reactor_user_id}")
                 return
 
             # Ensure both users exist in DB (same pattern as tg_thankyou)
