@@ -25,7 +25,7 @@ import json
 import logging
 from typing import Dict, Any
 from datetime import datetime, timedelta
-from telegram import Update
+from telegram import Update, ReactionTypeEmoji
 from telegram.ext import ContextTypes
 from sqlalchemy import or_
 
@@ -442,11 +442,12 @@ class ReactionAction(BaseAction):
             chat_id = message.chat.id
             message_id = message.message_id
 
-            # Set the reaction
+            # Set the reaction - use ReactionTypeEmoji for regular emoji
+            reaction = [ReactionTypeEmoji(emoji=self.emoji)]
             await context.bot.set_message_reaction(
                 chat_id=chat_id,
                 message_id=message_id,
-                reaction=self.emoji
+                reaction=reaction
             )
             logger.info(f"ReactionAction {self.action_id}: added reaction {self.emoji} to message {message_id}")
             return True
