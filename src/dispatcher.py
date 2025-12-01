@@ -2029,6 +2029,35 @@ async def tg_message_reaction(update, context):
 
 
 @sentry_profile()
+async def tg_test_reaction_debug(update, context):
+    """Simple test handler to verify reactions are being received."""
+    try:
+        reaction_update = update.message_reaction
+        if not reaction_update:
+            return
+
+        chat_id = reaction_update.chat.id
+        message_id = reaction_update.message_id
+
+        # Get newly added reactions
+        old_emojis = set(extract_emoji_list(reaction_update.old_reaction))
+        new_emojis = set(extract_emoji_list(reaction_update.new_reaction))
+        newly_added = new_emojis - old_emojis
+
+        # If any like emoji was added
+        if "👍" in newly_added or "❤️" in newly_added:
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text="test",
+                reply_to_message_id=message_id
+            )
+            logger.info(f"Test reaction debug: detected like reaction in chat {chat_id}")
+
+    except Exception as error:
+        logger.error(f"Error in tg_test_reaction_debug: {traceback.format_exc()}")
+
+
+@sentry_profile()
 async def tg_set_rating(update, context):
     try:
         chat_id = update.effective_chat.id
@@ -2410,6 +2439,10 @@ def create_application():
             tg_wiretapping,
         ),
         group=7,
+    )
+    application.add_handler(
+        MessageReactionHandler(tg_test_reaction_debug),
+        group=7
     )
     application.add_handler(
         MessageReactionHandler(tg_message_reaction),
