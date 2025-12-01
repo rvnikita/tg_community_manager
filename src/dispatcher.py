@@ -1853,7 +1853,7 @@ async def tg_cas_spamcheck(update, context):
                 cache_helper.set_key(cache_key, "ok", CAS_CACHE_OK_SECONDS)
 
 @sentry_profile()
-async def tg_thankyou(update, context):
+async def tg_thankyou_message(update, context):
     try:
         msg = update.message
         # Require a reply-to and skip self-replies
@@ -1928,22 +1928,20 @@ async def tg_thankyou(update, context):
             if hasattr(update, "to_dict")
             else "<no update.to_dict()>"
         )
-        logger.error(f"Error in tg_thankyou: {traceback.format_exc()} | Update: {update_str}")
+        logger.error(f"Error in tg_thankyou_message: {traceback.format_exc()} | Update: {update_str}")
 
 
 @sentry_profile()
-async def tg_message_reaction(update, context):
+async def tg_thankyou_reaction(update, context):
     """Handle message reactions for rating changes."""
     try:
         reaction_update = update.message_reaction
         if not reaction_update:
-            logger.info("DEBUG: No reaction_update in update")
             return
 
         # Skip anonymous reactions
         reactor_user = reaction_update.user
         if reactor_user is None:
-            logger.info("DEBUG: Anonymous reaction, skipping")
             return
 
         chat_id = reaction_update.chat.id
@@ -1955,17 +1953,12 @@ async def tg_message_reaction(update, context):
         new_emojis = set(extract_emoji_list(reaction_update.new_reaction))
         newly_added = new_emojis - old_emojis
 
-        logger.info(f"DEBUG: Reaction in chat {chat_id}, msg {message_id}, reactor {reactor_user_id}, newly_added={newly_added}")
-
         if not newly_added:
-            logger.info("DEBUG: No newly added reactions")
             return  # No new reactions added
 
         # Get reaction config
         like_reactions = chat_helper.get_chat_config(chat_id, "like_reactions") or []
         dislike_reactions = chat_helper.get_chat_config(chat_id, "dislike_reactions") or []
-
-        logger.info(f"DEBUG: Config - like_reactions={like_reactions}, dislike_reactions={dislike_reactions}")
 
         # Determine rating change
         rating_change = None
@@ -1978,10 +1971,7 @@ async def tg_message_reaction(update, context):
                 break
 
         if rating_change is None:
-            logger.info(f"DEBUG: No matching reaction in config, newly_added={newly_added}")
             return  # No matching reaction
-
-        logger.info(f"DEBUG: Rating change determined: {rating_change}")
 
         # Get message author from database
         with db_helper.session_scope() as db_session:
@@ -1991,15 +1981,13 @@ async def tg_message_reaction(update, context):
             ).first()
 
             if not message_log or not message_log.user_id:
-                logger.info(f"DEBUG: Message not found in Message_Log (msg_id={message_id}, chat_id={chat_id})")
                 return  # Message not found or no author
 
             message_author_id = message_log.user_id
-            logger.info(f"DEBUG: Message author found: {message_author_id}")
 
             # Skip self-reactions
             if reactor_user_id == message_author_id:
-                logger.info(f"DEBUG: Self-reaction ignored: user {reactor_user_id}")
+                logger.info(f"Self-reaction ignored: user {reactor_user_id}")
                 return
 
             # Ensure both users exist in DB (same pattern as tg_thankyou)
@@ -2037,36 +2025,7 @@ async def tg_message_reaction(update, context):
 
     except Exception as error:
         update_str = json.dumps(update.to_dict(), indent=2) if hasattr(update, 'to_dict') else "{}"
-        logger.error(f"Error in tg_message_reaction: {traceback.format_exc()} | Update: {update_str}")
-
-
-@sentry_profile()
-async def tg_test_reaction_debug(update, context):
-    """Simple test handler to verify reactions are being received."""
-    try:
-        reaction_update = update.message_reaction
-        if not reaction_update:
-            return
-
-        chat_id = reaction_update.chat.id
-        message_id = reaction_update.message_id
-
-        # Get newly added reactions
-        old_emojis = set(extract_emoji_list(reaction_update.old_reaction))
-        new_emojis = set(extract_emoji_list(reaction_update.new_reaction))
-        newly_added = new_emojis - old_emojis
-
-        # If any like emoji was added
-        if "👍" in newly_added or "❤️" in newly_added:
-            await context.bot.send_message(
-                chat_id=chat_id,
-                text="test",
-                reply_to_message_id=message_id
-            )
-            logger.info(f"Test reaction debug: detected like reaction in chat {chat_id}")
-
-    except Exception as error:
-        logger.error(f"Error in tg_test_reaction_debug: {traceback.format_exc()}")
+        logger.error(f"Error in tg_thankyou_reaction: {traceback.format_exc()} | Update: {update_str}")
 
 
 @sentry_profile()
@@ -2409,7 +2368,7 @@ def create_application():
     application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, tg_cas_spamcheck), group=1)
     application.add_handler(MessageHandler(filters.ALL & filters.ChatType.GROUPS, tg_update_user_status), group=2)
     application.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, tg_update_user_status), group=2)
-    # application.add_handler(MessageHandler((filters.TEXT | filters.CAPTION), tg_thankyou), group=3)
+    # application.add_handler(MessageHandler((filters.TEXT | filters.CAPTION), tg_thankyou_message), group=3)
     application.add_handler(CommandHandler(["report", "r"], tg_report, filters.ChatType.GROUPS), group=4)
     application.add_handler(CommandHandler(["warn", "w"], tg_warn, filters.ChatType.GROUPS), group=4)
     application.add_handler(CommandHandler(["offtop", "o"], tg_offtop, filters.ChatType.GROUPS), group=4)
@@ -2453,11 +2412,7 @@ def create_application():
         group=7,
     )
     application.add_handler(
-        MessageReactionHandler(tg_test_reaction_debug),
-        group=7
-    )
-    application.add_handler(
-        MessageReactionHandler(tg_message_reaction),
+        MessageReactionHandler(tg_thankyou_reaction),
         group=8
     )
     application.add_handler(CommandHandler(["pin", "p"], tg_pin, filters.ChatType.GROUPS), group=9)
