@@ -33,7 +33,7 @@ from src.helpers.db_helper import Session, Trigger_Action_Chain, Chain_Trigger, 
 from src.helpers.db_helper import Message_Log
 from src.helpers.openai_helper import call_openai_structured
 from src.helpers.user_helper import get_user_info_text
-from src.helpers import chat_helper, message_helper
+from src.helpers import chat_helper, message_helper, rating_helper
 
 logger = logging.getLogger(__name__)
 
@@ -171,6 +171,69 @@ class LLMBooleanTrigger(BaseTrigger):
 
         except Exception as e:
             logger.error(f"LLMBooleanTrigger {self.trigger_id} failed: {e}")
+            return False
+
+
+class UserRatingTrigger(BaseTrigger):
+    """Trigger that checks user rating against a threshold
+
+    Config format:
+    {
+        "operator": "eq",  # eq, lt, lte, gt, gte, ne
+        "threshold": 0     # Rating value to compare against
+    }
+    """
+
+    def __init__(self, trigger_id: int, config: Dict[str, Any], order: int):
+        super().__init__(trigger_id, config, order)
+
+        if "operator" not in config:
+            raise ValueError("UserRatingTrigger requires 'operator' in config")
+        if "threshold" not in config:
+            raise ValueError("UserRatingTrigger requires 'threshold' in config")
+
+        valid_operators = ["eq", "lt", "lte", "gt", "gte", "ne"]
+        if config["operator"] not in valid_operators:
+            raise ValueError(f"operator must be one of {valid_operators}")
+
+        self.operator = config["operator"]
+        self.threshold = config["threshold"]
+
+    async def evaluate(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
+        """Check if user rating matches the condition"""
+        if not update.message or not update.message.from_user:
+            return False
+
+        user_id = update.message.from_user.id
+        chat_id = update.message.chat.id
+
+        try:
+            user_rating = rating_helper.get_rating(user_id, chat_id)
+
+            # Evaluate condition
+            if self.operator == "eq":
+                result = (user_rating == self.threshold)
+            elif self.operator == "ne":
+                result = (user_rating != self.threshold)
+            elif self.operator == "lt":
+                result = (user_rating < self.threshold)
+            elif self.operator == "lte":
+                result = (user_rating <= self.threshold)
+            elif self.operator == "gt":
+                result = (user_rating > self.threshold)
+            elif self.operator == "gte":
+                result = (user_rating >= self.threshold)
+            else:
+                result = False
+
+            logger.debug(
+                f"UserRatingTrigger {self.trigger_id}: user {user_id} rating={user_rating}, "
+                f"{self.operator} {self.threshold} = {result}"
+            )
+            return result
+
+        except Exception as e:
+            logger.error(f"UserRatingTrigger {self.trigger_id} failed: {e}")
             return False
 
 
@@ -348,6 +411,51 @@ class SpamAction(BaseAction):
             return False
 
 
+class ReactionAction(BaseAction):
+    """Action that adds an emoji reaction to the message
+
+    Simple and universal - just adds the specified emoji.
+    Use with UserRatingTrigger or other triggers for conditional behavior.
+
+    Config format:
+    {
+        "emoji": "👍"  # Any valid emoji
+    }
+    """
+
+    def __init__(self, action_id: int, config: Dict[str, Any], order: int):
+        super().__init__(action_id, config, order)
+
+        if "emoji" not in config:
+            raise ValueError("ReactionAction requires 'emoji' in config")
+
+        self.emoji = config["emoji"]
+
+    async def execute(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
+        """Add emoji reaction to message"""
+        try:
+            message = update.message
+            if not message:
+                logger.warning(f"ReactionAction {self.action_id}: no message in update")
+                return False
+
+            chat_id = message.chat.id
+            message_id = message.message_id
+
+            # Set the reaction
+            await context.bot.set_message_reaction(
+                chat_id=chat_id,
+                message_id=message_id,
+                reaction=self.emoji
+            )
+            logger.info(f"ReactionAction {self.action_id}: added reaction {self.emoji} to message {message_id}")
+            return True
+
+        except Exception as e:
+            logger.error(f"ReactionAction {self.action_id} failed: {e}")
+            return False
+
+
 # ============================================================================
 # Factory Functions
 # ============================================================================
@@ -355,12 +463,14 @@ class SpamAction(BaseAction):
 TRIGGER_REGISTRY = {
     "regex": RegexTrigger,
     "llm_boolean": LLMBooleanTrigger,
+    "user_rating": UserRatingTrigger,
 }
 
 ACTION_REGISTRY = {
     "reply": ReplyAction,
     "info": InfoAction,
     "spam": SpamAction,
+    "reaction": ReactionAction,
 }
 
 
