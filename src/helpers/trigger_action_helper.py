@@ -454,6 +454,7 @@ class ReactionAction(BaseAction):
 
         except Exception as e:
             logger.error(f"ReactionAction {self.action_id} failed: {e}")
+            logger.error(f"ReactionAction {self.action_id} details: chat_id={chat_id}, message_id={message_id}, emoji={self.emoji}, error_type={type(e).__name__}")
             return False
 
 
