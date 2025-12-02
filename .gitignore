@@ -22,3 +22,6 @@ venv
 tg-community-manager-db.session.sql
 .vscode/settings.json
 settings.local.json
+
+# Ignore Claude temp scripts
+.claude_temp_scripts
