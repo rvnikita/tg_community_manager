@@ -1725,7 +1725,7 @@ async def tg_ai_spamcheck(update, context):
 # Note: Adjust these values to match your actual BrightData account.
 import asyncio
 
-BRIGHTDATA_PROXY = "http://brd-customer-hl_cf9f8e6a-zone-residential_proxy1:k47qfcqxmwh3@brd.superproxy.io:22225"
+BRIGHTDATA_PROXY = os.getenv("BRIGHTDATA_PROXY")
 
 ssl_context = ssl.create_default_context()
 ssl_context.check_hostname = False
