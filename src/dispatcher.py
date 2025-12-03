@@ -920,6 +920,10 @@ async def tg_gban(update, context):
                 else:
                     await message.reply_text("Invalid format. Use gban @username or gban user_id.")
                     return
+
+                # Ban the user directly (no reply message)
+                await chat_helper.ban_user(bot, ban_chat_id, ban_user_id, True, reason=ban_reason)
+
             elif is_info_chat or is_error_chat:
                 ban_reason = f"User was globally banned by {message.text} command in info chat. Message: {message.reply_to_message.text}"
                 if not message.reply_to_message:
@@ -939,37 +943,59 @@ async def tg_gban(update, context):
                         await message.reply_text(f"No user found with username {username_list[0]}.")
                         return
                     ban_user_id = user.id
-            else:  # Check if a user is mentioned in the command message as a reply to message
-                ban_reason = f"User was globally banned by {message.text} command in {await chat_helper.get_chat_mention(bot, chat_id)}. Message: {message.reply_to_message.text}"
-                ban_chat_id = chat_id  # We need to ban in the same chat as the command was sent
 
+                # Determine the content of the reported message: Use text if available, otherwise use caption
+                reported_message_content = message.reply_to_message.text or message.reply_to_message.caption
+
+                # Ban the user and add them to the banned_users table
+                await chat_helper.ban_user(bot, ban_chat_id, ban_user_id, True, reason=ban_reason)
+
+                # Log the ban action
+                message_helper.insert_or_update_message_log(
+                    chat_id=chat_id,
+                    message_id=message.reply_to_message.message_id,
+                    user_id=ban_user_id,
+                    user_nickname=user_helper.get_user_mention(ban_user_id, chat_id),
+                    user_current_rating=rating_helper.get_rating(ban_user_id, chat_id),
+                    message_content=reported_message_content,
+                    action_type="gban",
+                    reporting_id=message.from_user.id,
+                    reporting_id_nickname=user_helper.get_user_mention(message.from_user.id, chat_id),
+                    reason_for_action=f"User {user_helper.get_user_mention(ban_user_id, chat_id)} was banned in chat {await chat_helper.get_chat_mention(bot, chat_id)}. Reason: {message.text}",
+                    manually_verified=False
+                )
+
+            else:  # Check if a user is mentioned in the command message as a reply to message
                 if not message.reply_to_message:
                     await message.reply_text("Please reply to a user's message to ban them.")
                     return
+
+                ban_reason = f"User was globally banned by {message.text} command in {await chat_helper.get_chat_mention(bot, chat_id)}. Message: {message.reply_to_message.text}"
+                ban_chat_id = chat_id  # We need to ban in the same chat as the command was sent
                 ban_user_id = message.reply_to_message.from_user.id
 
                 await chat_helper.delete_message(bot, chat_id, message.reply_to_message.message_id)
 
-            # Determine the content of the reported message: Use text if available, otherwise use caption
-            reported_message_content = message.reply_to_message.text or message.reply_to_message.caption
+                # Determine the content of the reported message: Use text if available, otherwise use caption
+                reported_message_content = message.reply_to_message.text or message.reply_to_message.caption
 
-            # Ban the user and add them to the banned_users table
-            await chat_helper.ban_user(bot, ban_chat_id, ban_user_id, True, reason=ban_reason)
+                # Ban the user and add them to the banned_users table
+                await chat_helper.ban_user(bot, ban_chat_id, ban_user_id, True, reason=ban_reason)
 
-            # Log the ban action
-            message_helper.insert_or_update_message_log(
-                chat_id=chat_id,
-                message_id=message.reply_to_message.message_id,
-                user_id=ban_user_id,
-                user_nickname=user_helper.get_user_mention(ban_user_id, chat_id),
-                user_current_rating=rating_helper.get_rating(ban_user_id, chat_id),
-                message_content=reported_message_content,
-                action_type="gban",
-                reporting_id=message.from_user.id,
-                reporting_id_nickname=user_helper.get_user_mention(message.from_user.id, chat_id),
-                reason_for_action=f"User {user_helper.get_user_mention(ban_user_id, chat_id)} was banned in chat {await chat_helper.get_chat_mention(bot, chat_id)}. Reason: {message.text}",
-                manually_verified=False
-            )
+                # Log the ban action
+                message_helper.insert_or_update_message_log(
+                    chat_id=chat_id,
+                    message_id=message.reply_to_message.message_id,
+                    user_id=ban_user_id,
+                    user_nickname=user_helper.get_user_mention(ban_user_id, chat_id),
+                    user_current_rating=rating_helper.get_rating(ban_user_id, chat_id),
+                    message_content=reported_message_content,
+                    action_type="gban",
+                    reporting_id=message.from_user.id,
+                    reporting_id_nickname=user_helper.get_user_mention(message.from_user.id, chat_id),
+                    reason_for_action=f"User {user_helper.get_user_mention(ban_user_id, chat_id)} was banned in chat {await chat_helper.get_chat_mention(bot, chat_id)}. Reason: {message.text}",
+                    manually_verified=False
+                )
 
 
     except Exception as error:
