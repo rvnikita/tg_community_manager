@@ -1,4 +1,5 @@
 import os
+import sys
 import logging
 import urllib.parse
 import requests
@@ -36,8 +37,18 @@ class TelegramLoggerHandler(logging.Handler):
         self.chat_id = chat_id
         self.api_url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
         self.max_length = 4000  # safe margin under Telegram's limit
+        self._emitting = False  # Prevent recursive logging
 
     def emit(self, record):
+        # CRITICAL: Prevent recursion from handler's own error logs
+        if self._emitting:
+            return
+
+        # Also prevent logging records that originate from this handler
+        if record.name.startswith('TelegramLoggerHandler'):
+            return
+
+        self._emitting = True
         try:
             msg = self.format(record)
             chunks = [msg[i: i + 4096] for i in range(0, len(msg), 4096)] or [""]
@@ -50,17 +61,16 @@ class TelegramLoggerHandler(logging.Handler):
                 )
                 resp = requests.get(url, timeout=5)
                 if resp.status_code == 429:
-                    logging.getLogger().error(
-                        f"TelegramLoggerHandler rate-limited: {resp.text}"
-                    )
+                    # Log to stderr instead of logger to avoid recursion
+                    print(f"[TelegramLoggerHandler] Rate-limited: {resp.text}", file=sys.stderr)
                     break
                 elif resp.status_code != 200:
-                    logging.getLogger().error(
-                        f"TelegramLoggerHandler failed ({resp.status_code}): {resp.text}"
-                    )
+                    print(f"[TelegramLoggerHandler] Failed ({resp.status_code}): {resp.text}", file=sys.stderr)
         except Exception as e:
-            logging.getLogger().error(f"TelegramLoggerHandler.emit exception: {e}")
-            self.handleError(record)
+            # Log to stderr instead of logger to avoid recursion
+            print(f"[TelegramLoggerHandler] Exception: {e}", file=sys.stderr)
+        finally:
+            self._emitting = False
 
 def get_logger():
     logger = logging.getLogger()
