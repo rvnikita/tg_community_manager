@@ -152,14 +152,52 @@ async def tg_report(update, context):
         reported_user_mention = user_helper.get_user_mention(reported_user_id, chat_id)
         chat_mention = await chat_helper.get_chat_mention(context.bot, chat_id)
 
+        # Calculate spam probability for the reported message
+        spam_probability = 0.0
+        if reported_message_content:
+            try:
+                engine = (chat_helper.get_chat_config(chat_id, "ai_spamcheck_engine") or "legacy").lower()
+                engine = engine if engine in ("legacy", "raw", "raw_structure") else "legacy"
+
+                embedding = await openai_helper.generate_embedding(reported_message_content)
+
+                if engine == "raw":
+                    spam_probability = await spamcheck_helper_raw.predict_spam(
+                        user_id=reported_user_id,
+                        chat_id=chat_id,
+                        message_text=reported_message_content,
+                        raw_message=message.reply_to_message.to_dict() if hasattr(message.reply_to_message, 'to_dict') else None,
+                        embedding=embedding
+                    )
+                elif engine == "raw_structure":
+                    spam_probability = await spamcheck_helper_raw_structure.predict_spam(
+                        user_id=reported_user_id,
+                        chat_id=chat_id,
+                        message_text=reported_message_content,
+                        raw_message=message.reply_to_message.to_dict() if hasattr(message.reply_to_message, 'to_dict') else None,
+                        embedding=embedding
+                    )
+                else:  # legacy
+                    spam_probability = await spamcheck_helper.predict_spam(
+                        user_id=reported_user_id,
+                        chat_id=chat_id,
+                        message_content=reported_message_content,
+                        embedding=embedding
+                    )
+            except Exception as e:
+                logger.error(f"Failed to calculate spam probability for reported message: {e}")
+                spam_probability = 0.0
+
+        spam_prob_str = f"{spam_probability * 100:.1f}%"
+
         # Inform admins about the report
         await chat_helper.send_message_to_admin(
-            context.bot, 
-            chat_id, 
-            f"User {reported_user_mention} has been reported by {user_helper.get_user_mention(reporting_user_id, chat_id)} in chat {chat_mention} {report_sum}/{number_of_reports_to_ban} times.\nReported message: {reported_message_content}"
+            context.bot,
+            chat_id,
+            f"User {reported_user_mention} has been reported by {user_helper.get_user_mention(reporting_user_id, chat_id)} in chat {chat_mention} {report_sum}/{number_of_reports_to_ban} times. Spam probability: {spam_prob_str}\nReported message: {reported_message_content}"
         )
         logger.info(
-            f"User {reported_user_id} has been reported by {user_helper.get_user_mention(reporting_user_id, chat_id)} in chat {chat_id} {report_sum}/{number_of_reports_to_ban} times. Reported message: {reported_message_content}"
+            f"User {reported_user_id} has been reported by {user_helper.get_user_mention(reporting_user_id, chat_id)} in chat {chat_id} {report_sum}/{number_of_reports_to_ban} times. Spam probability: {spam_prob_str}. Reported message: {reported_message_content}"
         )
 
         if report_sum >= number_of_reports_to_ban:
@@ -172,9 +210,9 @@ async def tg_report(update, context):
             await chat_helper.delete_message(context.bot, chat_id, reported_message_id)
             await chat_helper.send_message(context.bot, chat_id, f"User {reported_user_mention} has been banned due to {report_sum}/{number_of_reports_to_ban} reports.", delete_after=120)
             await chat_helper.send_message_to_admin(
-                context.bot, 
-                chat_id, 
-                f"User {reported_user_mention} has been banned in chat {chat_mention} due to {report_sum}/{number_of_reports_to_ban} reports. \nReported message: {reported_message_content}"
+                context.bot,
+                chat_id,
+                f"User {reported_user_mention} has been banned in chat {chat_mention} due to {report_sum}/{number_of_reports_to_ban} reports. Spam probability: {spam_prob_str}\nReported message: {reported_message_content}"
             )
 
             # Delete all messages from scheduled deletion with trigger_id = reported_message_id
@@ -206,9 +244,9 @@ async def tg_report(update, context):
                 delete_after=120
             )
             await chat_helper.send_message_to_admin(
-                context.bot, 
-                chat_id, 
-                f"User {reported_user_mention} has been warned and muted in chat {chat_mention} due to {report_sum}/{number_of_reports_to_ban} reports. \nReported message: {reported_message_content}"
+                context.bot,
+                chat_id,
+                f"User {reported_user_mention} has been warned and muted in chat {chat_mention} due to {report_sum}/{number_of_reports_to_ban} reports. Spam probability: {spam_prob_str}\nReported message: {reported_message_content}"
             )
         else:
             user_has_been_reported_message = await chat_helper.send_message(
