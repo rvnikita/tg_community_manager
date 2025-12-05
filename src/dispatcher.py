@@ -214,6 +214,9 @@ async def tg_report(update, context):
                 chat_id,
                 f"User {reported_user_mention} has been banned in chat {chat_mention} due to {report_sum}/{number_of_reports_to_ban} reports. Spam probability: {spam_prob_str}\nReported message: {reported_message_content}"
             )
+            logger.info(
+                f"User {reported_user_id} has been banned in chat {chat_id} due to {report_sum}/{number_of_reports_to_ban} reports. Spam probability: {spam_prob_str}. Reported message: {reported_message_content}"
+            )
 
             # Delete all messages from scheduled deletion with trigger_id = reported_message_id
             await chat_helper.delete_scheduled_messages(bot, chat_id, trigger_id=reported_message_id)
@@ -229,8 +232,9 @@ async def tg_report(update, context):
                 action_type="report & ban",
                 reporting_id=reporting_user_id,
                 reporting_id_nickname=user_helper.get_user_mention(reporting_user_id, chat_id),
-                reason_for_action=f"User {reported_user_mention} was banned in chat {chat_mention} due to {report_sum}/{number_of_reports_to_ban} reports.",
-                is_spam=True
+                reason_for_action=f"User {reported_user_mention} was banned in chat {chat_mention} due to {report_sum}/{number_of_reports_to_ban} reports. Spam probability: {spam_prob_str}",
+                is_spam=True,
+                spam_prediction_probability=spam_probability
             )
 
         elif report_sum >= number_of_reports_to_warn:
