@@ -1050,11 +1050,12 @@ async def tg_broadcast_group(update, context):
             # Get the highest resolution photo
             photo_file_id = message.photo[-1].file_id
 
-        # Delete command message
-        try:
-            await chat_helper.delete_message(bot, chat_id, message.message_id)
-        except:
-            pass  # Ignore if deletion fails
+        # Delete command message only if sent in a group chat, not in private chat with bot
+        if update.effective_chat.type in ['group', 'supergroup']:
+            try:
+                await chat_helper.delete_message(bot, chat_id, message.message_id)
+            except:
+                pass  # Ignore if deletion fails
 
         with db_helper.session_scope() as db_session:
             # Get the group and its chats
@@ -1173,11 +1174,12 @@ async def tg_broadcast_chat(update, context):
             # Get the highest resolution photo
             photo_file_id = message.photo[-1].file_id
 
-        # Delete command message
-        try:
-            await chat_helper.delete_message(bot, chat_id, message.message_id)
-        except:
-            pass  # Ignore if deletion fails
+        # Delete command message only if sent in a group chat, not in private chat with bot
+        if update.effective_chat.type in ['group', 'supergroup']:
+            try:
+                await chat_helper.delete_message(bot, chat_id, message.message_id)
+            except:
+                pass  # Ignore if deletion fails
 
         try:
             if photo_file_id:
