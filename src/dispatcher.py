@@ -169,7 +169,7 @@ async def tg_report(update, context):
             await rating_helper.change_rating(reporting_user_ids, bot_info.id, chat_id, 1, delete_message_delay=120)
 
             await chat_helper.ban_user(context.bot, chat_id, reported_user_id)
-            await chat_helper.delete_message(context.bot, chat_id, reported_message_id)
+            await chat_helper.delete_media_group_messages(context.bot, chat_id, message.reply_to_message)
             await chat_helper.send_message(context.bot, chat_id, f"User {reported_user_mention} has been banned due to {report_sum}/{number_of_reports_to_ban} reports.", delete_after=120)
             await chat_helper.send_message_to_admin(
                 context.bot, 
@@ -334,7 +334,7 @@ async def tg_offtop(update, context):
             warning_admin_mention = user_helper.get_user_mention(message.from_user.id, chat_id)
 
             if warn_count >= number_of_reports_to_ban:
-                await chat_helper.delete_message(bot, chat_id, warned_message_id)
+                await chat_helper.delete_media_group_messages(bot, chat_id, message.reply_to_message)
                 await chat_helper.ban_user(bot, chat_id, warned_user_id)
                 warned_user_mention = user_helper.get_user_mention(warned_user_id, chat_id)
                 await chat_helper.send_message(bot, chat_id, f"User {warned_user_mention} has been banned due to {warn_count} warnings.", delete_after=120)
@@ -359,7 +359,7 @@ async def tg_offtop(update, context):
                 reply_to_message_id=warned_message_id,
                 delete_after=120,
             )
-            await chat_helper.delete_message(bot, chat_id, warned_message_id)
+            await chat_helper.delete_media_group_messages(bot, chat_id, message.reply_to_message)
             await chat_helper.send_message_to_admin(bot, chat_id, f"{warning_admin_mention} warned {warned_user_mention} in chat {await chat_helper.get_chat_mention(bot, chat_id)}. Reason: {reason}. Total Warnings: {warn_count}/{number_of_reports_to_ban}")
 
     except Exception as error:
@@ -544,7 +544,7 @@ async def tg_warn(update, context):
 
                 if warn_count >= number_of_reports_to_ban:
                     with sentry_sdk.start_span(op="warn_ban", description="Ban and notify"):
-                        await chat_helper.delete_message(bot, chat_id, warned_message_id)
+                        await chat_helper.delete_media_group_messages(bot, chat_id, message.reply_to_message)
                         await chat_helper.ban_user(bot, chat_id, warned_user_id)
                         await chat_helper.send_message(bot, chat_id, f"User {warned_user_mention} has been banned due to {warn_count} warnings.", delete_after=120)
                         await chat_helper.send_message_to_admin(bot, chat_id, f"User {warned_user_mention} has been banned in chat {await chat_helper.get_chat_mention(bot, chat_id)} due to {warn_count}/{number_of_reports_to_ban} warnings.")
@@ -569,7 +569,7 @@ async def tg_warn(update, context):
                         reply_to_message_id=warned_message_id,
                         delete_after=120,
                     )
-                    await chat_helper.delete_message(bot, chat_id, warned_message_id)
+                    await chat_helper.delete_media_group_messages(bot, chat_id, message.reply_to_message)
                     await chat_helper.send_message_to_admin(bot, chat_id, f"{warning_admin_mention} warned {warned_user_mention} in chat {await chat_helper.get_chat_mention(bot, chat_id)}. Reason: {reason}. Total Warnings: {warn_count}/{number_of_reports_to_ban}")
 
     except Exception as error:
@@ -616,7 +616,7 @@ async def tg_ban(update, context):
                     return
                 ban_user_id = message.reply_to_message.from_user.id
 
-                await chat_helper.delete_message(bot, chat_id, message.reply_to_message.message_id)
+                await chat_helper.delete_media_group_messages(bot, chat_id, message.reply_to_message)
 
             # Check if the user to ban is an admin of the chat
             for admin in chat_administrators:
@@ -664,7 +664,7 @@ async def tg_spam(update, context):
         command_parts = message.text.split()
         if message.reply_to_message:
             target_user_id = message.reply_to_message.from_user.id
-            await chat_helper.delete_message(bot, chat_id, message.reply_to_message.message_id)
+            await chat_helper.delete_media_group_messages(bot, chat_id, message.reply_to_message)
 
         elif len(command_parts) > 1:
             if command_parts[1].isdigit():
@@ -974,7 +974,7 @@ async def tg_gban(update, context):
                 ban_chat_id = chat_id  # We need to ban in the same chat as the command was sent
                 ban_user_id = message.reply_to_message.from_user.id
 
-                await chat_helper.delete_message(bot, chat_id, message.reply_to_message.message_id)
+                await chat_helper.delete_media_group_messages(bot, chat_id, message.reply_to_message)
 
                 # Determine the content of the reported message: Use text if available, otherwise use caption
                 reported_message_content = message.reply_to_message.text or message.reply_to_message.caption

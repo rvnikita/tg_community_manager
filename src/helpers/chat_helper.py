@@ -701,6 +701,57 @@ async def delete_message(bot, chat_id: int, message_id: int, delay_seconds: int 
     else:
         await do_delete()
 
+async def delete_media_group_messages(bot, chat_id: int, message, delay_seconds: int = None) -> None:
+    """
+    Delete all messages in a media group (album) if the message is part of one.
+    If not part of a media group, deletes just the single message.
+
+    Args:
+        bot: Telegram bot instance
+        chat_id: Chat ID where the message is located
+        message: The Telegram message object (should have media_group_id if part of album)
+        delay_seconds: Optional delay before deletion
+    """
+    from src.helpers import db_helper
+    from telegram.error import BadRequest
+    import traceback
+
+    # Check if message is part of a media group
+    media_group_id = getattr(message, 'media_group_id', None)
+
+    if not media_group_id:
+        # Not part of a media group, delete single message
+        await delete_message(bot, chat_id, message.message_id, delay_seconds)
+        return
+
+    # Find all messages in the same media group from database
+    try:
+        with db_helper.session_scope() as db_session:
+            # Query messages with the same media_group_id from raw_message JSON
+            messages = db_session.query(db_helper.Message_Log).filter(
+                db_helper.Message_Log.chat_id == chat_id,
+                db_helper.Message_Log.raw_message['media_group_id'].astext == media_group_id
+            ).all()
+
+            message_ids = [msg.message_id for msg in messages]
+
+            # If we didn't find any messages in DB, fall back to deleting just the replied message
+            if not message_ids:
+                logger.info(f"No messages found in DB for media_group_id {media_group_id}, deleting single message")
+                await delete_message(bot, chat_id, message.message_id, delay_seconds)
+                return
+
+            logger.info(f"Deleting {len(message_ids)} messages from media group {media_group_id}")
+
+            # Delete all messages in the media group
+            for message_id in message_ids:
+                await delete_message(bot, chat_id, message_id, delay_seconds)
+
+    except Exception as e:
+        logger.error(f"Error deleting media group messages: {traceback.format_exc()}")
+        # Fall back to deleting single message if there's an error
+        await delete_message(bot, chat_id, message.message_id, delay_seconds)
+
 @sentry_profile()
 async def schedule_message_deletion(
     chat_id,
