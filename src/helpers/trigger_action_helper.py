@@ -286,7 +286,9 @@ class InfoAction(BaseAction):
     """Action that applies /info command to show user info
 
     Config format:
-    {} (no specific config needed)
+    {
+        "include_at_symbol": true  # optional, defaults to true - whether to include @ in usernames list
+    }
     """
 
     async def execute(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
@@ -295,8 +297,11 @@ class InfoAction(BaseAction):
             user = update.message.from_user
             chat = update.message.chat
 
+            # Get configuration for @ symbol display
+            include_at_symbol = self.config.get("include_at_symbol", True)
+
             # Get user info text from shared helper
-            info_text = await get_user_info_text(user.id, chat.id)
+            info_text = await get_user_info_text(user.id, chat.id, include_at_symbol=include_at_symbol)
 
             # Send as reply
             await update.message.reply_text(info_text)
@@ -309,7 +314,8 @@ class InfoAction(BaseAction):
                 try:
                     user = update.message.from_user
                     chat = update.message.chat
-                    info_text = await get_user_info_text(user.id, chat.id)
+                    include_at_symbol = self.config.get("include_at_symbol", True)
+                    info_text = await get_user_info_text(user.id, chat.id, include_at_symbol=include_at_symbol)
 
                     await context.bot.send_message(
                         chat_id=chat.id,

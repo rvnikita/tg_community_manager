@@ -168,7 +168,7 @@ def db_upsert_user(user_id, chat_id, username, last_message_datetime, first_name
         logger.error(f"Error: {traceback.format_exc()}")
 
 
-async def get_user_info_text(user_id: int, chat_id: int) -> str:
+async def get_user_info_text(user_id: int, chat_id: int, include_at_symbol: bool = True) -> str:
     """
     Generate formatted user info text for /info command and InfoAction.
 
@@ -181,6 +181,7 @@ async def get_user_info_text(user_id: int, chat_id: int) -> str:
     Args:
         user_id: Telegram user ID
         chat_id: Telegram chat ID
+        include_at_symbol: Whether to include @ symbol in interacted usernames list (default: True)
 
     Returns:
         Formatted info text string
@@ -266,8 +267,9 @@ async def get_user_info_text(user_id: int, chat_id: int) -> str:
         ).limit(10).all()
 
         # Format usernames with rating
+        prefix = "@" if include_at_symbol else ""
         interacted_usernames = [
-            f"@{user.username}({rating_helper.get_rating(user.id, chat_id)})"
+            f"{prefix}{user.username}({rating_helper.get_rating(user.id, chat_id)})"
             for user, interaction_count, spam_count in interacted_users
         ]
 
