@@ -2277,8 +2277,12 @@ async def tg_update_user_status(update, context):
                     delete_channel_bot_message_allowed_ids = chat_helper.get_chat_config(update.message.chat.id, "delete_channel_bot_message_allowed_ids")
 
                     if delete_channel_bot_message_allowed_ids is None or update.message.sender_chat.id not in delete_channel_bot_message_allowed_ids:
+                        # Get author name from sender_chat (the channel/user they're posting as)
+                        author_name = update.message.sender_chat.title or update.message.sender_chat.username or update.message.sender_chat.first_name or "Unknown"
+                        reposted_text = f"{author_name}: {update.message.text}"
+
                         await chat_helper.delete_message(bot, update.message.chat.id, update.message.message_id)
-                        await chat_helper.send_message(bot, update.message.chat.id, update.message.text)
+                        await chat_helper.send_message(bot, update.message.chat.id, reposted_text)
                         logger.info(
                             f"Channel message deleted from chat {update.message.chat.title} ({update.message.chat.id}) for user @{update.message.from_user.username} ({update.message.from_user.id})")
 
