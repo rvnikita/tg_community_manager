@@ -2221,6 +2221,8 @@ async def tg_new_member(update, context):
             logger.info(f"Joining message deleted from chat {await chat_helper.get_chat_mention(bot, update.message.chat.id)} for user @{update.message.from_user.username} [{update.message.from_user.id}]")
                 
         
+        welcome_message_template = chat_helper.get_chat_config(update.effective_chat.id, "welcome_message")
+
         for new_member in update.message.new_chat_members:
             new_user_id = new_member.id
 
@@ -2237,10 +2239,16 @@ async def tg_new_member(update, context):
                 await chat_helper.mute_user(bot, update.effective_chat.id, new_user_id, duration_in_seconds = mute_new_users_duration, reason="New user muted for spam check")
                 logger.info(f"Muted new user {new_user_id} in chat {update.effective_chat.id} for {mute_new_users_duration} seconds.")
 
-        welcome_message = chat_helper.get_chat_config(update.effective_chat.id, "welcome_message")
+            # Send personalized welcome message if configured
+            if welcome_message_template:
+                # Replace {{USERNAME}} placeholder with user mention if present
+                if "{{USERNAME}}" in welcome_message_template:
+                    user_mention = user_helper.get_user_mention(new_user_id, update.effective_chat.id)
+                    personalized_message = welcome_message_template.replace("{{USERNAME}}", user_mention)
+                else:
+                    personalized_message = welcome_message_template
 
-        if welcome_message:
-            await chat_helper.send_message(bot, update.effective_chat.id, welcome_message, disable_web_page_preview=True)
+                await chat_helper.send_message(bot, update.effective_chat.id, personalized_message, disable_web_page_preview=True)
 
     except Exception as e:
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
