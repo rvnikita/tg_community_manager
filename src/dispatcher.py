@@ -2241,10 +2241,16 @@ async def tg_new_member(update, context):
 
             # Send personalized welcome message if configured
             if welcome_message_template:
-                # Replace {{USERNAME}} placeholder with user mention if present
-                if "{{USERNAME}}" in welcome_message_template:
-                    user_mention = user_helper.get_user_mention(new_user_id, update.effective_chat.id)
-                    personalized_message = welcome_message_template.replace("{{USERNAME}}", user_mention)
+                # Replace {{user_mention}} placeholder with simplified user mention (name + username only)
+                if "{{user_mention}}" in welcome_message_template:
+                    user_mention = user_helper.get_user_mention(
+                        new_user_id,
+                        update.effective_chat.id,
+                        show_user_id=False,
+                        show_account_age=False,
+                        show_rating=False
+                    )
+                    personalized_message = welcome_message_template.replace("{{user_mention}}", user_mention)
                 else:
                     personalized_message = welcome_message_template
 

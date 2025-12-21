@@ -106,7 +106,8 @@ class Chat(Base):
       // The number of days of inactivity after which a user is warned about potential removal. Set to 0 to disable
       "warn_inactive": 60,
 
-      // The welcome message for the chat that is posted into chat when a new user joins 
+      // The welcome message for the chat that is posted into chat when a new user joins
+      // Supports {{user_mention}} placeholder which will be replaced with "Name - @username"
       "welcome_message": "Добро пожаловать в чат",
 
       // A boolean value that determines if a user's status should be updated or not by cron script

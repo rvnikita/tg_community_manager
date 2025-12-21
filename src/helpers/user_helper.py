@@ -55,44 +55,73 @@ def extract_user_id_from_command(message, command_parts, allow_reply=True):
         logger.error(f"Error extracting user ID from command: {e}. Traceback: {traceback.format_exc()}")
         return None
 
-def get_user_mention(user_id: int, chat_id: int | None = None) -> str:
+def get_user_mention(
+    user_id: int,
+    chat_id: int | None = None,
+    show_user_id: bool = True,
+    show_account_age: bool = True,
+    show_rating: bool = True
+) -> str:
     """
-    Build a mention string including:
-        • user‑id
-        • full name and/or username (when available)
-        • account age in days  →  <123d>
-        • rating (only when chat_id supplied)  →  (7)
+    Build a mention string with configurable display options.
 
-    Example
-    -------
-    [123] - Nikita Rvachev - @rvnikita - <370d> (5)
+    Args:
+        user_id: Telegram user ID
+        chat_id: Chat ID (optional, needed for rating)
+        show_user_id: Include user ID in brackets (default: True)
+        show_account_age: Include account age in days (default: True)
+        show_rating: Include rating when chat_id is provided (default: True)
+
+    Returns:
+        Formatted mention string
+
+    Examples
+    --------
+    Full (default):
+        [123] - Nikita Rvachev - @rvnikita - <370d> (5)
+
+    Name and username only (show_user_id=False, show_account_age=False, show_rating=False):
+        Nikita Rvachev - @rvnikita
     """
     try:
         with db_helper.session_scope() as session:
             user = session.query(db_helper.User).filter_by(id=user_id).first()
             if user is None:
-                return f"[{user_id}]"
+                return f"[{user_id}]" if show_user_id else str(user_id)
 
             # ───────────── name / username ─────────────
             full_name = " ".join(p for p in (user.first_name, user.last_name) if p)
-            if full_name and user.username:
-                mention = f"[{user.id}] - {full_name} - @{user.username}"
-            elif user.username:
-                mention = f"[{user.id}] - @{user.username}"
-            elif full_name:
-                mention = f"[{user.id}] - {full_name}"
+
+            # Build base mention with optional user ID
+            if show_user_id:
+                if full_name and user.username:
+                    mention = f"[{user.id}] - {full_name} - @{user.username}"
+                elif user.username:
+                    mention = f"[{user.id}] - @{user.username}"
+                elif full_name:
+                    mention = f"[{user.id}] - {full_name}"
+                else:
+                    mention = f"[{user.id}]"
             else:
-                mention = f"[{user.id}]"
+                if full_name and user.username:
+                    mention = f"{full_name} - @{user.username}"
+                elif user.username:
+                    mention = f"@{user.username}"
+                elif full_name:
+                    mention = full_name
+                else:
+                    mention = f"[{user.id}]"  # Fallback to ID if no name/username
 
             # ───────────── account age ─────────────
-            if user.created_at:
-                days_old = (datetime.now(timezone.utc) - user.created_at).days
-                mention += f" - <{days_old}d>"
-            else:
-                mention += " - <N/A>"
+            if show_account_age:
+                if user.created_at:
+                    days_old = (datetime.now(timezone.utc) - user.created_at).days
+                    mention += f" - <{days_old}d>"
+                else:
+                    mention += " - <N/A>"
 
             # ───────────── rating (optional) ─────────────
-            if chat_id is not None:
+            if show_rating and chat_id is not None:
                 rating = rating_helper.get_rating(user_id, chat_id)
                 if rating is not None:
                     mention += f" ({rating})"
@@ -103,7 +132,7 @@ def get_user_mention(user_id: int, chat_id: int | None = None) -> str:
         logger.error(
             f"Error generating mention for user_id={user_id}\n{traceback.format_exc()}"
         )
-        return f"[{user_id}]"
+        return f"[{user_id}]" if show_user_id else str(user_id)
 
 
 def db_upsert_user(user_id, chat_id, username, last_message_datetime, first_name=None, last_name=None, raw_user=None):
