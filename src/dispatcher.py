@@ -331,7 +331,6 @@ async def tg_offtop(update, context):
             number_of_reports_to_ban = int(chat_helper.get_chat_config(chat_id, 'number_of_reports_to_ban'))
 
             warned_user_mention = user_helper.get_user_mention(warned_user_id, chat_id)
-            warning_admin_mention = user_helper.get_user_mention(message.from_user.id, chat_id)
 
             if warn_count >= number_of_reports_to_ban:
                 await chat_helper.delete_media_group_messages(bot, chat_id, message.reply_to_message)
@@ -360,7 +359,6 @@ async def tg_offtop(update, context):
                 delete_after=120,
             )
             await chat_helper.delete_media_group_messages(bot, chat_id, message.reply_to_message)
-            await chat_helper.send_message_to_admin(bot, chat_id, f"{warning_admin_mention} warned {warned_user_mention} in chat {await chat_helper.get_chat_mention(bot, chat_id)}. Reason: {reason}. Total Warnings: {warn_count}/{number_of_reports_to_ban}")
 
     except Exception as error:
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
@@ -540,7 +538,6 @@ async def tg_warn(update, context):
                 number_of_reports_to_ban = int(chat_helper.get_chat_config(chat_id, 'number_of_reports_to_ban'))
 
                 warned_user_mention = user_helper.get_user_mention(warned_user_id, chat_id)
-                warning_admin_mention = user_helper.get_user_mention(message.from_user.id, chat_id)
 
                 if warn_count >= number_of_reports_to_ban:
                     with sentry_sdk.start_span(op="warn_ban", description="Ban and notify"):
@@ -570,7 +567,6 @@ async def tg_warn(update, context):
                         delete_after=120,
                     )
                     await chat_helper.delete_media_group_messages(bot, chat_id, message.reply_to_message)
-                    await chat_helper.send_message_to_admin(bot, chat_id, f"{warning_admin_mention} warned {warned_user_mention} in chat {await chat_helper.get_chat_mention(bot, chat_id)}. Reason: {reason}. Total Warnings: {warn_count}/{number_of_reports_to_ban}")
 
     except Exception as error:
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
