@@ -2296,7 +2296,9 @@ async def tg_update_user_status(update, context):
                         reposted_text = f"{author_name}: {update.message.text}"
 
                         await chat_helper.delete_message(bot, update.message.chat.id, update.message.message_id)
-                        await chat_helper.send_message(bot, update.message.chat.id, reposted_text)
+                        # Preserve reply relationship if the original message was a reply (keeps message in comments section)
+                        reply_to_id = update.message.reply_to_message.message_id if update.message.reply_to_message else None
+                        await chat_helper.send_message(bot, update.message.chat.id, reposted_text, reply_to_message_id=reply_to_id)
                         logger.info(
                             f"Channel message deleted from chat {update.message.chat.title} ({update.message.chat.id}) for user @{update.message.from_user.username} ({update.message.from_user.id})")
 
