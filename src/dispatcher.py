@@ -2075,6 +2075,9 @@ async def tg_set_rating(update, context):
             await chat_helper.send_message(context.bot, chat_id, "You must be an admin to use this command.", reply_to_message_id=message.message_id, delete_after=120)
             return
 
+        # Delete the command message
+        await chat_helper.delete_message(context.bot, chat_id, message.message_id)
+
         target_user_id = None
         new_rating = None
 
@@ -2111,7 +2114,7 @@ async def tg_set_rating(update, context):
             await rating_helper.change_rating(target_user_id, message.from_user.id, chat_id, adjustment, message.message_id, delete_message_delay=120)
         else:
             # Specifically handle the case where no change is needed, especially when setting to zero
-            await chat_helper.send_message(context.bot, chat_id, f"Rating for user ID {target_user_id} is already set to {new_rating}.")
+            await chat_helper.send_message(context.bot, chat_id, f"Rating for user ID {target_user_id} is already set to {new_rating}.", delete_after=120)
 
     except ValueError:
         await chat_helper.send_message(context.bot, chat_id, "Invalid number for rating. Please specify an integer.", reply_to_message_id=message.message_id)
