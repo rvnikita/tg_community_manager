@@ -791,6 +791,9 @@ async def tg_unspam(update, context):
             )
             return
 
+        # Delete the command message
+        await chat_helper.delete_message(context.bot, chat_id, message.message_id)
+
         # Step 1: Unban the user from all chats.
         await chat_helper.unban_user(context.bot, chat_id, target_user_id, global_unban=True)
         logger.info(f"User {target_user_id} has been unbanned globally.")
@@ -851,7 +854,7 @@ async def tg_unspam(update, context):
             context.bot,
             chat_id,
             f"User {target_mention} has been unspammed ({status_message}).",
-            reply_to_message_id=message.message_id
+            delete_after=120
         )
     except Exception as e:
         update_str = json.dumps(
