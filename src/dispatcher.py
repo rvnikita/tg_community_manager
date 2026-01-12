@@ -2060,7 +2060,10 @@ async def tg_thankyou_reaction(update, context):
 async def tg_set_rating(update, context):
     try:
         chat_id = update.effective_chat.id
-        message = update.message
+        message = update.message or update.edited_message
+
+        if not message:
+            return
 
         # Check if the user is an administrator
         chat_administrators = await chat_helper.get_chat_administrators(context.bot, chat_id)
@@ -2418,7 +2421,7 @@ def create_application():
     application.add_handler(CommandHandler(["report", "r"], tg_report, filters.ChatType.GROUPS), group=4)
     application.add_handler(CommandHandler(["warn", "w"], tg_warn, filters.ChatType.GROUPS), group=4)
     application.add_handler(CommandHandler(["offtop", "o"], tg_offtop, filters.ChatType.GROUPS), group=4)
-    application.add_handler(CommandHandler(["set_rating"], tg_set_rating, filters.ChatType.GROUPS), group=4)
+    application.add_handler(CommandHandler(["set_rating", "sr"], tg_set_rating, filters.ChatType.GROUPS), group=4)
     application.add_handler(CommandHandler(["set_report"], tg_set_report, filters.ChatType.GROUPS), group=4)
     application.add_handler(CommandHandler(["ur", "unreport"], tg_ur, filters.ChatType.GROUPS), group=4)
     application.add_handler(CommandHandler(["get_rating", "gr"], tg_get_rating, filters.ChatType.GROUPS), group=4)
