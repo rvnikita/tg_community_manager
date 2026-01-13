@@ -426,25 +426,28 @@ async def tg_set_report(update, context):
             await chat_helper.send_message(context.bot, chat_id, "You must be an admin to use this command.", reply_to_message_id=message.message_id, delete_after=120)
             return
 
+        # Delete the command message
+        await chat_helper.delete_message(context.bot, chat_id, message.message_id)
+
         command_parts = message.text.split()
 
         # Verify that the command is correctly formatted with at least two arguments
         if len(command_parts) < 3:
-            await chat_helper.send_message(context.bot, chat_id, "Usage: /set_report [@username or user_id] [report_count]", reply_to_message_id=message.message_id)
+            await chat_helper.send_message(context.bot, chat_id, "Usage: /set_report [@username or user_id] [report_count]", delete_after=120)
             return
 
         # Parse the new report count
         try:
             new_report_count = int(command_parts[2])
         except ValueError:
-            await chat_helper.send_message(context.bot, chat_id, "Invalid number for report count. Please specify an integer.", reply_to_message_id=message.message_id)
+            await chat_helper.send_message(context.bot, chat_id, "Invalid number for report count. Please specify an integer.", delete_after=120)
             return
 
         # Extract user ID using helper
         reported_user_id = user_helper.extract_user_id_from_command(message, command_parts, allow_reply=True)
 
         if reported_user_id is None:
-            await chat_helper.send_message(context.bot, chat_id, "Invalid format. Use /set_report @username or /set_report user_id report_count.", reply_to_message_id=message.message_id)
+            await chat_helper.send_message(context.bot, chat_id, "Invalid format. Use /set_report @username or /set_report user_id report_count.", delete_after=120)
             return
 
         # Set report count using helper
@@ -457,10 +460,10 @@ async def tg_set_report(update, context):
         )
 
         if not success:
-            await chat_helper.send_message(context.bot, chat_id, "Failed to set report count. Please try again.", reply_to_message_id=message.message_id)
+            await chat_helper.send_message(context.bot, chat_id, "Failed to set report count. Please try again.", delete_after=120)
             return
 
-        await chat_helper.send_message(context.bot, chat_id, f"Report count for {user_helper.get_user_mention(reported_user_id, chat_id)} set to {new_report_count}.")
+        await chat_helper.send_message(context.bot, chat_id, f"Report count for {user_helper.get_user_mention(reported_user_id, chat_id)} set to {new_report_count}.", delete_after=120)
     except Exception as error:
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
         logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
@@ -480,26 +483,29 @@ async def tg_ur(update, context):
             await chat_helper.send_message(context.bot, chat_id, "You must be an admin to use this command.", reply_to_message_id=message.message_id, delete_after=120)
             return
 
+        # Delete the command message
+        await chat_helper.delete_message(context.bot, chat_id, message.message_id)
+
         # Extract user ID using helper
         command_parts = message.text.split()
         reported_user_id = user_helper.extract_user_id_from_command(message, command_parts, allow_reply=True)
 
         if reported_user_id is None:
-            await chat_helper.send_message(context.bot, chat_id, "Usage: /ur [@username or user_id] or reply to a message", reply_to_message_id=message.message_id)
+            await chat_helper.send_message(context.bot, chat_id, "Usage: /ur [@username or user_id] or reply to a message", delete_after=120)
             return
 
         # Clear reports using helper
         success, previous_count = await reporting_helper.clear_reports(chat_id, reported_user_id, message.from_user.id)
 
         if not success:
-            await chat_helper.send_message(context.bot, chat_id, "Failed to clear reports. Please try again.", reply_to_message_id=message.message_id)
+            await chat_helper.send_message(context.bot, chat_id, "Failed to clear reports. Please try again.", delete_after=120)
             return
 
         if previous_count == 0:
-            await chat_helper.send_message(context.bot, chat_id, f"User {user_helper.get_user_mention(reported_user_id, chat_id)} has no reports.", reply_to_message_id=message.message_id)
+            await chat_helper.send_message(context.bot, chat_id, f"User {user_helper.get_user_mention(reported_user_id, chat_id)} has no reports.", delete_after=120)
             return
 
-        await chat_helper.send_message(context.bot, chat_id, f"Reports cleared for {user_helper.get_user_mention(reported_user_id, chat_id)}. (Previous: {previous_count})")
+        await chat_helper.send_message(context.bot, chat_id, f"Reports cleared for {user_helper.get_user_mention(reported_user_id, chat_id)}. (Previous: {previous_count})", delete_after=120)
     except Exception as error:
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
         logger.error(f"Error: {traceback.format_exc()} | Update: {update_str}")
