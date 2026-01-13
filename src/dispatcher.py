@@ -85,15 +85,7 @@ async def tg_help(update, context):
         chat_id = update.effective_chat.id
         message = update.message
         user_id = message.from_user.id
-
-        # Check if user is global admin
-        is_global_admin = user_id == int(os.getenv('ENV_BOT_ADMIN_ID'))
-
-        # Check if user is chat admin (only in groups)
-        is_chat_admin = False
-        if update.effective_chat.type in ['group', 'supergroup']:
-            chat_administrators = await chat_helper.get_chat_administrators(context.bot, chat_id)
-            is_chat_admin = any(admin["user_id"] == user_id for admin in chat_administrators)
+        chat_type = update.effective_chat.type
 
         # User commands (available to everyone)
         user_commands = [
@@ -123,23 +115,33 @@ async def tg_help(update, context):
             "/unspam or /us - Remove spam mark and unban user globally"
         ]
 
-        # Build help message based on user permissions
-        help_sections = ["**Available commands:**\n"]
-        help_sections.append("**User commands:**")
-        help_sections.extend(user_commands)
+        # In group chats, always show only user commands (to avoid exposing admin commands publicly)
+        # Admin commands are only shown in private/DM chats
+        if chat_type in ['group', 'supergroup']:
+            help_sections = ["**Available commands:**\n"]
+            help_sections.append("**User commands:**")
+            help_sections.extend(user_commands)
+            help_sections.append("\n_For admin commands, please message me directly in DM._")
+            help_text = "\n".join(help_sections)
 
-        if is_chat_admin or is_global_admin:
-            help_sections.append("\n**Admin commands:**")
-            help_sections.extend(admin_commands)
+            await chat_helper.send_message(bot, chat_id, help_text, reply_to_message_id=message.message_id, delete_after=5 * 60, parse_mode='Markdown')
+            await chat_helper.schedule_message_deletion(chat_id, message.message_id, message.from_user.id, delay_seconds=5*60)
+        else:
+            # In private chats, show commands based on user permissions
+            is_global_admin = user_id == int(os.getenv('ENV_BOT_ADMIN_ID'))
 
-        if is_global_admin:
-            help_sections.append("\n**Global admin commands:**")
-            help_sections.extend(global_admin_commands)
+            help_sections = ["**Available commands:**\n"]
+            help_sections.append("**User commands:**")
+            help_sections.extend(user_commands)
 
-        help_text = "\n".join(help_sections)
+            if is_global_admin:
+                help_sections.append("\n**Admin commands:**")
+                help_sections.extend(admin_commands)
+                help_sections.append("\n**Global admin commands:**")
+                help_sections.extend(global_admin_commands)
 
-        await chat_helper.send_message(bot, chat_id, help_text, reply_to_message_id=message.message_id, delete_after=5 * 60, parse_mode='Markdown')
-        await chat_helper.schedule_message_deletion(chat_id, message.message_id, message.from_user.id, delay_seconds=5*60)
+            help_text = "\n".join(help_sections)
+            await chat_helper.send_message(bot, chat_id, help_text, parse_mode='Markdown')
 
     except Exception as error:
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
