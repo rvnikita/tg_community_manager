@@ -82,18 +82,63 @@ def extract_emoji_list(reaction_sequence):
 @sentry_profile()
 async def tg_help(update, context):
     try:
-        # just return all commands we support as a reply
         chat_id = update.effective_chat.id
         message = update.message
+        user_id = message.from_user.id
 
-        commands = [
-            "/report - report a message, should be used as a reply to a message",
-            "/pin - pin a message, should be used as a reply to a message",
-            "/unpin - unpin a message, should be used as a reply to a message",
-            "/help - show this message"
+        # Check if user is global admin
+        is_global_admin = user_id == int(os.getenv('ENV_BOT_ADMIN_ID'))
+
+        # Check if user is chat admin (only in groups)
+        is_chat_admin = False
+        if update.effective_chat.type in ['group', 'supergroup']:
+            chat_administrators = await chat_helper.get_chat_administrators(context.bot, chat_id)
+            is_chat_admin = any(admin["user_id"] == user_id for admin in chat_administrators)
+
+        # User commands (available to everyone)
+        user_commands = [
+            "/report or /r - Report a message (reply to message)",
+            "/get_rating or /gr - Get user rating (reply to message or specify @username)",
+            "/help or /h - Show this help message",
+            "/info or /i - Show bot information",
+            "/ping - Check bot status"
         ]
 
-        await chat_helper.send_message(bot, chat_id, "Supported commands:\n" + "\n".join(commands), reply_to_message_id=message.message_id, delete_after=5 * 60)
+        # Chat admin commands
+        admin_commands = [
+            "/warn or /w - Warn a user (reply to message)",
+            "/offtop or /o - Warn for offtopic (reply to message)",
+            "/ban or /b - Ban a user (reply to message or specify @username)",
+            "/pin or /p - Pin a message (reply to message)",
+            "/unpin or /up - Unpin a message (reply to message)",
+            "/set_rating or /sr - Set user rating (@username or user_id, then rating)",
+            "/set_report - Set report count (@username or user_id, then count)",
+            "/ur or /unreport - Clear reports for a user (@username or reply to message)"
+        ]
+
+        # Global admin commands
+        global_admin_commands = [
+            "/gban or /g or /gb - Global ban across all chats",
+            "/spam or /s - Mark user as spammer and ban globally",
+            "/unspam or /us - Remove spam mark and unban user globally"
+        ]
+
+        # Build help message based on user permissions
+        help_sections = ["**Available commands:**\n"]
+        help_sections.append("**User commands:**")
+        help_sections.extend(user_commands)
+
+        if is_chat_admin or is_global_admin:
+            help_sections.append("\n**Admin commands:**")
+            help_sections.extend(admin_commands)
+
+        if is_global_admin:
+            help_sections.append("\n**Global admin commands:**")
+            help_sections.extend(global_admin_commands)
+
+        help_text = "\n".join(help_sections)
+
+        await chat_helper.send_message(bot, chat_id, help_text, reply_to_message_id=message.message_id, delete_after=5 * 60, parse_mode='Markdown')
         await chat_helper.schedule_message_deletion(chat_id, message.message_id, message.from_user.id, delay_seconds=5*60)
 
     except Exception as error:
