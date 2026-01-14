@@ -16,6 +16,10 @@ import src.helpers.chat_helper as chat_helper
 import src.helpers.user_helper as user_helper
 
 logger = logging_helper.get_logger()
+
+# TODO:HIGH Remove this feature flag after model is retrained with image embeddings
+# Set ANTISPAM_USE_IMAGE_EMBEDDINGS=true in env after retraining the model
+USE_IMAGE_EMBEDDINGS = os.getenv('ANTISPAM_USE_IMAGE_EMBEDDINGS', 'false').lower() == 'true'
 bot = Bot(os.getenv('ENV_BOT_KEY'),
           request=HTTPXRequest(http_version="1.1"),
           get_updates_request=HTTPXRequest(http_version="1.1"))
@@ -26,13 +30,25 @@ print("Current Working Directory:", current_path)
 model = load('ml_models/xgb_spam_model.joblib')
 scaler = load('ml_models/scaler.joblib')
 
-async def generate_features(user_id, chat_id, message_text=None, embedding=None, is_forwarded=None, reply_to_message_id=None):
+async def generate_features(user_id, chat_id, message_text=None, embedding=None, is_forwarded=None, reply_to_message_id=None, image_description_embedding=None):
     try:
         if embedding is None and message_text is not None:
             embedding = await openai_helper.generate_embedding(message_text)
         if embedding is None:
             logger.error(f"Failed to generate embedding for spam prediction. Message text: {message_text}")
             return None
+
+        # TODO:HIGH Remove this conditional after model is retrained with image embeddings
+        # Image embedding features - only used when USE_IMAGE_EMBEDDINGS is enabled
+        if USE_IMAGE_EMBEDDINGS:
+            embedding_dim = len(embedding)
+            if image_description_embedding is not None:
+                image_embedding = np.array(image_description_embedding)
+                has_image = 1.0
+            else:
+                image_embedding = np.zeros(embedding_dim)
+                has_image = 0.0
+
         with db_helper.session_scope() as session:
             user = session.query(db_helper.User).filter(db_helper.User.id == user_id).one_or_none()
             if not user:
@@ -66,32 +82,51 @@ async def generate_features(user_id, chat_id, message_text=None, embedding=None,
             is_forwarded = is_forwarded or 0
             reply_to_message_id = reply_to_message_id or 0
 
-            # Construct the feature array in the same order as used during training:
-            # Order: embedding, user_rating_value, time_difference, chat_id, message_length,
-            # spam_count, not_spam_count, is_forwarded, reply_to_message_id, has_telegram_nick
+            # Construct the feature array in the same order as used during training
             # NOTE: user_id removed to prevent overfitting on specific users
-            feature_array = np.array([
-                *embedding,
-                float(user_rating_value),
-                float(time_difference),
-                float(chat_id),  # KEPT: Context matters - different chats have different norms
-                # float(user_id),  # REMOVED: Prevents overfitting - new users appear constantly
-                float(message_length),
-                float(spam_count),
-                float(not_spam_count),
-                float(is_forwarded),
-                float(reply_to_message_id),
-                has_telegram_nick
-            ])
+            # TODO:HIGH Simplify this after model is retrained - remove the conditional branching
+            if USE_IMAGE_EMBEDDINGS:
+                # Order: embedding, image_embedding, user_rating_value, time_difference, chat_id, message_length,
+                # spam_count, not_spam_count, is_forwarded, reply_to_message_id, has_telegram_nick, has_image
+                feature_array = np.concatenate((
+                    embedding,
+                    image_embedding,
+                    [
+                        float(user_rating_value),
+                        float(time_difference),
+                        float(chat_id),
+                        float(message_length),
+                        float(spam_count),
+                        float(not_spam_count),
+                        float(is_forwarded),
+                        float(reply_to_message_id),
+                        has_telegram_nick,
+                        has_image
+                    ]
+                ))
+            else:
+                # Legacy order without image embeddings
+                feature_array = np.array([
+                    *embedding,
+                    float(user_rating_value),
+                    float(time_difference),
+                    float(chat_id),
+                    float(message_length),
+                    float(spam_count),
+                    float(not_spam_count),
+                    float(is_forwarded),
+                    float(reply_to_message_id),
+                    has_telegram_nick
+                ])
             return feature_array
     except Exception as e:
         logger.error(f"An error occurred during feature generation: {traceback.format_exc()}")
         return None
 
-async def predict_spam(user_id, chat_id, message_content=None, embedding=None, is_forwarded=None, reply_to_message_id=None):
+async def predict_spam(user_id, chat_id, message_content=None, embedding=None, is_forwarded=None, reply_to_message_id=None, image_description_embedding=None):
     try:
         feature_array = await generate_features(
-            user_id, chat_id, message_content, embedding, is_forwarded, reply_to_message_id
+            user_id, chat_id, message_content, embedding, is_forwarded, reply_to_message_id, image_description_embedding
         )
         if feature_array is None:
             logger.error("Feature array is None, skipping prediction.")

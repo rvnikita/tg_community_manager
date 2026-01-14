@@ -1475,14 +1475,20 @@ async def tg_log_message(update, context):
             #TODO:LOW: Maybe we don't need to calculate embedding and insert it in DB here as we will recalculate it later in tg_ai_spamcheck. But we should be careful as it seems like sometimes tg_ai_spamcheck is not called (or maybe called but not updating the message log in DB is there is something wrong with the probability calculation. That happens if "ai_spamcheck_enabled": false in chat config)
             embedding = await openai_helper.generate_embedding(message_content)
 
-            # Process image if present
+            # Process image or video thumbnail if present
             image_description = None
             image_description_embedding = None
+            image_file_id = None
+
+            # Get image from photo or video thumbnail
             if message.photo:
+                image_file_id = message.photo[-1].file_id
+            elif message.video and message.video.thumbnail:
+                image_file_id = message.video.thumbnail.file_id
+
+            if image_file_id:
                 try:
-                    # Get the highest resolution photo
-                    photo = message.photo[-1]
-                    file = await context.bot.get_file(photo.file_id)
+                    file = await context.bot.get_file(image_file_id)
                     # Get the file URL directly from Telegram
                     image_url = file.file_path
 
@@ -1695,6 +1701,31 @@ async def tg_ai_spamcheck(update, context):
         with sentry_sdk.start_span(op="embedding", description="OpenAI embedding + spam prediction"):
             loop = asyncio.get_event_loop()
             embedding = await openai_helper.generate_embedding(text)
+
+            # TODO:HIGH Remove USE_IMAGE_EMBEDDINGS check after model is retrained with image embeddings
+            # Analyze image/video thumbnail if present and generate embedding from description
+            image_description_embedding = None
+            if spamcheck_helper.USE_IMAGE_EMBEDDINGS:
+                image_file_id = None
+
+                # Get image from photo or video thumbnail
+                if message.photo:
+                    image_file_id = message.photo[-1].file_id
+                elif message.video and message.video.thumbnail:
+                    image_file_id = message.video.thumbnail.file_id
+
+                if image_file_id:
+                    try:
+                        with sentry_sdk.start_span(op="image_analysis", description="Analyze image with Vision API"):
+                            file = await context.bot.get_file(image_file_id)
+                            image_url = file.file_path
+                            image_description = await openai_helper.analyze_image_with_vision(image_url)
+                            if image_description:
+                                image_description_embedding = await openai_helper.generate_embedding(image_description)
+                                logger.debug(f"Image analyzed for spam check: {image_description[:100]}...")
+                    except Exception as e:
+                        logger.error(f"Error analyzing image for spam check: {traceback.format_exc()}")
+
             if engine == "raw":
                 spam_prob = await spamcheck_helper_raw.predict_spam(
                     user_id=user_id,
@@ -1717,6 +1748,7 @@ async def tg_ai_spamcheck(update, context):
                     chat_id=chat_id,
                     message_content=text,
                     embedding=embedding,
+                    image_description_embedding=image_description_embedding,
                 )
 
         with sentry_sdk.start_span(op="db_logging", description="DB logging"):

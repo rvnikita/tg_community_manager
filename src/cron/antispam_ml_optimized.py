@@ -1,5 +1,10 @@
 import sys
 import os
+sys.path.append(os.getcwd())
+
+from dotenv import load_dotenv
+load_dotenv("config/.env")
+
 from datetime import datetime, timezone
 import numpy as np
 from sklearn.model_selection import train_test_split
@@ -44,6 +49,7 @@ async def train_spam_classifier():
             query = (session.query(
                         db_helper.Message_Log.id,
                         db_helper.Message_Log.embedding,
+                        db_helper.Message_Log.image_description_embedding,
                         db_helper.Message_Log.message_content,
                         db_helper.Message_Log.user_id,
                         db_helper.Message_Log.chat_id,
@@ -85,6 +91,11 @@ async def train_spam_classifier():
 
             logger.info("Processing messages data for feature extraction...")
             feature_start_time = time.time()
+
+            # Get embedding dimension from first message with embedding
+            embedding_dim = len(messages_data[0].embedding) if messages_data else 1536
+            zero_embedding = np.zeros(embedding_dim)
+
             for message_data in messages_data:
                 # Use the status creation time if available, otherwise use the user creation time.
                 joined_date = message_data.status_created_at if message_data.status_created_at else message_data.user_created_at
@@ -94,8 +105,14 @@ async def train_spam_classifier():
                 # New feature: check if the message contains a Telegram username (e.g. @rvnikita)
                 has_telegram_nick = 1.0 if re.search(r'@\w+', message_data.message_content) else 0.0
 
+                # Use image embedding if available, otherwise use zero vector
+                # This allows the model to learn patterns from image content when present
+                image_embedding = message_data.image_description_embedding if message_data.image_description_embedding is not None else zero_embedding
+                has_image = 1.0 if message_data.image_description_embedding is not None else 0.0
+
                 feature_array = np.concatenate((
                     message_data.embedding,
+                    image_embedding,
                     [
                         message_data.user_current_rating,
                         time_difference,
@@ -106,7 +123,8 @@ async def train_spam_classifier():
                         message_data.not_spam_count,
                         float(message_data.is_forwarded or 0),
                         message_data.reply_to_message_id or 0,
-                        has_telegram_nick
+                        has_telegram_nick,
+                        has_image  # New feature: indicates if message has an image
                     ]
                 ))
                 features.append(feature_array)
