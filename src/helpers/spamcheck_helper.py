@@ -17,9 +17,6 @@ import src.helpers.user_helper as user_helper
 
 logger = logging_helper.get_logger()
 
-# TODO:HIGH Remove this feature flag after model is retrained with image embeddings
-# Set ANTISPAM_USE_IMAGE_EMBEDDINGS=true in env after retraining the model
-USE_IMAGE_EMBEDDINGS = os.getenv('ANTISPAM_USE_IMAGE_EMBEDDINGS', 'false').lower() == 'true'
 bot = Bot(os.getenv('ENV_BOT_KEY'),
           request=HTTPXRequest(http_version="1.1"),
           get_updates_request=HTTPXRequest(http_version="1.1"))
@@ -38,16 +35,14 @@ async def generate_features(user_id, chat_id, message_text=None, embedding=None,
             logger.error(f"Failed to generate embedding for spam prediction. Message text: {message_text}")
             return None
 
-        # TODO:HIGH Remove this conditional after model is retrained with image embeddings
-        # Image embedding features - only used when USE_IMAGE_EMBEDDINGS is enabled
-        if USE_IMAGE_EMBEDDINGS:
-            embedding_dim = len(embedding)
-            if image_description_embedding is not None:
-                image_embedding = np.array(image_description_embedding)
-                has_image = 1.0
-            else:
-                image_embedding = np.zeros(embedding_dim)
-                has_image = 0.0
+        # Image embedding features
+        embedding_dim = len(embedding)
+        if image_description_embedding is not None:
+            image_embedding = np.array(image_description_embedding)
+            has_image = 1.0
+        else:
+            image_embedding = np.zeros(embedding_dim)
+            has_image = 0.0
 
         with db_helper.session_scope() as session:
             user = session.query(db_helper.User).filter(db_helper.User.id == user_id).one_or_none()
@@ -84,30 +79,12 @@ async def generate_features(user_id, chat_id, message_text=None, embedding=None,
 
             # Construct the feature array in the same order as used during training
             # NOTE: user_id removed to prevent overfitting on specific users
-            # TODO:HIGH Simplify this after model is retrained - remove the conditional branching
-            if USE_IMAGE_EMBEDDINGS:
-                # Order: embedding, image_embedding, user_rating_value, time_difference, chat_id, message_length,
-                # spam_count, not_spam_count, is_forwarded, reply_to_message_id, has_telegram_nick, has_image
-                feature_array = np.concatenate((
-                    embedding,
-                    image_embedding,
-                    [
-                        float(user_rating_value),
-                        float(time_difference),
-                        float(chat_id),
-                        float(message_length),
-                        float(spam_count),
-                        float(not_spam_count),
-                        float(is_forwarded),
-                        float(reply_to_message_id),
-                        has_telegram_nick,
-                        has_image
-                    ]
-                ))
-            else:
-                # Legacy order without image embeddings
-                feature_array = np.array([
-                    *embedding,
+            # Order: embedding, image_embedding, user_rating_value, time_difference, chat_id, message_length,
+            # spam_count, not_spam_count, is_forwarded, reply_to_message_id, has_telegram_nick, has_image
+            feature_array = np.concatenate((
+                embedding,
+                image_embedding,
+                [
                     float(user_rating_value),
                     float(time_difference),
                     float(chat_id),
@@ -116,8 +93,10 @@ async def generate_features(user_id, chat_id, message_text=None, embedding=None,
                     float(not_spam_count),
                     float(is_forwarded),
                     float(reply_to_message_id),
-                    has_telegram_nick
-                ])
+                    has_telegram_nick,
+                    has_image
+                ]
+            ))
             return feature_array
     except Exception as e:
         logger.error(f"An error occurred during feature generation: {traceback.format_exc()}")

@@ -1702,29 +1702,27 @@ async def tg_ai_spamcheck(update, context):
             loop = asyncio.get_event_loop()
             embedding = await openai_helper.generate_embedding(text)
 
-            # TODO:HIGH Remove USE_IMAGE_EMBEDDINGS check after model is retrained with image embeddings
             # Analyze image/video thumbnail if present and generate embedding from description
             image_description_embedding = None
-            if spamcheck_helper.USE_IMAGE_EMBEDDINGS:
-                image_file_id = None
+            image_file_id = None
 
-                # Get image from photo or video thumbnail
-                if message.photo:
-                    image_file_id = message.photo[-1].file_id
-                elif message.video and message.video.thumbnail:
-                    image_file_id = message.video.thumbnail.file_id
+            # Get image from photo or video thumbnail
+            if message.photo:
+                image_file_id = message.photo[-1].file_id
+            elif message.video and message.video.thumbnail:
+                image_file_id = message.video.thumbnail.file_id
 
-                if image_file_id:
-                    try:
-                        with sentry_sdk.start_span(op="image_analysis", description="Analyze image with Vision API"):
-                            file = await context.bot.get_file(image_file_id)
-                            image_url = file.file_path
-                            image_description = await openai_helper.analyze_image_with_vision(image_url)
-                            if image_description:
-                                image_description_embedding = await openai_helper.generate_embedding(image_description)
-                                logger.debug(f"Image analyzed for spam check: {image_description[:100]}...")
-                    except Exception as e:
-                        logger.error(f"Error analyzing image for spam check: {traceback.format_exc()}")
+            if image_file_id:
+                try:
+                    with sentry_sdk.start_span(op="image_analysis", description="Analyze image with Vision API"):
+                        file = await context.bot.get_file(image_file_id)
+                        image_url = file.file_path
+                        image_description = await openai_helper.analyze_image_with_vision(image_url)
+                        if image_description:
+                            image_description_embedding = await openai_helper.generate_embedding(image_description)
+                            logger.debug(f"Image analyzed for spam check: {image_description[:100]}...")
+                except Exception as e:
+                    logger.error(f"Error analyzing image for spam check: {traceback.format_exc()}")
 
             if engine == "raw":
                 spam_prob = await spamcheck_helper_raw.predict_spam(
