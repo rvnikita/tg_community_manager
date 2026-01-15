@@ -93,7 +93,6 @@ async def train_spam_classifier():
                         )
                     )
                     .order_by(db_helper.Message_Log.id.desc())
-                    .limit(50000)
             )
             messages_data = query.all()
             query_time = time.time() - start_time
