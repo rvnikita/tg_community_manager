@@ -291,11 +291,21 @@ async def tg_info(update, context):
         asyncio.create_task(chat_helper.delete_message(context.bot, chat_id, message.message_id, delay_seconds=60))
 
         # determine target_user_id
+        is_dm = update.effective_chat.type == "private"
+        target_user_id = None
+
         if message.reply_to_message:
-            target_user_id = message.reply_to_message.from_user.id
+            reply_msg = message.reply_to_message
+            # Check if it's a forwarded message - get original sender
+            if hasattr(reply_msg, 'forward_origin') and reply_msg.forward_origin and hasattr(reply_msg.forward_origin, 'sender_user'):
+                target_user_id = reply_msg.forward_origin.sender_user.id
+            elif hasattr(reply_msg, 'forward_from') and reply_msg.forward_from:
+                target_user_id = reply_msg.forward_from.id
+            else:
+                # Regular reply - get the message author
+                target_user_id = reply_msg.from_user.id
         else:
             parts = message.text.split()
-            target_user_id = None
             if len(parts) >= 2:
                 arg = parts[1]
                 if arg.startswith('@'):
@@ -304,17 +314,29 @@ async def tg_info(update, context):
                     target_user_id = int(arg)
 
         if not target_user_id:
-            await chat_helper.send_message(
-                context.bot, chat_id,
-                "Please specify a user by replying, @username, or user_id.",
-                reply_to_message_id=message.message_id,
-                delete_after=120
-            )
+            if is_dm:
+                # In DM, show help message about available commands
+                help_text = (
+                    "Available commands in DM:\n\n"
+                    "/info @username - Get user info by username\n"
+                    "/info <user_id> - Get user info by ID\n"
+                    "Forward a message + /info - Get info about original sender"
+                )
+                await chat_helper.send_message(
+                    context.bot, chat_id,
+                    help_text,
+                    reply_to_message_id=message.message_id
+                )
+            else:
+                await chat_helper.send_message(
+                    context.bot, chat_id,
+                    "Please specify a user by replying, @username, or user_id.",
+                    reply_to_message_id=message.message_id,
+                    delete_after=120
+                )
             return
 
         # Get user info text using shared helper
-        # Detect if this is a DM (private chat) to show all-chats aggregated data
-        is_dm = update.effective_chat.type == "private"
         info_text = await user_helper.get_user_info_text(target_user_id, chat_id, is_dm=is_dm)
 
         # If user not found, the helper returns an error message
