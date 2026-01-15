@@ -118,30 +118,30 @@ async def tg_help(update, context):
         # In group chats, always show only user commands (to avoid exposing admin commands publicly)
         # Admin commands are only shown in private/DM chats
         if chat_type in ['group', 'supergroup']:
-            help_sections = ["**Available commands:**\n"]
-            help_sections.append("**User commands:**")
+            help_sections = ["<b>Available commands:</b>\n"]
+            help_sections.append("<b>User commands:</b>")
             help_sections.extend(user_commands)
-            help_sections.append("\n_For admin commands, please message me directly in DM._")
+            help_sections.append("\n<i>For admin commands, please message me directly in DM.</i>")
             help_text = "\n".join(help_sections)
 
-            await chat_helper.send_message(bot, chat_id, help_text, reply_to_message_id=message.message_id, delete_after=5 * 60, parse_mode='Markdown')
+            await chat_helper.send_message(bot, chat_id, help_text, reply_to_message_id=message.message_id, delete_after=5 * 60, parse_mode='HTML')
             await chat_helper.schedule_message_deletion(chat_id, message.message_id, message.from_user.id, delay_seconds=5*60)
         else:
             # In private chats, show commands based on user permissions
             is_global_admin = user_id == int(os.getenv('ENV_BOT_ADMIN_ID'))
 
-            help_sections = ["**Available commands:**\n"]
-            help_sections.append("**User commands:**")
+            help_sections = ["<b>Available commands:</b>\n"]
+            help_sections.append("<b>User commands:</b>")
             help_sections.extend(user_commands)
 
             if is_global_admin:
-                help_sections.append("\n**Admin commands:**")
+                help_sections.append("\n<b>Admin commands:</b>")
                 help_sections.extend(admin_commands)
-                help_sections.append("\n**Global admin commands:**")
+                help_sections.append("\n<b>Global admin commands:</b>")
                 help_sections.extend(global_admin_commands)
 
             help_text = "\n".join(help_sections)
-            await chat_helper.send_message(bot, chat_id, help_text, parse_mode='Markdown')
+            await chat_helper.send_message(bot, chat_id, help_text, parse_mode='HTML')
 
     except Exception as error:
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
