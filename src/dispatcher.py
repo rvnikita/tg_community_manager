@@ -313,7 +313,9 @@ async def tg_info(update, context):
             return
 
         # Get user info text using shared helper
-        info_text = await user_helper.get_user_info_text(target_user_id, chat_id)
+        # Detect if this is a DM (private chat) to show all-chats aggregated data
+        is_dm = update.effective_chat.type == "private"
+        info_text = await user_helper.get_user_info_text(target_user_id, chat_id, is_dm=is_dm)
 
         # If user not found, the helper returns an error message
         if info_text.startswith("No data for user"):

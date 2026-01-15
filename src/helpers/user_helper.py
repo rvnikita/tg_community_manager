@@ -213,20 +213,21 @@ def db_upsert_user(user_id, chat_id, username, last_message_datetime, first_name
         logger.error(f"Error: {traceback.format_exc()}")
 
 
-async def get_user_info_text(user_id: int, chat_id: int, include_at_symbol: bool = True) -> str:
+async def get_user_info_text(user_id: int, chat_id: int, include_at_symbol: bool = True, is_dm: bool = False) -> str:
     """
     Generate formatted user info text for /info command and InfoAction.
 
     Returns a formatted string with user details including:
     - Username and full name
     - Days since account creation
-    - Rating in the chat
+    - Rating in the chat (or total rating across all chats if is_dm=True)
     - Message counts (this chat and all chats)
 
     Args:
         user_id: Telegram user ID
         chat_id: Telegram chat ID
         include_at_symbol: Whether to include @ symbol in interacted usernames list (default: True)
+        is_dm: Whether the request is from a DM (shows all-chats aggregated data)
 
     Returns:
         Formatted info text string
@@ -243,7 +244,12 @@ async def get_user_info_text(user_id: int, chat_id: int, include_at_symbol: bool
 
     now = datetime.now(timezone.utc)
     days_since = (now - created_at).days
-    rating = rating_helper.get_rating(user_id, chat_id)
+
+    # Get rating based on context
+    if is_dm:
+        rating = rating_helper.get_total_rating(user_id)
+    else:
+        rating = rating_helper.get_rating(user_id, chat_id)
 
     # count messages and find interacted users
     with db_helper.session_scope() as session:
@@ -320,18 +326,30 @@ async def get_user_info_text(user_id: int, chat_id: int, include_at_symbol: bool
 
     full_name = (first_name + ' ' + last_name).strip() or '[no name]'
 
-    info_text = (
-        f"👤 {'@'+username if username else '[no username]'}\n"
-        f"🪪 {full_name}\n"
-        f"🆔 User ID: {user_id}\n"
-        f"📅 Joined: {days_since} days ago\n"
-        f"⭐ Rating: {rating}\n"
-        f"✉️ Messages (this chat): {chat_count}\n"
-        f"✉️ Messages (all chats): {total_count}"
-    )
+    if is_dm:
+        # DM context: show all-chats aggregated data
+        info_text = (
+            f"👤 {'@'+username if username else '[no username]'}\n"
+            f"🪪 {full_name}\n"
+            f"🆔 User ID: {user_id}\n"
+            f"📅 Joined: {days_since} days ago\n"
+            f"⭐ Rating (all chats): {rating}\n"
+            f"✉️ Messages (all chats): {total_count}"
+        )
+    else:
+        # Group chat context: show per-chat data
+        info_text = (
+            f"👤 {'@'+username if username else '[no username]'}\n"
+            f"🪪 {full_name}\n"
+            f"🆔 User ID: {user_id}\n"
+            f"📅 Joined: {days_since} days ago\n"
+            f"⭐ Rating: {rating}\n"
+            f"✉️ Messages (this chat): {chat_count}\n"
+            f"✉️ Messages (all chats): {total_count}"
+        )
 
-    # Add interaction info if available
-    if interacted_usernames:
-        info_text += f"\n🤝 Possible people who can know: {', '.join(interacted_usernames)}"
+        # Add interaction info if available (only for group chats)
+        if interacted_usernames:
+            info_text += f"\n🤝 Possible people who can know: {', '.join(interacted_usernames)}"
 
     return info_text
