@@ -1843,7 +1843,7 @@ async def tg_ai_spamcheck(update, context):
                 getattr(message.forward_from_chat, "type", None) == "channel"
             ) if forwarded else False
             # Check for links in entities or caption_entities
-            entities = (getattr(message, "entities", None) or []) + (getattr(message, "caption_entities", None) or [])
+            entities = list(getattr(message, "entities", None) or []) + list(getattr(message, "caption_entities", None) or [])
             has_link = any(e.type in ("url", "text_link") for e in entities) if entities else False
             entity_count = len(entities) if entities else 0
 
