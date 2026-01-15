@@ -107,3 +107,18 @@ def get_rating(user_id, chat_id):
     except Exception as e:
         logger.error(f"Error fetching rating for user_id {user_id}: {traceback.format_exc()}")
         return None  # Return None if there is an error
+
+
+def get_total_rating(user_id):
+    """Get total rating for a user across ALL chats."""
+    try:
+        with db_helper.session_scope() as db_session:
+            user_total_rating = db_session.query(
+                func.sum(db_helper.User_Rating.change_value)
+            ).filter(
+                db_helper.User_Rating.user_id == user_id
+            ).scalar() or 0
+            return user_total_rating
+    except Exception as e:
+        logger.error(f"Error fetching total rating for user_id {user_id}: {traceback.format_exc()}")
+        return None

@@ -291,11 +291,21 @@ async def tg_info(update, context):
         asyncio.create_task(chat_helper.delete_message(context.bot, chat_id, message.message_id, delay_seconds=60))
 
         # determine target_user_id
+        is_dm = update.effective_chat.type == "private"
+        target_user_id = None
+
         if message.reply_to_message:
-            target_user_id = message.reply_to_message.from_user.id
+            reply_msg = message.reply_to_message
+            # Check if it's a forwarded message - get original sender
+            if hasattr(reply_msg, 'forward_origin') and reply_msg.forward_origin and hasattr(reply_msg.forward_origin, 'sender_user'):
+                target_user_id = reply_msg.forward_origin.sender_user.id
+            elif hasattr(reply_msg, 'forward_from') and reply_msg.forward_from:
+                target_user_id = reply_msg.forward_from.id
+            else:
+                # Regular reply - get the message author
+                target_user_id = reply_msg.from_user.id
         else:
             parts = message.text.split()
-            target_user_id = None
             if len(parts) >= 2:
                 arg = parts[1]
                 if arg.startswith('@'):
@@ -304,16 +314,30 @@ async def tg_info(update, context):
                     target_user_id = int(arg)
 
         if not target_user_id:
-            await chat_helper.send_message(
-                context.bot, chat_id,
-                "Please specify a user by replying, @username, or user_id.",
-                reply_to_message_id=message.message_id,
-                delete_after=120
-            )
+            if is_dm:
+                # In DM, show help message about available commands
+                help_text = (
+                    "Available commands in DM:\n\n"
+                    "/info @username - Get user info by username\n"
+                    "/info <user_id> - Get user info by ID\n"
+                    "Forward a message + /info - Get info about original sender"
+                )
+                await chat_helper.send_message(
+                    context.bot, chat_id,
+                    help_text,
+                    reply_to_message_id=message.message_id
+                )
+            else:
+                await chat_helper.send_message(
+                    context.bot, chat_id,
+                    "Please specify a user by replying, @username, or user_id.",
+                    reply_to_message_id=message.message_id,
+                    delete_after=120
+                )
             return
 
         # Get user info text using shared helper
-        info_text = await user_helper.get_user_info_text(target_user_id, chat_id)
+        info_text = await user_helper.get_user_info_text(target_user_id, chat_id, is_dm=is_dm)
 
         # If user not found, the helper returns an error message
         if info_text.startswith("No data for user"):
@@ -1810,6 +1834,19 @@ async def tg_ai_spamcheck(update, context):
             reply_to  = message.reply_to_message.message_id if message.reply_to_message else None
             forwarded = bool(getattr(message, "forward_from", None) or getattr(message, "forward_from_chat", None))
 
+            # Extract new spam detection features from message
+            has_video = bool(getattr(message, "animation", None) or getattr(message, "video", None))
+            has_document = bool(getattr(message, "document", None))
+            has_photo = bool(getattr(message, "photo", None))
+            forwarded_from_channel = (
+                getattr(message, "forward_from_chat", None) is not None and
+                getattr(message.forward_from_chat, "type", None) == "channel"
+            ) if forwarded else False
+            # Check for links in entities or caption_entities
+            entities = (getattr(message, "entities", None) or []) + (getattr(message, "caption_entities", None) or [])
+            has_link = any(e.type in ("url", "text_link") for e in entities) if entities else False
+            entity_count = len(entities) if entities else 0
+
         with sentry_sdk.start_span(op="embedding", description="OpenAI embedding + spam prediction"):
             loop = asyncio.get_event_loop()
             embedding = await openai_helper.generate_embedding(text)
@@ -1859,6 +1896,12 @@ async def tg_ai_spamcheck(update, context):
                     message_content=text,
                     embedding=embedding,
                     image_description_embedding=image_description_embedding,
+                    has_video=has_video,
+                    has_document=has_document,
+                    has_photo=has_photo,
+                    forwarded_from_channel=forwarded_from_channel,
+                    has_link=has_link,
+                    entity_count=entity_count,
                 )
 
         # Check if user is verified (exempt from spam actions)
@@ -1881,7 +1924,13 @@ async def tg_ai_spamcheck(update, context):
                     is_spam                     = False,
                     manually_verified           = True,
                     spam_prediction_probability = spam_prob,
-                    embedding                   = embedding
+                    embedding                   = embedding,
+                    has_video                   = has_video,
+                    has_document                = has_document,
+                    has_photo                   = has_photo,
+                    forwarded_from_channel      = forwarded_from_channel,
+                    has_link                    = has_link,
+                    entity_count                = entity_count
                 )
 
             with sentry_sdk.start_span(op="logging_verified", description="Pretty log for verified user"):
@@ -1918,7 +1967,13 @@ async def tg_ai_spamcheck(update, context):
                 is_spam                     = spam_prob >= delete_thr,
                 manually_verified           = False,
                 spam_prediction_probability = spam_prob,
-                embedding                   = embedding
+                embedding                   = embedding,
+                has_video                   = has_video,
+                has_document                = has_document,
+                has_photo                   = has_photo,
+                forwarded_from_channel      = forwarded_from_channel,
+                has_link                    = has_link,
+                entity_count                = entity_count
             )
 
         with sentry_sdk.start_span(op="moderation_action", description="Moderation actions (delete/mute)"):

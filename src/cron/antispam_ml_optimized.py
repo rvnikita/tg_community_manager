@@ -65,6 +65,13 @@ async def train_spam_classifier():
                         db_helper.Message_Log.is_forwarded,
                         db_helper.Message_Log.reply_to_message_id,
                         db_helper.Message_Log.created_at.label('message_created_at'),
+                        # New spam detection features
+                        db_helper.Message_Log.has_video,
+                        db_helper.Message_Log.has_document,
+                        db_helper.Message_Log.has_photo,
+                        db_helper.Message_Log.forwarded_from_channel,
+                        db_helper.Message_Log.has_link,
+                        db_helper.Message_Log.entity_count,
                         db_helper.User_Status.created_at.label('status_created_at'),
                         db_helper.User.created_at.label('user_created_at'),
                         db_helper.User.username.label('user_username'),
@@ -105,6 +112,10 @@ async def train_spam_classifier():
             # Get embedding dimension from first message with embedding
             embedding_dim = len(messages_data[0].embedding) if messages_data else 1536
             zero_embedding = np.zeros(embedding_dim)
+
+            # Helper to convert None to np.nan (XGBoost handles NaN natively)
+            def to_float_or_nan(val):
+                return float(val) if val is not None else np.nan
 
             for message_data in messages_data:
                 # Use the status creation time if available, otherwise use the user creation time.
@@ -148,7 +159,14 @@ async def train_spam_classifier():
                         has_image,
                         has_username,  # New: user has username in profile
                         hour_utc,      # New: hour of day (UTC)
-                        day_of_week    # New: day of week (0=Monday)
+                        day_of_week,   # New: day of week (0=Monday)
+                        # New spam detection features (None -> np.nan for XGBoost)
+                        to_float_or_nan(message_data.has_video),
+                        to_float_or_nan(message_data.has_document),
+                        to_float_or_nan(message_data.has_photo),
+                        to_float_or_nan(message_data.forwarded_from_channel),
+                        to_float_or_nan(message_data.has_link),
+                        to_float_or_nan(message_data.entity_count)
                     ]
                 ))
                 features.append(feature_array)

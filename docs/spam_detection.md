@@ -135,6 +135,71 @@ WHERE id IN (
 | `spam_prediction_probability` | ML model's spam probability (0-1) |
 | `reason_for_action` | Human-readable reason for classification |
 
+## ML Features
+
+### Feature List
+
+The spam detection model uses the following features:
+
+| Feature | Type | Description |
+|---------|------|-------------|
+| `embedding` | Vector (1536d) | OpenAI text embedding of message content |
+| `image_description_embedding` | Vector (1536d) | OpenAI embedding of image description (if image present) |
+| `user_current_rating` | Integer | User's rating in the chat |
+| `time_difference` | Float | Seconds since user joined the chat |
+| `chat_id` | Integer | Chat ID (different chats have different spam norms) |
+| `message_length` | Integer | Length of message text |
+| `spam_count` | Integer | User's previous spam count |
+| `not_spam_count` | Integer | User's previous non-spam count |
+| `is_forwarded` | Boolean | Whether message is forwarded |
+| `reply_to_message_id` | Integer | ID of replied message (0 if not a reply) |
+| `has_telegram_nick` | Boolean | Whether message contains @username |
+| `has_image` | Boolean | Whether message has an analyzed image |
+| `has_video` | Boolean | Whether message has video or animation/GIF |
+| `has_document` | Boolean | Whether message has document attachment |
+| `has_photo` | Boolean | Whether message has photo |
+| `forwarded_from_channel` | Boolean | Whether forwarded from a channel (vs user/group) |
+| `has_link` | Boolean | Whether message contains URL links |
+| `entity_count` | Integer | Number of entities (links, mentions, etc.) |
+
+### New Features (2025-01)
+
+The following features were added to improve detection of video/media spam:
+
+| Feature | Spam Signal | Why |
+|---------|-------------|-----|
+| `has_video` | HIGH | Porn/scam spam often uses video content |
+| `has_document` | MEDIUM | Document attachments can be malicious (APK, etc.) |
+| `has_photo` | LOW | Photos are common but less indicative alone |
+| `forwarded_from_channel` | HIGH | Channel forwards are higher risk than user forwards |
+| `has_link` | MEDIUM | Links often indicate promotional spam |
+| `entity_count` | MEDIUM | Many entities (links, mentions) = suspicious |
+
+### NULL Handling
+
+For new features, `NULL` means "unknown" and is different from `False`:
+- `NULL`: Feature value was not captured (old messages before backfill)
+- `False`: Feature was checked and not present
+- `True`: Feature was checked and present
+
+XGBoost handles `NULL` (NaN) natively and learns optimal decision paths for missing values.
+
+### Feature Extraction from raw_message
+
+Existing messages can have features extracted from `raw_message` JSON:
+
+```sql
+-- Example: Extract has_video from raw_message
+UPDATE tg_message_log
+SET has_video = (raw_message ? 'animation' OR raw_message ? 'video')
+WHERE raw_message IS NOT NULL AND has_video IS NULL;
+
+-- Example: Extract forwarded_from_channel
+UPDATE tg_message_log
+SET forwarded_from_channel = (raw_message->'forward_from_chat'->>'type' = 'channel')
+WHERE raw_message ? 'forward_from_chat' AND forwarded_from_channel IS NULL;
+```
+
 ## Training Data Strategies
 
 ### Hypothesis: Closed Groups as Training Data

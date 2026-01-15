@@ -32,7 +32,14 @@ def insert_or_update_message_log(
     spam_prediction_probability=None,
     raw_message=None,
     image_description=None,
-    image_description_embedding=None
+    image_description_embedding=None,
+    # New spam detection features
+    has_video=None,
+    has_document=None,
+    has_photo=None,
+    forwarded_from_channel=None,
+    has_link=None,
+    entity_count=None
 ):
     try:
         # Convert spam_prediction_probability to float if provided.
@@ -77,7 +84,14 @@ def insert_or_update_message_log(
                 'spam_prediction_probability': spam_prediction_probability,
                 'raw_message': raw_message,
                 'image_description': image_description,
-                'image_description_embedding': image_description_embedding
+                'image_description_embedding': image_description_embedding,
+                # New spam detection features
+                'has_video': has_video,
+                'has_document': has_document,
+                'has_photo': has_photo,
+                'forwarded_from_channel': forwarded_from_channel,
+                'has_link': has_link,
+                'entity_count': entity_count
             }
 
             if not is_spam_present:
@@ -97,7 +111,8 @@ def insert_or_update_message_log(
                     'action_type', 'reporting_id', 'reporting_id_nickname',
                     'reason_for_action', 'is_spam', 'manually_verified', 'is_forwarded',
                     'reply_to_message_id', 'spam_prediction_probability', 'embedding', 'raw_message',
-                    'image_description', 'image_description_embedding'
+                    'image_description', 'image_description_embedding',
+                    'has_video', 'has_document', 'has_photo', 'forwarded_from_channel', 'has_link', 'entity_count'
                 ):
                     if insert_values.get(key) is None:
                         insert_values[key] = getattr(existing, key)
@@ -113,7 +128,8 @@ def insert_or_update_message_log(
                 'is_spam', 'action_type', 'reporting_id', 'reporting_id_nickname',
                 'reason_for_action', 'embedding', 'manually_verified', 'is_forwarded',
                 'reply_to_message_id', 'spam_prediction_probability', 'raw_message',
-                'image_description', 'image_description_embedding'
+                'image_description', 'image_description_embedding',
+                'has_video', 'has_document', 'has_photo', 'forwarded_from_channel', 'has_link', 'entity_count'
             ):
                 if insert_values.get(key) is not None:
                     update_dict[key] = insert_values.get(key)
