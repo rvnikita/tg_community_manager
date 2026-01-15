@@ -924,6 +924,118 @@ async def tg_unspam(update, context):
 
 
 @sentry_profile()
+async def tg_verify_user(update, context):
+    """Verify a user to exempt them from spam actions. Super admin only."""
+    try:
+        message = update.message
+        chat_id = update.effective_chat.id
+
+        # Only allow global admin
+        if message.from_user.id != int(os.getenv('ENV_BOT_ADMIN_ID')):
+            await chat_helper.send_message(
+                context.bot, chat_id,
+                "You must be a global admin to use this command.",
+                reply_to_message_id=message.message_id
+            )
+            return
+
+        # Parse target user
+        target_user_id = user_helper.extract_user_id_from_command(message, message.text.split())
+        if not target_user_id:
+            await chat_helper.send_message(
+                context.bot, chat_id,
+                "Usage: /verify_user @username or /verify_user user_id, or reply to a message.",
+                reply_to_message_id=message.message_id
+            )
+            return
+
+        # Delete command message
+        await chat_helper.delete_message(context.bot, chat_id, message.message_id)
+
+        # Set verification status
+        success = user_helper.set_user_verified(target_user_id, True)
+
+        if success:
+            target_mention = user_helper.get_user_mention(target_user_id, chat_id)
+            logger.info(f"User {target_user_id} verified by admin {message.from_user.id}")
+            await chat_helper.send_message(
+                context.bot, chat_id,
+                f"User {target_mention} is now verified (exempt from spam actions).",
+                delete_after=120
+            )
+        else:
+            await chat_helper.send_message(
+                context.bot, chat_id,
+                f"User {target_user_id} not found in database.",
+                delete_after=60
+            )
+
+    except Exception:
+        logger.error(f"Error in verify_user: {traceback.format_exc()}")
+        await chat_helper.send_message(
+            context.bot, chat_id,
+            "An error occurred while processing the verify_user command.",
+            reply_to_message_id=message.message_id
+        )
+
+
+@sentry_profile()
+async def tg_unverify_user(update, context):
+    """Remove verification from a user. Super admin only."""
+    try:
+        message = update.message
+        chat_id = update.effective_chat.id
+
+        # Only allow global admin
+        if message.from_user.id != int(os.getenv('ENV_BOT_ADMIN_ID')):
+            await chat_helper.send_message(
+                context.bot, chat_id,
+                "You must be a global admin to use this command.",
+                reply_to_message_id=message.message_id
+            )
+            return
+
+        # Parse target user
+        target_user_id = user_helper.extract_user_id_from_command(message, message.text.split())
+        if not target_user_id:
+            await chat_helper.send_message(
+                context.bot, chat_id,
+                "Usage: /unverify_user @username or /unverify_user user_id, or reply to a message.",
+                reply_to_message_id=message.message_id
+            )
+            return
+
+        # Delete command message
+        await chat_helper.delete_message(context.bot, chat_id, message.message_id)
+
+        # Remove verification status
+        success = user_helper.set_user_verified(target_user_id, False)
+
+        if success:
+            target_mention = user_helper.get_user_mention(target_user_id, chat_id)
+            logger.info(f"User {target_user_id} unverified by admin {message.from_user.id}")
+            await chat_helper.send_message(
+                context.bot, chat_id,
+                f"User {target_mention} is no longer verified (spam checks will apply).",
+                delete_after=120
+            )
+        else:
+            await chat_helper.send_message(
+                context.bot, chat_id,
+                f"User {target_user_id} not found in database.",
+                delete_after=60
+            )
+
+    except Exception:
+        logger.error(f"Error in unverify_user: {traceback.format_exc()}")
+        await chat_helper.send_message(
+            context.bot, chat_id,
+            "An error occurred while processing the unverify_user command.",
+            reply_to_message_id=message.message_id
+        )
+
+
+@sentry_profile()
 async def tg_gban(update, context):
     try:
         with db_helper.session_scope() as db_session:
@@ -1749,6 +1861,48 @@ async def tg_ai_spamcheck(update, context):
                     image_description_embedding=image_description_embedding,
                 )
 
+        # Check if user is verified (exempt from spam actions)
+        is_verified_user = user_helper.is_user_verified(user_id)
+
+        if is_verified_user:
+            # User is verified - log prediction but don't mark as spam or take action
+            with sentry_sdk.start_span(op="db_logging_verified", description="DB logging for verified user"):
+                message_log_id = message_helper.insert_or_update_message_log(
+                    chat_id                     = chat_id,
+                    message_id                  = message.message_id,
+                    user_id                     = user_id,
+                    user_nickname               = message.from_user.username or message.from_user.first_name,
+                    user_current_rating         = rating_helper.get_rating(user_id, chat_id),
+                    message_content             = text,
+                    action_type                 = "spam detection",
+                    reporting_id                = context.bot.id,
+                    reporting_id_nickname       = "rv_tg_community_bot",
+                    reason_for_action           = f"User is manually verified (prediction: {spam_prob:.5f})",
+                    is_spam                     = False,
+                    manually_verified           = True,
+                    spam_prediction_probability = spam_prob,
+                    embedding                   = embedding
+                )
+
+            with sentry_sdk.start_span(op="logging_verified", description="Pretty log for verified user"):
+                chat_name = await chat_helper.get_chat_mention(context.bot, chat_id)
+                user_ment = user_helper.get_user_mention(user_id, chat_id)
+                short_txt = (text[:200] + "…") if len(text) > 203 else text
+
+                log_lines = [
+                    "",
+                    "╔═ AI-Spamcheck (VERIFIED USER)",
+                    f"║ Probability  : ✅ {spam_prob:.5f}  (del≥{delete_thr}, mute≥{mute_thr})",
+                    f"╚═ 📝 Content   : {short_txt}",
+                    f"            ↳ User: {user_ment}",
+                    f"            ↳ Chat: {chat_name} ({chat_id})",
+                    f"            ↳ Action: verified_bypass (no action taken)",
+                    f"            ↳ Engine: {engine}",
+                    f"            ↳ Msg-log-ID: {message_log_id}",
+                ]
+                logger.info("\n".join(log_lines))
+            return  # Skip moderation actions for verified users
+
         with sentry_sdk.start_span(op="db_logging", description="DB logging"):
             message_log_id = message_helper.insert_or_update_message_log(
                 chat_id                     = chat_id,
@@ -2521,6 +2675,8 @@ def create_application():
     application.add_handler(CommandHandler(["gban", "g", "gb"], tg_gban), group=6)
     application.add_handler(CommandHandler(["spam", "s"], tg_spam), group=6)
     application.add_handler(CommandHandler(["unspam", "us"], tg_unspam), group=6)
+    application.add_handler(CommandHandler(["verify_user", "vu"], tg_verify_user), group=6)
+    application.add_handler(CommandHandler(["unverify_user", "uvu"], tg_unverify_user), group=6)
     # Broadcast handlers support both text commands and commands with photos (captions)
     application.add_handler(MessageHandler(
         filters.TEXT & filters.Regex(r'^/(broadcast_group|bg)\s'),

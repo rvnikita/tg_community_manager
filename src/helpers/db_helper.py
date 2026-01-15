@@ -55,6 +55,7 @@ class User(Base):
     is_bot = Column(Boolean)
     is_anonymous = Column(Boolean)
     user_raw = Column(JSON, nullable=True)
+    is_verified = Column(Boolean, default=False, nullable=False, server_default=text('false'))
 
     user_statuses = relationship('User_Status', back_populates='user')
 

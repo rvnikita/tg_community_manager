@@ -16,6 +16,22 @@ def get_user_id(username: str):
         u = session.query(db_helper.User).filter_by(username=username).first()
         return u.id if u else None
 
+def is_user_verified(user_id: int) -> bool:
+    """Check if user is verified (exempt from spam actions)."""
+    with db_helper.session_scope() as session:
+        user = session.query(db_helper.User).filter_by(id=user_id).first()
+        return user.is_verified if user else False
+
+def set_user_verified(user_id: int, verified: bool) -> bool:
+    """Set user verification status. Returns True if successful."""
+    with db_helper.session_scope() as session:
+        user = session.query(db_helper.User).filter_by(id=user_id).first()
+        if user:
+            user.is_verified = verified
+            session.commit()
+            return True
+        return False
+
 def extract_user_id_from_command(message, command_parts, allow_reply=True):
     """
     Extract user ID from a command message using multiple methods:
