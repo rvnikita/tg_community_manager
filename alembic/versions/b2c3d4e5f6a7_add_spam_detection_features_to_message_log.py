@@ -27,25 +27,26 @@ def upgrade() -> None:
 
     # Backfill from raw_message JSON where available
     # Only update rows where raw_message is not null
+    # Cast to jsonb since raw_message is stored as json type
     op.execute("""
         UPDATE tg_message_log
         SET
             has_video = CASE
                 WHEN raw_message IS NULL THEN NULL
-                ELSE (raw_message ? 'animation' OR raw_message ? 'video')
+                ELSE (raw_message::jsonb ? 'animation' OR raw_message::jsonb ? 'video')
             END,
             has_document = CASE
                 WHEN raw_message IS NULL THEN NULL
-                ELSE (raw_message ? 'document')
+                ELSE (raw_message::jsonb ? 'document')
             END,
             has_photo = CASE
                 WHEN raw_message IS NULL THEN NULL
-                ELSE (raw_message ? 'photo')
+                ELSE (raw_message::jsonb ? 'photo')
             END,
             forwarded_from_channel = CASE
                 WHEN raw_message IS NULL THEN NULL
-                WHEN raw_message->'forward_from_chat'->>'type' = 'channel' THEN true
-                WHEN raw_message ? 'forward_from_chat' THEN false
+                WHEN raw_message::jsonb->'forward_from_chat'->>'type' = 'channel' THEN true
+                WHEN raw_message::jsonb ? 'forward_from_chat' THEN false
                 ELSE NULL
             END,
             has_link = CASE
@@ -53,20 +54,20 @@ def upgrade() -> None:
                 ELSE (
                     EXISTS (
                         SELECT 1
-                        FROM jsonb_array_elements(COALESCE(raw_message->'entities', '[]'::jsonb)) AS e
+                        FROM jsonb_array_elements(COALESCE(raw_message::jsonb->'entities', '[]'::jsonb)) AS e
                         WHERE e->>'type' IN ('url', 'text_link')
                     )
                     OR EXISTS (
                         SELECT 1
-                        FROM jsonb_array_elements(COALESCE(raw_message->'caption_entities', '[]'::jsonb)) AS e
+                        FROM jsonb_array_elements(COALESCE(raw_message::jsonb->'caption_entities', '[]'::jsonb)) AS e
                         WHERE e->>'type' IN ('url', 'text_link')
                     )
                 )
             END,
             entity_count = CASE
                 WHEN raw_message IS NULL THEN NULL
-                ELSE COALESCE(jsonb_array_length(raw_message->'entities'), 0)
-                     + COALESCE(jsonb_array_length(raw_message->'caption_entities'), 0)
+                ELSE COALESCE(jsonb_array_length(raw_message::jsonb->'entities'), 0)
+                     + COALESCE(jsonb_array_length(raw_message::jsonb->'caption_entities'), 0)
             END
         WHERE raw_message IS NOT NULL
     """)
