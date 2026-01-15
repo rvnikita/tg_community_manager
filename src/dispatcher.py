@@ -1834,6 +1834,19 @@ async def tg_ai_spamcheck(update, context):
             reply_to  = message.reply_to_message.message_id if message.reply_to_message else None
             forwarded = bool(getattr(message, "forward_from", None) or getattr(message, "forward_from_chat", None))
 
+            # Extract new spam detection features from message
+            has_video = bool(getattr(message, "animation", None) or getattr(message, "video", None))
+            has_document = bool(getattr(message, "document", None))
+            has_photo = bool(getattr(message, "photo", None))
+            forwarded_from_channel = (
+                getattr(message, "forward_from_chat", None) is not None and
+                getattr(message.forward_from_chat, "type", None) == "channel"
+            ) if forwarded else False
+            # Check for links in entities or caption_entities
+            entities = (getattr(message, "entities", None) or []) + (getattr(message, "caption_entities", None) or [])
+            has_link = any(e.type in ("url", "text_link") for e in entities) if entities else False
+            entity_count = len(entities) if entities else 0
+
         with sentry_sdk.start_span(op="embedding", description="OpenAI embedding + spam prediction"):
             loop = asyncio.get_event_loop()
             embedding = await openai_helper.generate_embedding(text)
@@ -1883,6 +1896,12 @@ async def tg_ai_spamcheck(update, context):
                     message_content=text,
                     embedding=embedding,
                     image_description_embedding=image_description_embedding,
+                    has_video=has_video,
+                    has_document=has_document,
+                    has_photo=has_photo,
+                    forwarded_from_channel=forwarded_from_channel,
+                    has_link=has_link,
+                    entity_count=entity_count,
                 )
 
         # Check if user is verified (exempt from spam actions)
@@ -1905,7 +1924,13 @@ async def tg_ai_spamcheck(update, context):
                     is_spam                     = False,
                     manually_verified           = True,
                     spam_prediction_probability = spam_prob,
-                    embedding                   = embedding
+                    embedding                   = embedding,
+                    has_video                   = has_video,
+                    has_document                = has_document,
+                    has_photo                   = has_photo,
+                    forwarded_from_channel      = forwarded_from_channel,
+                    has_link                    = has_link,
+                    entity_count                = entity_count
                 )
 
             with sentry_sdk.start_span(op="logging_verified", description="Pretty log for verified user"):
@@ -1942,7 +1967,13 @@ async def tg_ai_spamcheck(update, context):
                 is_spam                     = spam_prob >= delete_thr,
                 manually_verified           = False,
                 spam_prediction_probability = spam_prob,
-                embedding                   = embedding
+                embedding                   = embedding,
+                has_video                   = has_video,
+                has_document                = has_document,
+                has_photo                   = has_photo,
+                forwarded_from_channel      = forwarded_from_channel,
+                has_link                    = has_link,
+                entity_count                = entity_count
             )
 
         with sentry_sdk.start_span(op="moderation_action", description="Moderation actions (delete/mute)"):

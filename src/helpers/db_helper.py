@@ -282,7 +282,13 @@ class Message_Log(Base):
     is_forwarded = Column(Boolean, nullable=True)  # Column to store is message is forwarded
     reply_to_message_id = Column(BigInteger, nullable=True)  # Column to store reply-to message ID
     spam_prediction_probability = Column(Float, nullable=True)  # Column to store spam prediction probability. We are not going to use that for spam prediction itself, but for logging purposes and easier filtering of messages for manual verification
-
+    # New spam detection features (nullable - NULL means unknown, different from False)
+    has_video = Column(Boolean, nullable=True)  # True if message has video or animation/GIF
+    has_document = Column(Boolean, nullable=True)  # True if message has document attachment
+    has_photo = Column(Boolean, nullable=True)  # True if message has photo
+    forwarded_from_channel = Column(Boolean, nullable=True)  # True if forwarded from a channel (vs user/group)
+    has_link = Column(Boolean, nullable=True)  # True if message contains URL links
+    entity_count = Column(Integer, nullable=True)  # Number of entities (links, mentions, etc.)
 
     # Relationships
     user = relationship("User", foreign_keys=[user_id], backref="message_logs")

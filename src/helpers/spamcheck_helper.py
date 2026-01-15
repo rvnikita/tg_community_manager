@@ -27,7 +27,11 @@ print("Current Working Directory:", current_path)
 model = load('ml_models/xgb_spam_model.joblib')
 scaler = load('ml_models/scaler.joblib')
 
-async def generate_features(user_id, chat_id, message_text=None, embedding=None, is_forwarded=None, reply_to_message_id=None, image_description_embedding=None):
+async def generate_features(
+    user_id, chat_id, message_text=None, embedding=None, is_forwarded=None, reply_to_message_id=None,
+    image_description_embedding=None, has_video=None, has_document=None, has_photo=None,
+    forwarded_from_channel=None, has_link=None, entity_count=None
+):
     try:
         if embedding is None and message_text is not None:
             embedding = await openai_helper.generate_embedding(message_text)
@@ -77,10 +81,16 @@ async def generate_features(user_id, chat_id, message_text=None, embedding=None,
             is_forwarded = is_forwarded or 0
             reply_to_message_id = reply_to_message_id or 0
 
+            # Convert new features: None -> np.nan (XGBoost handles NaN natively)
+            # This distinguishes "unknown" from "False/0"
+            def to_float_or_nan(val):
+                return float(val) if val is not None else np.nan
+
             # Construct the feature array in the same order as used during training
             # NOTE: user_id removed to prevent overfitting on specific users
             # Order: embedding, image_embedding, user_rating_value, time_difference, chat_id, message_length,
-            # spam_count, not_spam_count, is_forwarded, reply_to_message_id, has_telegram_nick, has_image
+            # spam_count, not_spam_count, is_forwarded, reply_to_message_id, has_telegram_nick, has_image,
+            # has_video, has_document, has_photo, forwarded_from_channel, has_link, entity_count
             feature_array = np.concatenate((
                 embedding,
                 image_embedding,
@@ -94,7 +104,14 @@ async def generate_features(user_id, chat_id, message_text=None, embedding=None,
                     float(is_forwarded),
                     float(reply_to_message_id),
                     has_telegram_nick,
-                    has_image
+                    has_image,
+                    # New spam detection features
+                    to_float_or_nan(has_video),
+                    to_float_or_nan(has_document),
+                    to_float_or_nan(has_photo),
+                    to_float_or_nan(forwarded_from_channel),
+                    to_float_or_nan(has_link),
+                    to_float_or_nan(entity_count)
                 ]
             ))
             return feature_array
@@ -102,17 +119,22 @@ async def generate_features(user_id, chat_id, message_text=None, embedding=None,
         logger.error(f"An error occurred during feature generation: {traceback.format_exc()}")
         return None
 
-async def predict_spam(user_id, chat_id, message_content=None, embedding=None, is_forwarded=None, reply_to_message_id=None, image_description_embedding=None):
+async def predict_spam(
+    user_id, chat_id, message_content=None, embedding=None, is_forwarded=None, reply_to_message_id=None,
+    image_description_embedding=None, has_video=None, has_document=None, has_photo=None,
+    forwarded_from_channel=None, has_link=None, entity_count=None
+):
     try:
         feature_array = await generate_features(
-            user_id, chat_id, message_content, embedding, is_forwarded, reply_to_message_id, image_description_embedding
+            user_id, chat_id, message_content, embedding, is_forwarded, reply_to_message_id,
+            image_description_embedding, has_video, has_document, has_photo,
+            forwarded_from_channel, has_link, entity_count
         )
         if feature_array is None:
             logger.error("Feature array is None, skipping prediction.")
             return False
-        if np.isnan(feature_array.astype(float)).any():
-            logger.error(f"NaN values found in feature_array: {feature_array}")
-            return False
+        # Note: NaN values are intentionally used for unknown features
+        # XGBoost handles NaN natively and learns optimal direction for missing values
         feature_array = scaler.transform([feature_array])
         return model.predict_proba(feature_array)[0][1]
     except Exception as e:
