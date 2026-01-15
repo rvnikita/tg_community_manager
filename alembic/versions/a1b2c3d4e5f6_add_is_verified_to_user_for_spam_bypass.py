@@ -1,7 +1,7 @@
 """add is_verified to user for spam bypass
 
 Revision ID: a1b2c3d4e5f6
-Revises: 8b083406d2f8
+Revises: 2e3839bc11fb
 Create Date: 2025-01-15 12:00:00.000000
 
 """
