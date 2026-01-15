@@ -74,13 +74,19 @@ async def generate_features(user_id, chat_id, message_text=None, embedding=None,
             # New feature: check if the message text contains a Telegram username (e.g., "@rvnikita")
             has_telegram_nick = 1.0 if re.search(r'@\w+', message_text) else 0.0
 
-            is_forwarded = is_forwarded or 0
-            reply_to_message_id = reply_to_message_id or 0
+            is_forwarded = float(is_forwarded or 0)
+            is_reply = 1.0 if reply_to_message_id else 0.0  # Changed to binary
+
+            # New features: user has username, hour and day of week (UTC)
+            has_username = 1.0 if user.username else 0.0
+            hour_utc = float(message_date.hour)
+            day_of_week = float(message_date.weekday())  # 0=Monday, 6=Sunday
 
             # Construct the feature array in the same order as used during training
             # NOTE: user_id removed to prevent overfitting on specific users
             # Order: embedding, image_embedding, user_rating_value, time_difference, chat_id, message_length,
-            # spam_count, not_spam_count, is_forwarded, reply_to_message_id, has_telegram_nick, has_image
+            # spam_count, not_spam_count, is_forwarded, is_reply, has_telegram_nick, has_image,
+            # has_username, hour_utc, day_of_week
             feature_array = np.concatenate((
                 embedding,
                 image_embedding,
@@ -91,10 +97,13 @@ async def generate_features(user_id, chat_id, message_text=None, embedding=None,
                     float(message_length),
                     float(spam_count),
                     float(not_spam_count),
-                    float(is_forwarded),
-                    float(reply_to_message_id),
+                    is_forwarded,
+                    is_reply,  # Changed from raw ID to binary (0/1)
                     has_telegram_nick,
-                    has_image
+                    has_image,
+                    has_username,  # New: user has username in profile
+                    hour_utc,      # New: hour of day (UTC)
+                    day_of_week    # New: day of week (0=Monday)
                 ]
             ))
             return feature_array

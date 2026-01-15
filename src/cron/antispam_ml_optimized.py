@@ -64,8 +64,10 @@ async def train_spam_classifier():
                         db_helper.Message_Log.user_current_rating,
                         db_helper.Message_Log.is_forwarded,
                         db_helper.Message_Log.reply_to_message_id,
+                        db_helper.Message_Log.created_at.label('message_created_at'),
                         db_helper.User_Status.created_at.label('status_created_at'),
                         db_helper.User.created_at.label('user_created_at'),
+                        db_helper.User.username.label('user_username'),
                         func.coalesce(spam_counts_subquery.c.spam_count, 0).label('spam_count'),
                         func.coalesce(spam_counts_subquery.c.not_spam_count, 0).label('not_spam_count')
                     )
@@ -118,6 +120,17 @@ async def train_spam_classifier():
                 image_embedding = message_data.image_description_embedding if message_data.image_description_embedding is not None else zero_embedding
                 has_image = 1.0 if message_data.image_description_embedding is not None else 0.0
 
+                # New features: user has username, is_reply (binary), hour and day of week
+                has_username = 1.0 if message_data.user_username else 0.0
+                is_reply = 1.0 if message_data.reply_to_message_id else 0.0
+
+                # Extract time features from message timestamp (UTC)
+                msg_time = message_data.message_created_at
+                if msg_time.tzinfo is None:
+                    msg_time = msg_time.replace(tzinfo=timezone.utc)
+                hour_utc = float(msg_time.hour)
+                day_of_week = float(msg_time.weekday())  # 0=Monday, 6=Sunday
+
                 feature_array = np.concatenate((
                     message_data.embedding,
                     image_embedding,
@@ -130,9 +143,12 @@ async def train_spam_classifier():
                         message_data.spam_count,
                         message_data.not_spam_count,
                         float(message_data.is_forwarded or 0),
-                        message_data.reply_to_message_id or 0,
+                        is_reply,  # Changed from raw ID to binary (0/1)
                         has_telegram_nick,
-                        has_image  # New feature: indicates if message has an image
+                        has_image,
+                        has_username,  # New: user has username in profile
+                        hour_utc,      # New: hour of day (UTC)
+                        day_of_week    # New: day of week (0=Monday)
                     ]
                 ))
                 features.append(feature_array)
