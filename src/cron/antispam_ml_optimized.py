@@ -16,12 +16,19 @@ from joblib import dump
 import asyncio
 import re
 import time
+import psutil
 
 import src.helpers.db_helper as db_helper
 import src.helpers.logging_helper as logging_helper
 from sqlalchemy import func, or_, and_, case
 
 logger = logging_helper.get_logger()
+
+def log_memory():
+    """Log current memory usage"""
+    process = psutil.Process()
+    mem_info = process.memory_info()
+    logger.info(f"Memory usage: RSS={mem_info.rss / 1024 / 1024:.1f}MB, VMS={mem_info.vms / 1024 / 1024:.1f}MB")
 
 async def train_spam_classifier():
     """Train a spam classifier using XGBoost on message embeddings and additional features.
@@ -30,6 +37,7 @@ async def train_spam_classifier():
     """
     try:
         with db_helper.session_scope() as session:
+            log_memory()
             logger.info("Fetching messages from the database for training...")
 
             # Create a subquery to pre-aggregate spam counts per user
@@ -80,6 +88,7 @@ async def train_spam_classifier():
             messages_data = query.all()
             query_time = time.time() - start_time
             logger.info(f"Fetched {len(messages_data)} messages in {query_time:.2f} seconds.")
+            log_memory()
             if not messages_data:
                 logger.info("No messages to process.")
                 return None
@@ -132,31 +141,41 @@ async def train_spam_classifier():
 
             feature_time = time.time() - feature_start_time
             logger.info(f"Completed processing messages data in {feature_time:.2f} seconds.")
+            log_memory()
             if not features:
                 logger.info("No features to train on.")
                 return None
 
+            logger.info("Converting features to numpy array...")
             features = np.array(features)
             labels = np.array(labels)
+            logger.info(f"Features array shape: {features.shape}")
+            log_memory()
 
+            logger.info("Applying imputer...")
             imputer = SimpleImputer(strategy='mean')
             features = imputer.fit_transform(features)
+            log_memory()
 
             unique_classes, class_counts = np.unique(labels, return_counts=True)
             logger.info(f"Class distribution before splitting: {dict(zip(unique_classes, class_counts))}")
 
+            logger.info("Splitting train/test data...")
             X_train, X_test, y_train, y_test, ids_train, ids_test = train_test_split(
                 features, labels, list(message_contents.keys()), test_size=0.2, stratify=labels, random_state=42
             )
+            log_memory()
 
             unique_train_classes, train_class_counts = np.unique(y_train, return_counts=True)
             unique_test_classes, test_class_counts = np.unique(y_test, return_counts=True)
             logger.info(f"Training class distribution: {dict(zip(unique_train_classes, train_class_counts))}")
             logger.info(f"Test class distribution: {dict(zip(unique_test_classes, test_class_counts))}")
 
+            logger.info("Scaling features...")
             scaler = StandardScaler().fit(X_train)
             X_train = scaler.transform(X_train)
             X_test = scaler.transform(X_test)
+            log_memory()
 
             logger.info("Training XGBoost model...")
             train_start_time = time.time()

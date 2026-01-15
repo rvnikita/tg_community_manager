@@ -23,7 +23,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install numpy scikit-learn xgboost==2.0.3 joblib sqlalchemy psycopg2-binary pgvector python-dotenv requests sentry-sdk
+          pip install numpy scikit-learn xgboost==2.0.3 joblib sqlalchemy psycopg2-binary pgvector python-dotenv requests sentry-sdk psutil
 
       - name: Train model
         env:
