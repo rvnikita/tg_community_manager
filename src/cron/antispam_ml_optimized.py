@@ -86,6 +86,7 @@ async def train_spam_classifier():
                     .filter(
                         db_helper.Message_Log.embedding != None,
                         db_helper.Message_Log.message_content != None,
+                        db_helper.Message_Log.is_spam != None,  # Exclude NULL (unknown) - only use True/False
                         or_(
                             db_helper.Message_Log.manually_verified == True,
                             and_(db_helper.Message_Log.spam_prediction_probability > 0.99, db_helper.Message_Log.is_spam == True),
@@ -149,7 +150,7 @@ async def train_spam_classifier():
                         message_data.user_current_rating,
                         time_difference,
                         message_data.chat_id,  # KEPT: Different chats have different spam patterns/norms
-                        # message_data.user_id,  # REMOVED: Causes overfitting - new users appear constantly
+                        np.log10(message_data.user_id),  # Proxy for account age: higher ID = newer account = more likely spam
                         message_length,
                         message_data.spam_count,
                         message_data.not_spam_count,

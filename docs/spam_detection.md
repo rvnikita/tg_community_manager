@@ -48,18 +48,31 @@ Moderation action based on probability thresholds:
 
 ## ML Models
 
+### Current Model: XGBoost
+
+The primary spam detection model uses **XGBoost** (`antispam_ml_optimized.py`):
+- Gradient boosting classifier with 100 estimators
+- Handles missing values (NULL/NaN) natively
+- Model files: `ml_models/xgb_spam_model.joblib`, `ml_models/scaler.joblib`
+
 ### Training Data Sources
 
 Messages are used for training based on these criteria:
 
 ```sql
--- Training data selection (from antispam_ml_raw.py)
-WHERE manually_verified = true
-   OR (spam_prediction_probability > 0.98 AND is_spam = true)
-   OR (spam_prediction_probability < 0.02 AND is_spam = false)
+-- Training data selection (from antispam_ml_optimized.py)
+WHERE embedding IS NOT NULL
+  AND message_content IS NOT NULL
+  AND is_spam IS NOT NULL  -- Only use verified labels (true/false), exclude unknown (NULL)
+  AND (
+      manually_verified = true
+      OR (spam_prediction_probability > 0.99 AND is_spam = true)
+      OR (spam_prediction_probability < 0.01 AND is_spam = false)
+  )
+ORDER BY id DESC  -- Most recent messages first
 ```
 
-### Model Types
+### Legacy Model Types
 
 1. **Raw Text Model** (`spamcheck_helper_raw.py`)
    - Direct text classification
@@ -71,7 +84,6 @@ WHERE manually_verified = true
 
 3. **Combined Model** (`spamcheck_helper.py`)
    - Uses both text and image description embeddings
-   - Primary model for spam detection
 
 ## User Verification System
 
@@ -130,50 +142,86 @@ WHERE id IN (
 
 | Field | Description |
 |-------|-------------|
-| `is_spam` | Whether message is classified as spam |
+| `is_spam` | Spam classification: `NULL`=unknown, `false`=not spam, `true`=spam |
 | `manually_verified` | Whether classification was manually verified |
 | `spam_prediction_probability` | ML model's spam probability (0-1) |
 | `reason_for_action` | Human-readable reason for classification |
 
+### is_spam Semantics
+
+The `is_spam` column uses three-state logic:
+
+| Value | Meaning | Used for Training |
+|-------|---------|-------------------|
+| `NULL` | Unknown/not classified | No |
+| `false` | Verified as not spam | Yes |
+| `true` | Verified as spam | Yes |
+
+Important: Only messages with `is_spam = true` or `is_spam = false` are used for ML training. Messages with `is_spam = NULL` are excluded to prevent polluting the training data with unverified classifications.
+
 ## ML Features
 
-### Feature List
+### Feature List (Total: 3092 dimensions)
 
-The spam detection model uses the following features:
+The XGBoost spam detection model uses the following features in order:
+
+#### Embedding Features (3072d)
 
 | Feature | Type | Description |
 |---------|------|-------------|
 | `embedding` | Vector (1536d) | OpenAI text embedding of message content |
-| `image_description_embedding` | Vector (1536d) | OpenAI embedding of image description (if image present) |
+| `image_description_embedding` | Vector (1536d) | OpenAI embedding of image description (zero vector if no image) |
+
+#### User & Context Features (7)
+
+| Feature | Type | Description |
+|---------|------|-------------|
 | `user_current_rating` | Integer | User's rating in the chat |
 | `time_difference` | Float | Seconds since user joined the chat |
 | `chat_id` | Integer | Chat ID (different chats have different spam norms) |
+| `log10(user_id)` | Float | Log10 of Telegram user ID (proxy for account age: higher ID = newer account) |
 | `message_length` | Integer | Length of message text |
-| `spam_count` | Integer | User's previous spam count |
-| `not_spam_count` | Integer | User's previous non-spam count |
-| `is_forwarded` | Boolean | Whether message is forwarded |
-| `reply_to_message_id` | Integer | ID of replied message (0 if not a reply) |
-| `has_telegram_nick` | Boolean | Whether message contains @username |
-| `has_image` | Boolean | Whether message has an analyzed image |
-| `has_video` | Boolean | Whether message has video or animation/GIF |
-| `has_document` | Boolean | Whether message has document attachment |
-| `has_photo` | Boolean | Whether message has photo |
-| `forwarded_from_channel` | Boolean | Whether forwarded from a channel (vs user/group) |
-| `has_link` | Boolean | Whether message contains URL links |
-| `entity_count` | Integer | Number of entities (links, mentions, etc.) |
+| `spam_count` | Integer | User's previous spam messages count |
+| `not_spam_count` | Integer | User's previous non-spam messages count |
 
-### New Features (2025-01)
+#### Message Behavior Features (7)
 
-The following features were added to improve detection of video/media spam:
+| Feature | Type | Description |
+|---------|------|-------------|
+| `is_forwarded` | Binary (0/1) | Whether message is forwarded |
+| `is_reply` | Binary (0/1) | Whether message is a reply to another message |
+| `has_telegram_nick` | Binary (0/1) | Whether message contains @username mention |
+| `has_image` | Binary (0/1) | Whether message has an analyzed image with embedding |
+| `has_username` | Binary (0/1) | Whether the user has a Telegram username set |
+| `hour_utc` | Float (0-23) | Hour of day when message was sent (UTC) |
+| `day_of_week` | Float (0-6) | Day of week (0=Monday, 6=Sunday) |
 
-| Feature | Spam Signal | Why |
-|---------|-------------|-----|
+#### Media & Entity Features (6)
+
+| Feature | Type | Description |
+|---------|------|-------------|
+| `has_video` | Boolean/NULL | Whether message has video or animation/GIF |
+| `has_document` | Boolean/NULL | Whether message has document attachment |
+| `has_photo` | Boolean/NULL | Whether message has photo |
+| `forwarded_from_channel` | Boolean/NULL | Whether forwarded from a channel (vs user/group) |
+| `has_link` | Boolean/NULL | Whether message contains URL links |
+| `entity_count` | Integer/NULL | Number of entities (links, mentions, etc.) |
+
+### Feature Spam Signals
+
+| Feature | Spam Signal | Rationale |
+|---------|-------------|-----------|
+| `log10(user_id)` | **VERY HIGH** | Newer accounts (higher IDs) are 98% spam vs 20% for old accounts |
 | `has_video` | HIGH | Porn/scam spam often uses video content |
 | `has_document` | MEDIUM | Document attachments can be malicious (APK, etc.) |
 | `has_photo` | LOW | Photos are common but less indicative alone |
 | `forwarded_from_channel` | HIGH | Channel forwards are higher risk than user forwards |
 | `has_link` | MEDIUM | Links often indicate promotional spam |
 | `entity_count` | MEDIUM | Many entities (links, mentions) = suspicious |
+| `has_username` | LOW | Users without usernames are slightly more suspicious |
+| `is_reply` | LOW | Replies to existing messages are less likely spam |
+| `hour_utc` | LOW | Some spam campaigns target specific time windows |
+| `day_of_week` | LOW | Weekend vs weekday patterns may differ |
 
 ### NULL Handling
 
@@ -293,3 +341,68 @@ GROUP BY is_spam, manually_verified;
             ↳ Chat: Chat Name (chat_id)
             ↳ Action: verified_bypass (no action taken)
 ```
+
+## Model Training
+
+### Training Script
+
+The primary training script is `src/cron/antispam_ml_optimized.py`:
+
+```bash
+# Run training locally
+python3 src/cron/antispam_ml_optimized.py
+
+# Train and deploy to server
+./src/cron/antispam_ml_train_and_push.sh
+```
+
+### Training Pipeline
+
+1. **Data Fetching**: Queries messages with embeddings that are either manually verified or have extreme prediction probabilities (>0.99 spam, <0.01 not spam)
+2. **Feature Extraction**: Extracts 20 scalar features + 3072d embeddings per message
+3. **Preprocessing**:
+   - SimpleImputer fills missing values with mean
+   - StandardScaler normalizes all features
+4. **Training**: XGBoost classifier with 80/20 train/test split
+5. **Evaluation**: Logs accuracy and misclassified messages for review
+6. **Model Export**: Saves to `ml_models/xgb_spam_model.joblib` and `ml_models/scaler.joblib`
+
+### Model Parameters
+
+```python
+XGBClassifier(
+    n_estimators=100,
+    max_depth=6,
+    learning_rate=0.1,
+    n_jobs=-1,
+    random_state=42,
+    eval_metric='logloss'
+)
+```
+
+### Feature Design Decisions
+
+| Feature | Decision | Rationale |
+|---------|----------|-----------|
+| `log10(user_id)` | **ADDED** | Telegram user IDs are sequential - higher ID = newer account. Analysis showed accounts <3 years old have 20% spam rate, accounts <2 months have 98% spam rate. Log transform used for scale normalization. Model retrains regularly, so adapts to new ID ranges automatically. |
+| `user_id` (raw) | Removed | Raw ID causes overfitting - model memorizes specific users instead of learning generalizable patterns |
+| `reply_to_message_id` (raw) | Changed to binary `is_reply` | Raw message ID has no semantic meaning - only matters whether it's a reply or not |
+
+### Training Data Quality
+
+For best results, ensure balanced training data:
+
+```sql
+-- Check class balance
+SELECT is_spam, COUNT(*)
+FROM tg_message_log
+WHERE manually_verified = true
+   OR spam_prediction_probability > 0.99
+   OR spam_prediction_probability < 0.01
+GROUP BY is_spam;
+```
+
+Aim for roughly balanced classes. If imbalanced, consider:
+- Adding more manually verified examples of the minority class
+- Adjusting prediction probability thresholds
+- Using class weights in the model
