@@ -809,11 +809,12 @@ async def tg_spam(update, context):
                 ).first()
 
                 # Only match embeddings if the message has actual text content
-                # Skip if message_content is empty/None (e.g., image/video without text)
+                # Skip if message_content is empty/None or "Non-text message" placeholder
                 has_text_content = (
                     replied_log and
                     replied_log.message_content and
-                    replied_log.message_content.strip()
+                    replied_log.message_content.strip() and
+                    replied_log.message_content.strip().lower() != "non-text message"
                 )
 
                 if replied_log and replied_log.embedding is not None and has_text_content:
@@ -898,25 +899,16 @@ async def tg_spam(update, context):
         summary_lines = [
             f"<b>Spam command executed</b>",
             f"",
-            f"<b>Target user:</b> {target_mention} (ID: {target_user_id})",
-            f"<b>Chat:</b> {await chat_helper.get_chat_mention(context.bot, chat_id)}",
+            f"User: {target_mention}",
+            f"Chat: {await chat_helper.get_chat_mention(context.bot, chat_id)}",
             f"",
-            f"<b>Same user messages:</b>",
-            f"  - Marked as spam: {same_user_messages_count}",
-            f"  - Deleted (recent): {same_user_deleted_count}",
+            f"Same user: {same_user_messages_count} marked, {same_user_deleted_count} deleted",
         ]
 
         if identical_messages_count > 0:
-            summary_lines.extend([
-                f"",
-                f"<b>Identical messages from other users:</b>",
-                f"  - Marked as spam: {identical_messages_count}",
-                f"  - Deleted (recent): {identical_deleted_count}",
-            ])
+            summary_lines.append(f"Identical (other users): {identical_messages_count} marked, {identical_deleted_count} deleted")
         elif replied_message_id:
-            # Only show this note if command was used as reply (where embedding matching is attempted)
-            summary_lines.append(f"")
-            summary_lines.append(f"<i>No identical messages from other users found.</i>")
+            summary_lines.append(f"Identical (other users): none found")
 
         summary_text = "\n".join(summary_lines)
 
