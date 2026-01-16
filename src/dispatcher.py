@@ -2537,8 +2537,12 @@ async def tg_new_member(update, context):
                     continue  # Skip to the next new member
 
             if mute_new_users_duration > 0:
-                await chat_helper.mute_user(bot, update.effective_chat.id, new_user_id, duration_in_seconds = mute_new_users_duration, reason="New user muted for spam check")
-                logger.info(f"Muted new user {new_user_id} in chat {update.effective_chat.id} for {mute_new_users_duration} seconds.")
+                # Skip muting if user is verified
+                if user_helper.is_user_verified(new_user_id):
+                    logger.info(f"Skipping mute for verified user {new_user_id} in chat {update.effective_chat.id}")
+                else:
+                    await chat_helper.mute_user(bot, update.effective_chat.id, new_user_id, duration_in_seconds = mute_new_users_duration, reason="New user muted for spam check")
+                    logger.info(f"Muted new user {new_user_id} in chat {update.effective_chat.id} for {mute_new_users_duration} seconds.")
 
             # Send personalized welcome message if configured
             if welcome_message_template:
