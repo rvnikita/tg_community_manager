@@ -809,12 +809,10 @@ async def tg_spam(update, context):
                 ).first()
 
                 # Only match embeddings if the message has actual text content
-                # Skip if message_content is empty/None or "Non-text message" placeholder
                 has_text_content = (
                     replied_log and
                     replied_log.message_content and
-                    replied_log.message_content.strip() and
-                    replied_log.message_content.strip().lower() != "non-text message"
+                    replied_log.message_content.strip()
                 )
 
                 if replied_log and replied_log.embedding is not None and has_text_content:
@@ -1696,10 +1694,10 @@ async def tg_log_message(update, context):
             user_id = message.from_user.id
             user_nickname = message.from_user.username  # Store only username, NULL if not set
             chat_id = message.chat.id
-            message_content = message.text or message.caption or "Non-text message"
+            message_content = message.text or message.caption or None  # NULL for non-text messages
             message_id = message.message_id
             user_current_rating = rating_helper.get_rating(user_id, chat_id)
-            
+
             action_type = "message"
             reason_for_action = "Regular message"
             is_forwarded = None
@@ -1715,7 +1713,8 @@ async def tg_log_message(update, context):
                 # logger.info("No 'forward_origin' in message or sender_user data is missing.")
 
             #TODO:LOW: Maybe we don't need to calculate embedding and insert it in DB here as we will recalculate it later in tg_ai_spamcheck. But we should be careful as it seems like sometimes tg_ai_spamcheck is not called (or maybe called but not updating the message log in DB is there is something wrong with the probability calculation. That happens if "ai_spamcheck_enabled": false in chat config)
-            embedding = await openai_helper.generate_embedding(message_content)
+            # Only generate embedding if there's actual text content
+            embedding = await openai_helper.generate_embedding(message_content) if message_content else None
 
             # Process image or video thumbnail if present
             image_description = None
@@ -1936,7 +1935,7 @@ async def tg_ai_spamcheck(update, context):
             delete_thr = float(chat_helper.get_chat_config(chat_id, "antispam_delete_threshold") or 0.80)
             mute_thr   = float(chat_helper.get_chat_config(chat_id, "antispam_mute_threshold")   or 0.95)
 
-            text      = message.text or message.caption or "Non-text message"
+            text      = message.text or message.caption or None  # NULL for non-text messages
             reply_to  = message.reply_to_message.message_id if message.reply_to_message else None
             forwarded = bool(getattr(message, "forward_from", None) or getattr(message, "forward_from_chat", None))
 
@@ -1955,7 +1954,8 @@ async def tg_ai_spamcheck(update, context):
 
         with sentry_sdk.start_span(op="embedding", description="OpenAI embedding + spam prediction"):
             loop = asyncio.get_event_loop()
-            embedding = await openai_helper.generate_embedding(text)
+            # Only generate embedding if there's actual text content
+            embedding = await openai_helper.generate_embedding(text) if text else None
 
             # Analyze image/video thumbnail if present and generate embedding from description
             image_description_embedding = None

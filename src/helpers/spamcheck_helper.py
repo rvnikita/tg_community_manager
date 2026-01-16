@@ -33,11 +33,15 @@ async def generate_features(
     forwarded_from_channel=None, has_link=None, entity_count=None
 ):
     try:
+        # Standard embedding dimension for OpenAI text-embedding-3-small
+        EMBEDDING_DIM = 1536
+
         if embedding is None and message_text is not None:
             embedding = await openai_helper.generate_embedding(message_text)
+
+        # Use zero vector for text embedding if no text (similar to how we handle missing image embedding)
         if embedding is None:
-            logger.error(f"Failed to generate embedding for spam prediction. Message text: {message_text}")
-            return None
+            embedding = np.zeros(EMBEDDING_DIM)
 
         # Image embedding features
         embedding_dim = len(embedding)
@@ -76,7 +80,7 @@ async def generate_features(
             time_difference = (message_date - joined_date).total_seconds()
             message_length = len(message_text) if message_text else 0
             # New feature: check if the message text contains a Telegram username (e.g., "@rvnikita")
-            has_telegram_nick = 1.0 if re.search(r'@\w+', message_text) else 0.0
+            has_telegram_nick = 1.0 if (message_text and re.search(r'@\w+', message_text)) else 0.0
 
             is_forwarded = float(is_forwarded or 0)
             is_reply = 1.0 if reply_to_message_id else 0.0  # Changed to binary
@@ -92,9 +96,8 @@ async def generate_features(
                 return float(val) if val is not None else np.nan
 
             # Construct the feature array in the same order as used during training
-            # NOTE: user_id removed to prevent overfitting on specific users
-            # Order: embedding, image_embedding, user_rating_value, time_difference, chat_id, message_length,
-            # spam_count, not_spam_count, is_forwarded, is_reply, has_telegram_nick, has_image,
+            # Order: embedding, image_embedding, user_rating_value, time_difference, chat_id, log10(user_id),
+            # message_length, spam_count, not_spam_count, is_forwarded, is_reply, has_telegram_nick, has_image,
             # has_username, hour_utc, day_of_week, has_video, has_document, has_photo,
             # forwarded_from_channel, has_link, entity_count
             feature_array = np.concatenate((
@@ -104,6 +107,7 @@ async def generate_features(
                     float(user_rating_value),
                     float(time_difference),
                     float(chat_id),
+                    np.log10(user_id),  # Proxy for account age: higher ID = newer account = more likely spam
                     float(message_length),
                     float(spam_count),
                     float(not_spam_count),

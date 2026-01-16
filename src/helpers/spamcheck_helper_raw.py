@@ -36,11 +36,18 @@ def _name_lens(user_raw, first, last):
     ln = (user_raw or {}).get("last_name")  or last  or ""
     return len(fn), len(ln)
 
+# Standard embedding dimension for OpenAI text-embedding-3-small
+EMBEDDING_DIM = 1536
+
 # ---------- public API -------------------------------------------------------
 async def predict_spam(*, user_id, chat_id, message_text, raw_message, embedding=None):
     try:
-        if embedding is None:
+        if embedding is None and message_text is not None:
             embedding = await openai_helper.generate_embedding(message_text)
+
+        # Use zero vector for text embedding if no text
+        if embedding is None:
+            embedding = np.zeros(EMBEDDING_DIM)
 
         with db_helper.session_scope() as s:
             user = s.query(db_helper.User).get(user_id)

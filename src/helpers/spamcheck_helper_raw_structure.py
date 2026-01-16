@@ -52,10 +52,17 @@ def _extract_structure_features(raw_msg):
     return np.array(feats, dtype=float)
 
 
+# Standard embedding dimension for OpenAI text-embedding-3-small
+EMBEDDING_DIM = 1536
+
 async def predict_spam(*, user_id, chat_id, message_text, raw_message, embedding=None):
     try:
-        if embedding is None:
+        if embedding is None and message_text is not None:
             embedding = await openai_helper.generate_embedding(message_text)
+
+        # Use zero vector for text embedding if no text
+        if embedding is None:
+            embedding = np.zeros(EMBEDDING_DIM)
 
         with db_helper.session_scope() as s:
             user = s.query(db_helper.User).get(user_id)

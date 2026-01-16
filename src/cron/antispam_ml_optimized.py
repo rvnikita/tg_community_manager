@@ -88,7 +88,7 @@ async def train_spam_classifier():
                         db_helper.Message_Log.message_content != None,
                         db_helper.Message_Log.is_spam != None,  # Exclude NULL (unknown) - only use True/False
                         or_(
-                            db_helper.Message_Log.manually_verified == True,
+                            # db_helper.Message_Log.manually_verified == True,
                             and_(db_helper.Message_Log.spam_prediction_probability > 0.99, db_helper.Message_Log.is_spam == True),
                             and_(db_helper.Message_Log.spam_prediction_probability < 0.01, db_helper.Message_Log.is_spam == False)
                         )
