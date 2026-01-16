@@ -738,9 +738,13 @@ async def tg_spam(update, context):
 
         # 1. Determine target user.
         target_user_id = None
+        replied_message_id = None
+        replied_chat_id = None
         command_parts = message.text.split()
         if message.reply_to_message:
             target_user_id = message.reply_to_message.from_user.id
+            replied_message_id = message.reply_to_message.message_id
+            replied_chat_id = message.reply_to_message.chat.id
             await chat_helper.delete_media_group_messages(bot, chat_id, message.reply_to_message)
 
         elif len(command_parts) > 1:
@@ -793,6 +797,50 @@ async def tg_spam(update, context):
                 reason_for_action="User was globally banned due to /spam command issued by global admin"
             )
 
+        # 3.5. If triggered via reply, find and mark messages with identical embeddings from other users.
+        # IMPORTANT: Only do this if the message has text content to avoid matching empty media messages.
+        identical_embedding_logs_data = []
+        if replied_message_id and replied_chat_id:
+            with db_helper.session_scope() as session:
+                # Get the embedding of the replied message
+                replied_log = session.query(db_helper.Message_Log).filter(
+                    db_helper.Message_Log.message_id == replied_message_id,
+                    db_helper.Message_Log.chat_id == replied_chat_id
+                ).first()
+
+                # Only match embeddings if the message has actual text content
+                # Skip if message_content is empty/None (e.g., image/video without text)
+                has_text_content = (
+                    replied_log and
+                    replied_log.message_content and
+                    replied_log.message_content.strip()
+                )
+
+                if replied_log and replied_log.embedding is not None and has_text_content:
+                    # Find all messages with the exact same embedding from OTHER users
+                    matching_logs = session.query(db_helper.Message_Log).filter(
+                        db_helper.Message_Log.embedding == replied_log.embedding,
+                        db_helper.Message_Log.user_id != target_user_id
+                    ).all()
+
+                    identical_embedding_logs_data = [
+                        {"chat_id": log.chat_id, "message_id": log.message_id, "user_id": log.user_id}
+                        for log in matching_logs
+                    ]
+
+            # Mark messages with identical embeddings as spam
+            for log_data in identical_embedding_logs_data:
+                message_helper.insert_or_update_message_log(
+                    chat_id=log_data["chat_id"],
+                    message_id=log_data["message_id"],
+                    user_id=log_data["user_id"],
+                    is_spam=True,
+                    manually_verified=True,
+                    reason_for_action="Message has identical embedding to spam message marked via /spam command"
+                )
+            if identical_embedding_logs_data:
+                logger.info(f"Marked {len(identical_embedding_logs_data)} messages with identical embeddings as spam")
+
         # 4. For messages less than 24 hours old, delete them from all chats.
         cutoff = datetime.now() - timedelta(hours=24)
         with db_helper.session_scope() as session:
@@ -810,7 +858,73 @@ async def tg_spam(update, context):
             except Exception as exc:
                 logger.error(f"Error deleting message {log_data['message_id']} in chat {log_data['chat_id']}: {exc}")
 
+        # 4.5. Also delete recent messages with identical embeddings from other users.
+        recent_identical_data = []
+        if identical_embedding_logs_data:
+            with db_helper.session_scope() as session:
+                # Get message IDs that are recent (less than 24 hours old)
+                identical_message_ids = [log["message_id"] for log in identical_embedding_logs_data]
+                identical_chat_ids = [log["chat_id"] for log in identical_embedding_logs_data]
+
+                recent_identical_logs = session.query(db_helper.Message_Log).filter(
+                    db_helper.Message_Log.message_id.in_(identical_message_ids),
+                    db_helper.Message_Log.chat_id.in_(identical_chat_ids),
+                    db_helper.Message_Log.created_at >= cutoff
+                ).all()
+
+                recent_identical_data = [
+                    {"chat_id": log.chat_id, "message_id": log.message_id}
+                    for log in recent_identical_logs
+                ]
+
+            for log_data in recent_identical_data:
+                try:
+                    await chat_helper.delete_message(context.bot, log_data["chat_id"], log_data["message_id"])
+                except Exception as exc:
+                    logger.error(f"Error deleting identical embedding message {log_data['message_id']} in chat {log_data['chat_id']}: {exc}")
+
+            if recent_identical_data:
+                logger.info(f"Deleted {len(recent_identical_data)} recent messages with identical embeddings")
+
         target_mention = user_helper.get_user_mention(target_user_id, chat_id)
+
+        # 5. Send summary DM to global admin
+        global_admin_id = int(os.getenv('ENV_BOT_ADMIN_ID'))
+        same_user_messages_count = len(logs_data)
+        same_user_deleted_count = len(recent_logs_data)
+        identical_messages_count = len(identical_embedding_logs_data)
+        identical_deleted_count = len(recent_identical_data)
+
+        summary_lines = [
+            f"<b>Spam command executed</b>",
+            f"",
+            f"<b>Target user:</b> {target_mention} (ID: {target_user_id})",
+            f"<b>Chat:</b> {await chat_helper.get_chat_mention(context.bot, chat_id)}",
+            f"",
+            f"<b>Same user messages:</b>",
+            f"  - Marked as spam: {same_user_messages_count}",
+            f"  - Deleted (recent): {same_user_deleted_count}",
+        ]
+
+        if identical_messages_count > 0:
+            summary_lines.extend([
+                f"",
+                f"<b>Identical messages from other users:</b>",
+                f"  - Marked as spam: {identical_messages_count}",
+                f"  - Deleted (recent): {identical_deleted_count}",
+            ])
+        elif replied_message_id:
+            # Only show this note if command was used as reply (where embedding matching is attempted)
+            summary_lines.append(f"")
+            summary_lines.append(f"<i>No identical messages from other users found.</i>")
+
+        summary_text = "\n".join(summary_lines)
+
+        try:
+            await chat_helper.send_message(context.bot, global_admin_id, summary_text)
+        except Exception as dm_exc:
+            logger.error(f"Failed to send spam summary DM to admin: {dm_exc}")
+
     except Exception as e:
         update_str = json.dumps(
             update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'},
