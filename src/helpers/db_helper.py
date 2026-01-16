@@ -268,7 +268,7 @@ class Message_Log(Base):
     user_nickname = Column(Text)
     user_current_rating = Column(Integer)
     message_timestamp = Column(DateTime(timezone=True), server_default=func.now())
-    is_spam = Column(Boolean, default=False, nullable=False)
+    is_spam = Column(Boolean, nullable=True)  # NULL=unknown, False=not spam, True=spam
     action_type = Column(Text)
     reporting_id = Column(BigInteger, ForeignKey(User.__table__.c.id), nullable=True)
     reporting_id_nickname = Column(Text, nullable=True)
