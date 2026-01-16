@@ -409,7 +409,7 @@ async def tg_offtop(update, context):
                 await chat_helper.ban_user(bot, chat_id, warned_user_id)
                 warned_user_mention = user_helper.get_user_mention(warned_user_id, chat_id)
                 await chat_helper.send_message(bot, chat_id, f"User {warned_user_mention} has been banned due to {warn_count} warnings.", delete_after=120)
-                await chat_helper.send_message_to_admin(bot, chat_id, f"User {warned_user_mention} has been banned in chat {await chat_helper.get_chat_mention(bot, chat_id)} due to {warn_count}/{number_of_reports_to_ban} warnings.")
+                await chat_helper.send_message_to_admin(bot, chat_id, f"User {warned_user_mention} has been banned in chat {await chat_helper.get_chat_mention(bot, chat_id)} due to {warn_count}/{number_of_reports_to_ban} warnings.", exclude_user_id=message.from_user.id)
 
                 reporting_user_ids = db_session.query(db_helper.Report.reporting_user_id).filter(
                     db_helper.Report.reported_user_id == warned_user_id,
@@ -431,7 +431,7 @@ async def tg_offtop(update, context):
                 delete_after=120,
             )
             await chat_helper.delete_media_group_messages(bot, chat_id, message.reply_to_message)
-            await chat_helper.send_message_to_admin(bot, chat_id, f"{warning_admin_mention} warned {warned_user_mention} in chat {await chat_helper.get_chat_mention(bot, chat_id)}. Reason: {reason}. Total Warnings: {warn_count}/{number_of_reports_to_ban}")
+            await chat_helper.send_message_to_admin(bot, chat_id, f"{warning_admin_mention} warned {warned_user_mention} in chat {await chat_helper.get_chat_mention(bot, chat_id)}. Reason: {reason}. Total Warnings: {warn_count}/{number_of_reports_to_ban}", exclude_user_id=message.from_user.id)
 
     except Exception as error:
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)
@@ -624,7 +624,7 @@ async def tg_warn(update, context):
                         await chat_helper.delete_media_group_messages(bot, chat_id, message.reply_to_message)
                         await chat_helper.ban_user(bot, chat_id, warned_user_id)
                         await chat_helper.send_message(bot, chat_id, f"User {warned_user_mention} has been banned due to {warn_count} warnings.", delete_after=120)
-                        await chat_helper.send_message_to_admin(bot, chat_id, f"User {warned_user_mention} has been banned in chat {await chat_helper.get_chat_mention(bot, chat_id)} due to {warn_count}/{number_of_reports_to_ban} warnings.")
+                        await chat_helper.send_message_to_admin(bot, chat_id, f"User {warned_user_mention} has been banned in chat {await chat_helper.get_chat_mention(bot, chat_id)} due to {warn_count}/{number_of_reports_to_ban} warnings.", exclude_user_id=message.from_user.id)
 
                         reporting_user_ids = db_session.query(db_helper.Report.reporting_user_id).filter(
                             db_helper.Report.reported_user_id == warned_user_id,
@@ -647,7 +647,7 @@ async def tg_warn(update, context):
                         delete_after=120,
                     )
                     await chat_helper.delete_media_group_messages(bot, chat_id, message.reply_to_message)
-                    await chat_helper.send_message_to_admin(bot, chat_id, f"{warning_admin_mention} warned {warned_user_mention} in chat {await chat_helper.get_chat_mention(bot, chat_id)}. Reason: {reason}. Total Warnings: {warn_count}/{number_of_reports_to_ban}")
+                    await chat_helper.send_message_to_admin(bot, chat_id, f"{warning_admin_mention} warned {warned_user_mention} in chat {await chat_helper.get_chat_mention(bot, chat_id)}. Reason: {reason}. Total Warnings: {warn_count}/{number_of_reports_to_ban}", exclude_user_id=message.from_user.id)
 
     except Exception as error:
         update_str = json.dumps(update.to_dict() if hasattr(update, 'to_dict') else {'info': 'Update object has no to_dict method'}, indent=4, sort_keys=True, default=str)

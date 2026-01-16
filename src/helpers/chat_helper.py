@@ -40,11 +40,13 @@ def sentry_profile(name=None):
 logger = logging_helper.get_logger()
 
 @sentry_profile()
-async def send_message_to_admin(bot, chat_id, text: str, disable_web_page_preview: bool = True):
+async def send_message_to_admin(bot, chat_id, text: str, disable_web_page_preview: bool = True, exclude_user_id: int = None):
     chat_administrators = await chat_helper.get_chat_administrators(bot, chat_id)
 
     for admin in chat_administrators:
         if admin["is_bot"] == True: #don't send to bots
+            continue
+        if exclude_user_id and admin["user_id"] == exclude_user_id: #don't send to the admin who performed the action
             continue
         try:
             await chat_helper.send_message(bot, admin["user_id"], text, disable_web_page_preview = True)

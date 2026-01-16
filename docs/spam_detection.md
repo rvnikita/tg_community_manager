@@ -20,7 +20,7 @@ Message arrives
 Admin check → Skip if admin
     │
     ▼
-User 777000 check → Skip if Telegram service account
+User 777000 check → Skip if Telegram service account (channel forwards)
     │
     ▼
 Anonymous bot check → Skip if GroupAnonymousBot
@@ -45,6 +45,33 @@ Moderation action based on probability thresholds:
     ├── delete_thr (default: 0.8) → Delete message
     └── mute_thr (default: 0.95) → Delete + mute user globally
 ```
+
+## Excluded Users (Always Non-Spam)
+
+Certain users are automatically excluded from spam detection and marked as `is_spam=false, manually_verified=true`:
+
+### User 777000 (Telegram Service Account)
+
+**What it is:** Telegram's system user ID for channel-forwarded messages. When a channel post is forwarded to a linked discussion group, or when someone shares a channel post, the message appears as from user 777000.
+
+**Why excluded:**
+- It's not a real user - it's Telegram's proxy for channel content
+- Spam rate is only 0.22% (vs 31.98% for regular users)
+- Cannot ban/mute user 777000 (it's a system account)
+- The `log10(user_id)` feature would be meaningless for this ID
+
+**Data handling:**
+- All messages from 777000 are marked `is_spam=false, manually_verified=true`
+- These messages are included in training data as verified non-spam
+- The original channel can be identified via `raw_message->'forward_from_chat'`
+
+### GroupAnonymousBot
+
+Anonymous group admin messages. These are legitimate admin actions.
+
+### Chat Administrators
+
+Messages from chat admins are skipped from spam detection.
 
 ## ML Models
 
