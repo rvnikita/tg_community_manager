@@ -23,8 +23,8 @@ def sentry_profile(name=None):
 
 
 
-from telegram import Bot, ChatPermissions
-from telegram.ext import Application, MessageHandler, CommandHandler, filters, ChatJoinRequestHandler, ApplicationBuilder, JobQueue, MessageReactionHandler
+from telegram import Bot, ChatPermissions, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Application, MessageHandler, CommandHandler, filters, ChatJoinRequestHandler, ApplicationBuilder, JobQueue, MessageReactionHandler, CallbackQueryHandler
 from telegram.request import HTTPXRequest
 from telegram.error import TelegramError
 from datetime import datetime, timedelta, timezone
@@ -199,11 +199,17 @@ async def tg_report(update, context):
         reported_user_mention = user_helper.get_user_mention(reported_user_id, chat_id)
         chat_mention = await chat_helper.get_chat_mention(context.bot, chat_id)
 
+        # Create inline keyboard for spam action
+        spam_keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🚫 Spam", callback_data=f"spam:{chat_id}:{reported_message_id}:{reported_user_id}")]
+        ])
+
         # Inform admins about the report
         await chat_helper.send_message_to_admin(
-            context.bot, 
-            chat_id, 
-            f"User {reported_user_mention} has been reported by {user_helper.get_user_mention(reporting_user_id, chat_id)} in chat {chat_mention} {report_sum}/{number_of_reports_to_ban} times.\nReported message: {reported_message_content}"
+            context.bot,
+            chat_id,
+            f"User {reported_user_mention} has been reported by {user_helper.get_user_mention(reporting_user_id, chat_id)} in chat {chat_mention} {report_sum}/{number_of_reports_to_ban} times.\nReported message: {reported_message_content}",
+            reply_markup=spam_keyboard
         )
         logger.info(
             f"User {reported_user_id} has been reported by {user_helper.get_user_mention(reporting_user_id, chat_id)} in chat {chat_id} {report_sum}/{number_of_reports_to_ban} times. Reported message: {reported_message_content}"
@@ -927,6 +933,107 @@ async def tg_spam(update, context):
             "An error occurred while processing the spam command.",
             reply_to_message_id=message.message_id
         )
+
+
+@sentry_profile()
+async def tg_spam_callback(update, context):
+    """Handle inline button callback for spam action from report notifications."""
+    try:
+        query = update.callback_query
+        await query.answer()
+
+        # Parse callback data: spam:{chat_id}:{message_id}:{user_id}
+        data = query.data
+        if not data.startswith("spam:"):
+            return
+
+        parts = data.split(":")
+        if len(parts) != 4:
+            await query.edit_message_text(query.message.text + "\n\n❌ Invalid callback data")
+            return
+
+        _, target_chat_id, target_message_id, target_user_id = parts
+        target_chat_id = int(target_chat_id)
+        target_message_id = int(target_message_id)
+        target_user_id = int(target_user_id)
+
+        acting_user_id = query.from_user.id
+
+        # Verify the user is a global admin or admin of the target chat
+        global_admin_id = int(os.getenv('ENV_BOT_ADMIN_ID'))
+        is_global_admin = acting_user_id == global_admin_id
+
+        if not is_global_admin:
+            chat_administrators = await chat_helper.get_chat_administrators(context.bot, target_chat_id)
+            is_chat_admin = any(admin["user_id"] == acting_user_id for admin in chat_administrators)
+            if not is_chat_admin:
+                await query.edit_message_text(query.message.text + "\n\n❌ You are not authorized to perform this action.")
+                return
+
+        # Globally ban the user
+        await chat_helper.ban_user(
+            context.bot,
+            target_chat_id,
+            target_user_id,
+            global_ban=True,
+            reason="Spam confirmed via report notification button"
+        )
+
+        # Update all message logs for this user
+        with db_helper.session_scope() as session:
+            logs = session.query(db_helper.Message_Log).filter(
+                db_helper.Message_Log.user_id == target_user_id
+            ).all()
+            logs_data = [
+                {"chat_id": log.chat_id, "message_id": log.message_id}
+                for log in logs
+            ]
+
+        for log_data in logs_data:
+            message_helper.insert_or_update_message_log(
+                chat_id=log_data["chat_id"],
+                message_id=log_data["message_id"],
+                user_id=target_user_id,
+                is_spam=True,
+                manually_verified=True,
+                reason_for_action="User marked as spam via report notification button"
+            )
+
+        # Delete recent messages (last 24 hours)
+        cutoff = datetime.now() - timedelta(hours=24)
+        with db_helper.session_scope() as session:
+            recent_logs = session.query(db_helper.Message_Log).filter(
+                db_helper.Message_Log.user_id == target_user_id,
+                db_helper.Message_Log.created_at >= cutoff
+            ).all()
+            recent_logs_data = [
+                {"chat_id": log.chat_id, "message_id": log.message_id}
+                for log in recent_logs
+            ]
+
+        deleted_count = 0
+        for log_data in recent_logs_data:
+            try:
+                await chat_helper.delete_message(context.bot, log_data["chat_id"], log_data["message_id"])
+                deleted_count += 1
+            except Exception as exc:
+                logger.error(f"Error deleting message {log_data['message_id']} in chat {log_data['chat_id']}: {exc}")
+
+        # Update the notification message to show action was taken
+        target_mention = user_helper.get_user_mention(target_user_id, target_chat_id)
+        acting_mention = user_helper.get_user_mention(acting_user_id, target_chat_id)
+        await query.edit_message_text(
+            query.message.text + f"\n\n✅ Marked as spam by {acting_mention}\n({len(logs_data)} messages marked, {deleted_count} deleted)"
+        )
+
+        logger.info(f"Spam callback: user {target_user_id} marked as spam by {acting_user_id} via button")
+
+    except Exception as e:
+        logger.error(f"Error in tg_spam_callback: {traceback.format_exc()}")
+        try:
+            await query.edit_message_text(query.message.text + f"\n\n❌ Error: {str(e)}")
+        except:
+            pass
 
 
 @sentry_profile()
@@ -2840,6 +2947,7 @@ def create_application():
     application.add_handler(CommandHandler(["gban", "g", "gb"], tg_gban), group=6)
     application.add_handler(CommandHandler(["spam", "s"], tg_spam), group=6)
     application.add_handler(CommandHandler(["unspam", "us"], tg_unspam), group=6)
+    application.add_handler(CallbackQueryHandler(tg_spam_callback, pattern="^spam:"), group=6)
     application.add_handler(CommandHandler(["verify_user", "vu"], tg_verify_user), group=6)
     application.add_handler(CommandHandler(["unverify_user", "uvu"], tg_unverify_user), group=6)
     # Broadcast handlers support both text commands and commands with photos (captions)

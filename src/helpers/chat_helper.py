@@ -40,7 +40,7 @@ def sentry_profile(name=None):
 logger = logging_helper.get_logger()
 
 @sentry_profile()
-async def send_message_to_admin(bot, chat_id, text: str, disable_web_page_preview: bool = True, exclude_user_id: int = None):
+async def send_message_to_admin(bot, chat_id, text: str, disable_web_page_preview: bool = True, exclude_user_id: int = None, reply_markup=None):
     chat_administrators = await chat_helper.get_chat_administrators(bot, chat_id)
 
     for admin in chat_administrators:
@@ -49,7 +49,7 @@ async def send_message_to_admin(bot, chat_id, text: str, disable_web_page_previe
         if exclude_user_id and admin["user_id"] == exclude_user_id: #don't send to the admin who performed the action
             continue
         try:
-            await chat_helper.send_message(bot, admin["user_id"], text, disable_web_page_preview = True)
+            await chat_helper.send_message(bot, admin["user_id"], text, disable_web_page_preview=True, reply_markup=reply_markup)
         except TelegramError as error:
             if error.message == "Forbidden: bot was blocked by the user":
                 logger.info(f"Bot was blocked by the user {admin['user_id']}.")
@@ -222,14 +222,16 @@ async def send_message(
     reply_to_message_id=None,
     delete_after=None,
     disable_web_page_preview=True,
-    parse_mode=None
+    parse_mode=None,
+    reply_markup=None
 ):
     message = await bot.send_message(
         chat_id=chat_id,
         text=text,
         reply_to_message_id=reply_to_message_id,
         disable_web_page_preview=disable_web_page_preview,
-        parse_mode=parse_mode
+        parse_mode=parse_mode,
+        reply_markup=reply_markup
     )
 
     if delete_after is not None:
