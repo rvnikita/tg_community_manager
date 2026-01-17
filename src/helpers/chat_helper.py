@@ -62,6 +62,43 @@ async def send_message_to_admin(bot, chat_id, text: str, disable_web_page_previe
         except Exception as error:
             logger.error(f"Error: {traceback.format_exc()}")
 
+@sentry_profile()
+async def send_report_to_admin(bot, chat_id, text: str, photo_file_id: str = None, exclude_user_id: int = None):
+    """
+    Send a report notification to all admins of a chat via DM.
+    If photo_file_id is provided, sends the photo with text as caption.
+    Otherwise, sends a text message.
+    """
+    chat_administrators = await chat_helper.get_chat_administrators(bot, chat_id)
+
+    for admin in chat_administrators:
+        if admin["is_bot"] == True:  # don't send to bots
+            continue
+        if exclude_user_id and admin["user_id"] == exclude_user_id:
+            continue
+        try:
+            if photo_file_id:
+                # Send photo with caption (caption has 1024 char limit)
+                caption = text[:1024] if len(text) > 1024 else text
+                await bot.send_photo(
+                    chat_id=admin["user_id"],
+                    photo=photo_file_id,
+                    caption=caption
+                )
+            else:
+                await chat_helper.send_message(bot, admin["user_id"], text, disable_web_page_preview=True)
+        except TelegramError as error:
+            if error.message == "Forbidden: bot was blocked by the user":
+                logger.info(f"Bot was blocked by the user {admin['user_id']}.")
+            elif error.message == "Forbidden: user is deactivated":
+                logger.info(f"User {admin['user_id']} is deactivated.")
+            elif error.message == "Forbidden: bot can't initiate conversation with a user":
+                logger.info(f"Bot can't initiate conversation with a user {admin['user_id']}.")
+            else:
+                logger.error(f"Telegram error: {error.message}. Traceback: {traceback.format_exc()}")
+        except Exception as error:
+            logger.error(f"Error: {traceback.format_exc()}")
+
 def get_default_chat(config_param=None):
     cache_key = f"default_chat_config:{config_param}"
     config_value = cache_helper.get_key(cache_key)
