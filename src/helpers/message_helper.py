@@ -237,16 +237,12 @@ def get_message_log_by_id(chat_id, message_id):
                 return None
 
             # Extract photo file_id from raw_message if available
+            # Note: Only extract actual photos, not video thumbnails (thumbnails can't be sent as photos)
             photo_file_id = None
             if log.raw_message and isinstance(log.raw_message, dict):
                 # Check for photo array - get highest resolution (last element)
                 if 'photo' in log.raw_message and log.raw_message['photo']:
                     photo_file_id = log.raw_message['photo'][-1].get('file_id')
-                # Also check for video thumbnail
-                elif 'video' in log.raw_message and log.raw_message['video']:
-                    video = log.raw_message['video']
-                    if 'thumbnail' in video and video['thumbnail']:
-                        photo_file_id = video['thumbnail'].get('file_id')
 
             return {
                 'spam_prediction_probability': log.spam_prediction_probability,
