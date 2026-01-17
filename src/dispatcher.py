@@ -199,11 +199,33 @@ async def tg_report(update, context):
         reported_user_mention = user_helper.get_user_mention(reported_user_id, chat_id)
         chat_mention = await chat_helper.get_chat_mention(context.bot, chat_id)
 
+        # Get spam detection info from message log
+        message_log_info = message_helper.get_message_log_by_id(chat_id, reported_message_id)
+        spam_prob_text = ""
+        image_desc_text = ""
+        photo_file_id = None
+
+        if message_log_info:
+            if message_log_info.get('spam_prediction_probability') is not None:
+                spam_prob = message_log_info['spam_prediction_probability']
+                spam_prob_text = f"\nSpam probability: {spam_prob:.1%}"
+            if message_log_info.get('image_description'):
+                image_desc_text = f"\nImage description: {message_log_info['image_description']}"
+            photo_file_id = message_log_info.get('photo_file_id')
+
         # Inform admins about the report
-        await chat_helper.send_message_to_admin(
-            context.bot, 
-            chat_id, 
-            f"User {reported_user_mention} has been reported by {user_helper.get_user_mention(reporting_user_id, chat_id)} in chat {chat_mention} {report_sum}/{number_of_reports_to_ban} times.\nReported message: {reported_message_content}"
+        report_text = (
+            f"User {reported_user_mention} has been reported by {user_helper.get_user_mention(reporting_user_id, chat_id)} "
+            f"in chat {chat_mention} {report_sum}/{number_of_reports_to_ban} times."
+            f"{spam_prob_text}"
+            f"\nReported message: {reported_message_content}"
+            f"{image_desc_text}"
+        )
+        await chat_helper.send_report_to_admin(
+            context.bot,
+            chat_id,
+            report_text,
+            photo_file_id=photo_file_id
         )
         logger.info(
             f"User {reported_user_id} has been reported by {user_helper.get_user_mention(reporting_user_id, chat_id)} in chat {chat_id} {report_sum}/{number_of_reports_to_ban} times. Reported message: {reported_message_content}"
@@ -218,10 +240,17 @@ async def tg_report(update, context):
             await chat_helper.ban_user(context.bot, chat_id, reported_user_id)
             await chat_helper.delete_media_group_messages(context.bot, chat_id, message.reply_to_message)
             await chat_helper.send_message(context.bot, chat_id, f"User {reported_user_mention} has been banned due to {report_sum}/{number_of_reports_to_ban} reports.", delete_after=120)
-            await chat_helper.send_message_to_admin(
-                context.bot, 
-                chat_id, 
-                f"User {reported_user_mention} has been banned in chat {chat_mention} due to {report_sum}/{number_of_reports_to_ban} reports. \nReported message: {reported_message_content}"
+            ban_text = (
+                f"User {reported_user_mention} has been banned in chat {chat_mention} due to {report_sum}/{number_of_reports_to_ban} reports."
+                f"{spam_prob_text}"
+                f"\nReported message: {reported_message_content}"
+                f"{image_desc_text}"
+            )
+            await chat_helper.send_report_to_admin(
+                context.bot,
+                chat_id,
+                ban_text,
+                photo_file_id=photo_file_id
             )
 
             # Delete all messages from scheduled deletion with trigger_id = reported_message_id
@@ -246,16 +275,23 @@ async def tg_report(update, context):
             await chat_helper.warn_user(context.bot, chat_id, reported_user_id)
             await chat_helper.mute_user(context.bot, chat_id, reported_user_id, reason="User has been warned and muted due to multiple reports.")
             await chat_helper.send_message(
-                context.bot, 
-                chat_id, 
-                f"User {reported_user_mention} has been warned and muted due to {report_sum}/{number_of_reports_to_ban} reports.", 
-                reply_to_message_id=reported_message_id, 
+                context.bot,
+                chat_id,
+                f"User {reported_user_mention} has been warned and muted due to {report_sum}/{number_of_reports_to_ban} reports.",
+                reply_to_message_id=reported_message_id,
                 delete_after=120
             )
-            await chat_helper.send_message_to_admin(
-                context.bot, 
-                chat_id, 
-                f"User {reported_user_mention} has been warned and muted in chat {chat_mention} due to {report_sum}/{number_of_reports_to_ban} reports. \nReported message: {reported_message_content}"
+            warn_text = (
+                f"User {reported_user_mention} has been warned and muted in chat {chat_mention} due to {report_sum}/{number_of_reports_to_ban} reports."
+                f"{spam_prob_text}"
+                f"\nReported message: {reported_message_content}"
+                f"{image_desc_text}"
+            )
+            await chat_helper.send_report_to_admin(
+                context.bot,
+                chat_id,
+                warn_text,
+                photo_file_id=photo_file_id
             )
         else:
             user_has_been_reported_message = await chat_helper.send_message(
