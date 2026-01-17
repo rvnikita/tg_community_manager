@@ -99,6 +99,10 @@ alembic revision --autogenerate -m "description"
 ./src/cron/antispam_ml_train_and_push.sh
 ```
 
+## Database Access
+
+When any task requires database access (queries, debugging, data inspection), always use credentials from `config/.env` file. Load them using `dotenv` before connecting to the database.
+
 ## Environment Configuration
 
 The application requires these environment variables:
