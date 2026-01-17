@@ -1758,11 +1758,13 @@ async def tg_log_message(update, context):
             image_description_embedding = None
             image_file_id = None
 
-            # Get image from photo or video thumbnail
+            # Get image from photo, video thumbnail, or animation (GIF) thumbnail
             if message.photo:
                 image_file_id = message.photo[-1].file_id
             elif message.video and message.video.thumbnail:
                 image_file_id = message.video.thumbnail.file_id
+            elif message.animation and message.animation.thumbnail:
+                image_file_id = message.animation.thumbnail.file_id
 
             if image_file_id:
                 try:
@@ -1998,11 +2000,13 @@ async def tg_ai_spamcheck(update, context):
             image_description_embedding = None
             image_file_id = None
 
-            # Get image from photo or video thumbnail
+            # Get image from photo, video thumbnail, or animation (GIF) thumbnail
             if message.photo:
                 image_file_id = message.photo[-1].file_id
             elif message.video and message.video.thumbnail:
                 image_file_id = message.video.thumbnail.file_id
+            elif message.animation and message.animation.thumbnail:
+                image_file_id = message.animation.thumbnail.file_id
 
             if image_file_id:
                 try:
