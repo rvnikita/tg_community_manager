@@ -2079,7 +2079,7 @@ async def tg_ai_spamcheck(update, context):
             with sentry_sdk.start_span(op="logging_verified", description="Pretty log for verified user"):
                 chat_name = await chat_helper.get_chat_mention(context.bot, chat_id)
                 user_ment = user_helper.get_user_mention(user_id, chat_id)
-                short_txt = (text[:200] + "…") if len(text) > 203 else text
+                short_txt = (text[:200] + "…") if text and len(text) > 203 else (text or "[no text]")
 
                 log_lines = [
                     "",
@@ -2158,7 +2158,7 @@ async def tg_ai_spamcheck(update, context):
         with sentry_sdk.start_span(op="logging", description="Pretty log"):
             chat_name = await chat_helper.get_chat_mention(context.bot, chat_id)
             user_ment = user_helper.get_user_mention(user_id, chat_id)
-            short_txt = (text[:200] + "…") if len(text) > 203 else text
+            short_txt = (text[:200] + "…") if text and len(text) > 203 else (text or "[no text]")
             vis_emoji = "‼️" if action=="delete+mute" else "⚠️" if action=="delete" else "👌"
 
             log_lines = [
