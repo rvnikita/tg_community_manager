@@ -23,8 +23,8 @@ def sentry_profile(name=None):
 
 
 
-from telegram import Bot, ChatPermissions
-from telegram.ext import Application, MessageHandler, CommandHandler, filters, ChatJoinRequestHandler, ApplicationBuilder, JobQueue, MessageReactionHandler
+from telegram import Bot, ChatPermissions, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Application, MessageHandler, CommandHandler, filters, ChatJoinRequestHandler, ApplicationBuilder, JobQueue, MessageReactionHandler, CallbackQueryHandler
 from telegram.request import HTTPXRequest
 from telegram.error import TelegramError
 from datetime import datetime, timedelta, timezone
@@ -221,11 +221,21 @@ async def tg_report(update, context):
             f"\nReported message: {reported_message_content}"
             f"{image_desc_text}"
         )
+
+        # Create inline keyboard with Spam/Not Spam buttons
+        report_keyboard = InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton("🚫 Spam", callback_data=f"spam:{chat_id}:{reported_user_id}:{reported_message_id}"),
+                InlineKeyboardButton("✅ Not Spam", callback_data=f"notspam:{chat_id}:{reported_user_id}:{reported_message_id}")
+            ]
+        ])
+
         await chat_helper.send_report_to_admin(
             context.bot,
             chat_id,
             report_text,
-            photo_file_id=photo_file_id
+            photo_file_id=photo_file_id,
+            reply_markup=report_keyboard
         )
         logger.info(
             f"User {reported_user_id} has been reported by {user_helper.get_user_mention(reporting_user_id, chat_id)} in chat {chat_id} {report_sum}/{number_of_reports_to_ban} times. Reported message: {reported_message_content}"
@@ -288,11 +298,21 @@ async def tg_report(update, context):
                 f"\nReported message: {reported_message_content}"
                 f"{image_desc_text}"
             )
+
+            # Create inline keyboard with Spam/Not Spam buttons for warned users
+            warn_keyboard = InlineKeyboardMarkup([
+                [
+                    InlineKeyboardButton("🚫 Spam", callback_data=f"spam:{chat_id}:{reported_user_id}:{reported_message_id}"),
+                    InlineKeyboardButton("✅ Not Spam", callback_data=f"notspam:{chat_id}:{reported_user_id}:{reported_message_id}")
+                ]
+            ])
+
             await chat_helper.send_report_to_admin(
                 context.bot,
                 chat_id,
                 warn_text,
-                photo_file_id=photo_file_id
+                photo_file_id=photo_file_id,
+                reply_markup=warn_keyboard
             )
         else:
             user_has_been_reported_message = await chat_helper.send_message(
@@ -964,6 +984,166 @@ async def tg_spam(update, context):
             "An error occurred while processing the spam command.",
             reply_to_message_id=message.message_id
         )
+
+
+@sentry_profile()
+async def tg_spam_callback(update, context):
+    """Handle the 'Spam' button callback from report notifications."""
+    try:
+        query = update.callback_query
+        await query.answer()
+
+        # Parse callback data: spam:{chat_id}:{user_id}:{message_id}
+        data_parts = query.data.split(":")
+        if len(data_parts) != 4:
+            await query.edit_message_text(query.message.text + "\n\n❌ Invalid callback data.")
+            return
+
+        _, chat_id_str, user_id_str, message_id_str = data_parts
+        chat_id = int(chat_id_str)
+        target_user_id = int(user_id_str)
+        reported_message_id = int(message_id_str)
+
+        # Check if the admin clicking the button is a global admin or admin of the chat
+        admin_id = query.from_user.id
+        global_admin_id = int(os.getenv('ENV_BOT_ADMIN_ID'))
+        is_global_admin = admin_id == global_admin_id
+
+        if not is_global_admin:
+            chat_administrators = await chat_helper.get_chat_administrators(context.bot, chat_id)
+            is_chat_admin = any(admin["user_id"] == admin_id for admin in chat_administrators)
+            if not is_chat_admin:
+                await query.edit_message_text(query.message.text + "\n\n❌ You are not authorized to perform this action.")
+                return
+
+        # 1. Globally ban the user
+        await chat_helper.ban_user(
+            context.bot,
+            chat_id,
+            target_user_id,
+            global_ban=True,
+            reason="Spam button clicked by admin from report notification"
+        )
+
+        # 2. Mark all messages from this user as spam with manually_verified=True
+        with db_helper.session_scope() as session:
+            logs = session.query(db_helper.Message_Log).filter(
+                db_helper.Message_Log.user_id == target_user_id
+            ).all()
+            logs_data = [
+                {"chat_id": log.chat_id, "message_id": log.message_id}
+                for log in logs
+            ]
+        for log_data in logs_data:
+            message_helper.insert_or_update_message_log(
+                chat_id=log_data["chat_id"],
+                message_id=log_data["message_id"],
+                user_id=target_user_id,
+                is_spam=True,
+                manually_verified=True,
+                reason_for_action="User was globally banned via spam button from report notification"
+            )
+
+        # 3. Delete messages less than 24 hours old
+        cutoff = datetime.now() - timedelta(hours=24)
+        with db_helper.session_scope() as session:
+            recent_logs = session.query(db_helper.Message_Log).filter(
+                db_helper.Message_Log.user_id == target_user_id,
+                db_helper.Message_Log.created_at >= cutoff
+            ).all()
+            recent_logs_data = [
+                {"chat_id": log.chat_id, "message_id": log.message_id}
+                for log in recent_logs
+            ]
+        deleted_count = 0
+        for log_data in recent_logs_data:
+            try:
+                await chat_helper.delete_message(context.bot, log_data["chat_id"], log_data["message_id"])
+                deleted_count += 1
+            except Exception as exc:
+                logger.error(f"Error deleting message {log_data['message_id']} in chat {log_data['chat_id']}: {exc}")
+
+        # 4. Update the notification message to show action taken
+        admin_mention = user_helper.get_user_mention(admin_id, chat_id)
+        original_text = query.message.text or query.message.caption or ""
+        updated_text = f"{original_text}\n\n✅ Marked as SPAM by {admin_mention}\n({len(logs_data)} messages marked, {deleted_count} deleted)"
+
+        if query.message.photo:
+            await query.edit_message_caption(caption=updated_text[:1024], reply_markup=None)
+        else:
+            await query.edit_message_text(text=updated_text, reply_markup=None)
+
+        logger.info(f"Admin {admin_id} marked user {target_user_id} as spam via report button. {len(logs_data)} messages marked, {deleted_count} deleted.")
+
+    except Exception as e:
+        logger.error(f"Error in tg_spam_callback: {traceback.format_exc()}")
+        try:
+            await query.edit_message_text(query.message.text + "\n\n❌ An error occurred.")
+        except:
+            pass
+
+
+@sentry_profile()
+async def tg_notspam_callback(update, context):
+    """Handle the 'Not Spam' button callback from report notifications."""
+    try:
+        query = update.callback_query
+        await query.answer()
+
+        # Parse callback data: notspam:{chat_id}:{user_id}:{message_id}
+        data_parts = query.data.split(":")
+        if len(data_parts) != 4:
+            await query.edit_message_text(query.message.text + "\n\n❌ Invalid callback data.")
+            return
+
+        _, chat_id_str, user_id_str, message_id_str = data_parts
+        chat_id = int(chat_id_str)
+        target_user_id = int(user_id_str)
+        reported_message_id = int(message_id_str)
+
+        # Check if the admin clicking the button is a global admin or admin of the chat
+        admin_id = query.from_user.id
+        global_admin_id = int(os.getenv('ENV_BOT_ADMIN_ID'))
+        is_global_admin = admin_id == global_admin_id
+
+        if not is_global_admin:
+            chat_administrators = await chat_helper.get_chat_administrators(context.bot, chat_id)
+            is_chat_admin = any(admin["user_id"] == admin_id for admin in chat_administrators)
+            if not is_chat_admin:
+                await query.edit_message_text(query.message.text + "\n\n❌ You are not authorized to perform this action.")
+                return
+
+        # Mark the specific reported message as NOT spam with manually_verified=True
+        message_helper.insert_or_update_message_log(
+            chat_id=chat_id,
+            message_id=reported_message_id,
+            user_id=target_user_id,
+            is_spam=False,
+            manually_verified=True,
+            reason_for_action="Message verified as NOT spam via button by admin"
+        )
+
+        # Clear reports for this user in this chat
+        await reporting_helper.clear_reports(chat_id, target_user_id, admin_id)
+
+        # Update the notification message to show action taken
+        admin_mention = user_helper.get_user_mention(admin_id, chat_id)
+        original_text = query.message.text or query.message.caption or ""
+        updated_text = f"{original_text}\n\n✅ Marked as NOT SPAM by {admin_mention}\n(Reports cleared)"
+
+        if query.message.photo:
+            await query.edit_message_caption(caption=updated_text[:1024], reply_markup=None)
+        else:
+            await query.edit_message_text(text=updated_text, reply_markup=None)
+
+        logger.info(f"Admin {admin_id} marked message {reported_message_id} from user {target_user_id} as NOT spam via report button.")
+
+    except Exception as e:
+        logger.error(f"Error in tg_notspam_callback: {traceback.format_exc()}")
+        try:
+            await query.edit_message_text(query.message.text + "\n\n❌ An error occurred.")
+        except:
+            pass
 
 
 @sentry_profile()
@@ -1837,6 +2017,7 @@ async def tg_spam_check(update, context):
             message_helper.insert_or_update_message_log(
                 chat_id=message.chat.id,
                 message_id=message.message_id,
+                user_id=message.from_user.id,
                 is_spam=False,
                 manually_verified=True
             )
@@ -2083,7 +2264,11 @@ async def tg_ai_spamcheck(update, context):
             with sentry_sdk.start_span(op="logging_verified", description="Pretty log for verified user"):
                 chat_name = await chat_helper.get_chat_mention(context.bot, chat_id)
                 user_ment = user_helper.get_user_mention(user_id, chat_id)
+<<<<<<< HEAD
                 short_txt = (text[:200] + "…") if text and len(text) > 203 else (text or "[no text]")
+=======
+                short_txt = (text[:200] + "…") if text and len(text) > 203 else (text or "[No text content]")
+>>>>>>> 575e095 (Fix top 3 errors from Sentry analysis)
 
                 log_lines = [
                     "",
@@ -2162,7 +2347,11 @@ async def tg_ai_spamcheck(update, context):
         with sentry_sdk.start_span(op="logging", description="Pretty log"):
             chat_name = await chat_helper.get_chat_mention(context.bot, chat_id)
             user_ment = user_helper.get_user_mention(user_id, chat_id)
+<<<<<<< HEAD
             short_txt = (text[:200] + "…") if text and len(text) > 203 else (text or "[no text]")
+=======
+            short_txt = (text[:200] + "…") if text and len(text) > 203 else (text or "[No text content]")
+>>>>>>> 575e095 (Fix top 3 errors from Sentry analysis)
             vis_emoji = "‼️" if action=="delete+mute" else "⚠️" if action=="delete" else "👌"
 
             log_lines = [
@@ -2255,34 +2444,48 @@ async def tg_cas_spamcheck(update, context):
             # If not cached (or was "banned"), check API
             url = f"https://api.cas.chat/check?user_id={user_id}"
             resp = None
+            last_error = None
             for attempt in range(1, MAX_RETRIES + 1):
                 try:
                     resp = await session.get(url, proxy=BRIGHTDATA_PROXY, ssl=ssl_context)
                     if resp.status == 200:
                         break
-                    elif resp.status == 502:
-                        logger.warning(f"CAS API returned HTTP 502 for user {user_id}, attempt {attempt}/{MAX_RETRIES}")
+                    elif resp.status in (502, 520):
+                        # 502/520 errors are common with proxy DNS or service issues
+                        last_error = f"HTTP {resp.status}"
                         if attempt < MAX_RETRIES:
+                            # Log as debug on retry attempts (not warning - too noisy)
+                            logger.debug(f"CAS API returned HTTP {resp.status} for user {user_id}, attempt {attempt}/{MAX_RETRIES}, retrying...")
                             await asyncio.sleep(RETRY_DELAY)
                             continue
                         else:
-                            logger.error(f"CAS API failed after {MAX_RETRIES} retries for user {user_id}")
+                            # Final attempt - log as error
                             resp = None
                             break
                     else:
-                        logger.error(f"CAS API returned HTTP {resp.status} for user {user_id}")
+                        # Unexpected status codes - log immediately as error (no retry)
+                        logger.error(f"CAS API returned unexpected HTTP {resp.status} for user {user_id}")
+                        last_error = f"HTTP {resp.status}"
                         resp = None
                         break
                 except Exception as e:
-                    logger.error(f"CAS API request failed for user {user_id} on attempt {attempt}/{MAX_RETRIES}: {e}")
+                    # Network errors - only log on final attempt
+                    error_msg = str(e)
+                    last_error = error_msg
                     if attempt < MAX_RETRIES:
+                        # Retry silently or with debug logging
+                        logger.debug(f"CAS API request failed for user {user_id} on attempt {attempt}/{MAX_RETRIES}, retrying...")
                         await asyncio.sleep(RETRY_DELAY)
                         continue
                     else:
+                        # Final attempt failed - will log below
                         resp = None
                         break
 
+            # Log final failure only on 3/3 attempt at ERROR level
             if not resp or resp.status != 200:
+                if last_error:
+                    logger.error(f"CAS API failed for user {user_id} after {MAX_RETRIES} attempts. Last error: {last_error}. Using cached fallback.")
                 cache_helper.set_key(cache_key, "api_fail", CAS_CACHE_FAILED_SECONDS)
                 continue
 
@@ -2881,6 +3084,8 @@ def create_application():
     application.add_handler(CommandHandler(["gban", "g", "gb"], tg_gban), group=6)
     application.add_handler(CommandHandler(["spam", "s"], tg_spam), group=6)
     application.add_handler(CommandHandler(["unspam", "us"], tg_unspam), group=6)
+    application.add_handler(CallbackQueryHandler(tg_spam_callback, pattern="^spam:"), group=6)
+    application.add_handler(CallbackQueryHandler(tg_notspam_callback, pattern="^notspam:"), group=6)
     application.add_handler(CommandHandler(["verify_user", "vu"], tg_verify_user), group=6)
     application.add_handler(CommandHandler(["unverify_user", "uvu"], tg_unverify_user), group=6)
     # Broadcast handlers support both text commands and commands with photos (captions)

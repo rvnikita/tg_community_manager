@@ -63,11 +63,12 @@ async def send_message_to_admin(bot, chat_id, text: str, disable_web_page_previe
             logger.error(f"Error: {traceback.format_exc()}")
 
 @sentry_profile()
-async def send_report_to_admin(bot, chat_id, text: str, photo_file_id: str = None, exclude_user_id: int = None):
+async def send_report_to_admin(bot, chat_id, text: str, photo_file_id: str = None, exclude_user_id: int = None, reply_markup=None):
     """
     Send a report notification to all admins of a chat via DM.
     If photo_file_id is provided, sends the photo with text as caption.
     Otherwise, sends a text message.
+    Optionally includes inline keyboard buttons via reply_markup.
     """
     chat_administrators = await chat_helper.get_chat_administrators(bot, chat_id)
 
@@ -83,10 +84,11 @@ async def send_report_to_admin(bot, chat_id, text: str, photo_file_id: str = Non
                 await bot.send_photo(
                     chat_id=admin["user_id"],
                     photo=photo_file_id,
-                    caption=caption
+                    caption=caption,
+                    reply_markup=reply_markup
                 )
             else:
-                await chat_helper.send_message(bot, admin["user_id"], text, disable_web_page_preview=True)
+                await chat_helper.send_message(bot, admin["user_id"], text, disable_web_page_preview=True, reply_markup=reply_markup)
         except TelegramError as error:
             if error.message == "Forbidden: bot was blocked by the user":
                 logger.info(f"Bot was blocked by the user {admin['user_id']}.")
@@ -259,14 +261,16 @@ async def send_message(
     reply_to_message_id=None,
     delete_after=None,
     disable_web_page_preview=True,
-    parse_mode=None
+    parse_mode=None,
+    reply_markup=None
 ):
     message = await bot.send_message(
         chat_id=chat_id,
         text=text,
         reply_to_message_id=reply_to_message_id,
         disable_web_page_preview=disable_web_page_preview,
-        parse_mode=parse_mode
+        parse_mode=parse_mode,
+        reply_markup=reply_markup
     )
 
     if delete_after is not None:
