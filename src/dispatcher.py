@@ -2252,7 +2252,6 @@ async def tg_ai_spamcheck(update, context):
                     f"            ↳ User: {user_ment}",
                     f"            ↳ Chat: {chat_name} ({chat_id})",
                     f"            ↳ Action: verified_bypass (no action taken)",
-                    f"            ↳ Engine: {engine}",
                     f"            ↳ Msg-log-ID: {message_log_id}",
                 ]
                 logger.info("\n".join(log_lines))
@@ -2332,7 +2331,6 @@ async def tg_ai_spamcheck(update, context):
                 f"            ↳ User: {user_ment}",
                 f"            ↳ Chat: {chat_name} ({chat_id})",
                 f"            ↳ Action: {action}",
-                f"            ↳ Engine: {engine}",
                 f"            ↳ Msg-log-ID: {message_log_id}",
                 f"            ↳ Fwd/Reply: forwarded={forwarded} reply_to={reply_to}",
                 f"            ↳ raw_message={message.to_dict() if hasattr(message, 'to_dict') else None}",
