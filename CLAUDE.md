@@ -18,7 +18,7 @@ This is a Python-based Telegram community manager bot that handles moderation, s
 - Alembic migrations in `alembic/versions/` for schema changes
 
 ### Core Helper Modules
-- `src/helpers/spamcheck_helper*.py` - Multiple spam detection implementations (ML-based, raw text, structured analysis)
+- `src/helpers/spamcheck_helper.py` - ML-based spam detection using XGBoost with embeddings and structured features
 - `src/helpers/openai_helper.py` - OpenAI API integration for text analysis
 - `src/helpers/message_helper.py` - Message processing and formatting
 - `src/helpers/user_helper.py` - User management and status tracking
@@ -27,9 +27,9 @@ This is a Python-based Telegram community manager bot that handles moderation, s
 - `src/helpers/reporting_helper.py` - User reporting system
 
 ### ML Models and Training
-- `ml_models/` - Contains trained scikit-learn models (SVM, scalers)
-- `src/cron/antispam_ml*.py` - Various spam detection model training scripts
-- Models use different feature extraction approaches (raw text, structured features, embeddings)
+- `ml_models/` - Contains trained XGBoost model and StandardScaler
+- `src/cron/antispam_ml_optimized.py` - Optimized spam detection model training script using XGBoost with embeddings and structured features
+- Model combines text embeddings, image embeddings, user behavior patterns, and message metadata
 
 ### Scheduled Tasks
 - `src/cron/` - Contains cron jobs for:
@@ -123,11 +123,13 @@ The application requires these environment variables:
 
 ## Spam Detection Pipeline
 
-The bot implements multiple spam detection approaches:
-1. **Raw text analysis** (`spamcheck_helper_raw.py`) - Direct text classification
-2. **Structured features** (`spamcheck_helper_raw_structure.py`) - Linguistic feature extraction
-3. **Embedding-based** (`antispam_embedding.py`) - Vector similarity analysis
-4. **Combined ML models** - SVM classifiers with different feature sets
+The bot uses a single optimized spam detection model (`spamcheck_helper.py`) that combines:
+1. **Text embeddings** - OpenAI embeddings for semantic understanding of message content
+2. **Image analysis** - Vision API analysis and embeddings for photos, videos, and GIF thumbnails
+3. **Structured features** - Message metadata (links, entities, forwarding, media types)
+4. **User behavior patterns** - Account age, username presence, message history, posting patterns
+5. **Temporal features** - Time of day, day of week for detecting bot-like behavior
+6. **XGBoost classifier** - Gradient boosting model trained on verified spam/non-spam examples
 
 ## Testing Approach
 

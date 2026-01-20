@@ -53,8 +53,6 @@ import src.helpers.rating_helper as rating_helper
 import src.helpers.reporting_helper as reporting_helper
 import src.helpers.message_helper as message_helper
 import src.helpers.spamcheck_helper as spamcheck_helper
-import src.helpers.spamcheck_helper_raw as spamcheck_helper_raw
-import src.helpers.spamcheck_helper_raw_structure as spamcheck_helper_raw_structure
 import src.helpers.embeddings_reply_helper as embeddings_reply_helpero
 import src.helpers.cache_helper as cache_helper
 import src.helpers.trigger_action_helper as trigger_action_helper
@@ -2126,7 +2124,6 @@ async def tg_ai_spamcheck(update, context):
 
     Chat-level settings (chat_helper.get_chat_config):
         • ai_spamcheck_enabled      – bool
-        • ai_spamcheck_engine       – "legacy" | "raw"   (default = "legacy")
         • antispam_delete_threshold – float              (default = 0.80)
         • antispam_mute_threshold   – float              (default = 0.95)
     """
@@ -2150,8 +2147,6 @@ async def tg_ai_spamcheck(update, context):
                 return
 
         with sentry_sdk.start_span(op="config_and_message", description="Config, thresholds, and message fields"):
-            engine     = (chat_helper.get_chat_config(chat_id, "ai_spamcheck_engine") or "legacy").lower()
-            engine     = engine if engine in ("legacy", "raw") else "legacy"
             delete_thr = float(chat_helper.get_chat_config(chat_id, "antispam_delete_threshold") or 0.80)
             mute_thr   = float(chat_helper.get_chat_config(chat_id, "antispam_mute_threshold")   or 0.95)
 
@@ -2201,36 +2196,19 @@ async def tg_ai_spamcheck(update, context):
                 except Exception as e:
                     logger.error(f"Error analyzing image for spam check: {traceback.format_exc()}")
 
-            if engine == "raw":
-                spam_prob = await spamcheck_helper_raw.predict_spam(
-                    user_id=user_id,
-                    chat_id=chat_id,
-                    message_text=text,
-                    raw_message=message.to_dict(),
-                    embedding=embedding,
-                )
-            elif engine == "raw_strucutre":
-                spam_prob = await spamcheck_helper_raw_structure.predict_spam(
-                    user_id=user_id,
-                    chat_id=chat_id,
-                    message_text=text,
-                    raw_message=message.to_dict(),
-                    embedding=embedding,
-                )
-            else:
-                spam_prob = await spamcheck_helper.predict_spam(
-                    user_id=user_id,
-                    chat_id=chat_id,
-                    message_content=text,
-                    embedding=embedding,
-                    image_description_embedding=image_description_embedding,
-                    has_video=has_video,
-                    has_document=has_document,
-                    has_photo=has_photo,
-                    forwarded_from_channel=forwarded_from_channel,
-                    has_link=has_link,
-                    entity_count=entity_count,
-                )
+            spam_prob = await spamcheck_helper.predict_spam(
+                user_id=user_id,
+                chat_id=chat_id,
+                message_content=text,
+                embedding=embedding,
+                image_description_embedding=image_description_embedding,
+                has_video=has_video,
+                has_document=has_document,
+                has_photo=has_photo,
+                forwarded_from_channel=forwarded_from_channel,
+                has_link=has_link,
+                entity_count=entity_count,
+            )
 
         # Check if user is verified (exempt from spam actions)
         is_verified_user = user_helper.is_user_verified(user_id)

@@ -40,18 +40,6 @@ async def train_spam_classifier():
             log_memory()
             logger.info("Fetching messages from the database for training...")
 
-            # Create a subquery to pre-aggregate spam counts per user
-            # This is MUCH faster than window functions on large datasets
-            spam_counts_subquery = (
-                session.query(
-                    db_helper.Message_Log.user_id,
-                    func.sum(case((db_helper.Message_Log.is_spam == True, 1), else_=0)).label('spam_count'),
-                    func.sum(case((db_helper.Message_Log.is_spam == False, 1), else_=0)).label('not_spam_count')
-                )
-                .group_by(db_helper.Message_Log.user_id)
-                .subquery()
-            )
-
             start_time = time.time()
             query = (session.query(
                         db_helper.Message_Log.id,
@@ -75,14 +63,11 @@ async def train_spam_classifier():
                         db_helper.User_Status.created_at.label('status_created_at'),
                         db_helper.User.created_at.label('user_created_at'),
                         db_helper.User.username.label('user_username'),
-                        func.coalesce(spam_counts_subquery.c.spam_count, 0).label('spam_count'),
-                        func.coalesce(spam_counts_subquery.c.not_spam_count, 0).label('not_spam_count')
                     )
                     .outerjoin(db_helper.User_Status,
                                (db_helper.User_Status.user_id == db_helper.Message_Log.user_id) &
                                (db_helper.User_Status.chat_id == db_helper.Message_Log.chat_id))
                     .join(db_helper.User, db_helper.User.id == db_helper.Message_Log.user_id)
-                    .outerjoin(spam_counts_subquery, spam_counts_subquery.c.user_id == db_helper.Message_Log.user_id)
                     .filter(
                         db_helper.Message_Log.embedding != None,
                         db_helper.Message_Log.message_content != None,
@@ -110,6 +95,34 @@ async def train_spam_classifier():
             logger.info("Processing messages data for feature extraction...")
             feature_start_time = time.time()
 
+            # Calculate running spam/not_spam counts per user from database
+            # Count ALL messages (not just training set) to match production behavior
+            logger.info("Calculating spam counts from database per user...")
+            count_start = time.time()
+
+            # Build cache: message_id -> (spam_count_before, not_spam_count_before)
+            # Query database to count all spam/not-spam messages before each message timestamp
+            running_counts = {}
+            for msg in messages_data:
+                # Count spam messages for this user BEFORE this message's timestamp
+                spam_count = (session.query(db_helper.Message_Log)
+                             .filter(db_helper.Message_Log.user_id == msg.user_id,
+                                     db_helper.Message_Log.is_spam == True,
+                                     db_helper.Message_Log.created_at < msg.message_created_at)
+                             .count())
+
+                # Count not-spam messages for this user BEFORE this message's timestamp
+                not_spam_count = (session.query(db_helper.Message_Log)
+                                 .filter(db_helper.Message_Log.user_id == msg.user_id,
+                                         db_helper.Message_Log.is_spam == False,
+                                         db_helper.Message_Log.created_at < msg.message_created_at)
+                                 .count())
+
+                running_counts[msg.id] = (spam_count, not_spam_count)
+
+            count_time = time.time() - count_start
+            logger.info(f"Calculated running counts for {len(messages_data)} messages in {count_time:.2f} seconds")
+
             # Get embedding dimension from first message with embedding
             embedding_dim = len(messages_data[0].embedding) if messages_data else 1536
             zero_embedding = np.zeros(embedding_dim)
@@ -119,6 +132,8 @@ async def train_spam_classifier():
                 return float(val) if val is not None else np.nan
 
             for message_data in messages_data:
+                # Get running counts (spam/not_spam BEFORE this message)
+                spam_count_before, not_spam_count_before = running_counts.get(message_data.id, (0, 0))
                 # Use the status creation time if available, otherwise use the user creation time.
                 joined_date = message_data.status_created_at if message_data.status_created_at else message_data.user_created_at
                 # Now compute the time difference in seconds
@@ -152,8 +167,8 @@ async def train_spam_classifier():
                         message_data.chat_id,  # KEPT: Different chats have different spam patterns/norms
                         np.log10(message_data.user_id),  # Proxy for account age: higher ID = newer account = more likely spam
                         message_length,
-                        message_data.spam_count,
-                        message_data.not_spam_count,
+                        spam_count_before,      # FIXED: Count of spam messages BEFORE this message
+                        not_spam_count_before,  # FIXED: Count of not-spam messages BEFORE this message
                         float(message_data.is_forwarded or 0),
                         is_reply,  # Changed from raw ID to binary (0/1)
                         has_telegram_nick,

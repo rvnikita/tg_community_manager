@@ -929,11 +929,13 @@ async def get_chat_mention(bot, chat_id: int) -> str:
             return f"{chat_mention} - {invite_link}"
 
         except NoResultFound:
-            # If chat is not found in the database, create a new one
+            # If chat is not found in the database, create a new one with default config
+            default_config = get_default_chat() or {}
             chat = db_helper.Chat(
                 id=chat_id,
                 chat_name=chat_details.title,
                 invite_link=chat_details.invite_link,  # Store invite link in invite_link field
+                config=default_config
             )
             db_session.add(chat)
             db_session.commit()

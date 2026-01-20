@@ -99,19 +99,6 @@ WHERE embedding IS NOT NULL
 ORDER BY id DESC  -- Most recent messages first
 ```
 
-### Legacy Model Types
-
-1. **Raw Text Model** (`spamcheck_helper_raw.py`)
-   - Direct text classification
-   - Uses text embeddings
-
-2. **Structured Features Model** (`spamcheck_helper_raw_structure.py`)
-   - Linguistic feature extraction
-   - Combines structural features with embeddings
-
-3. **Combined Model** (`spamcheck_helper.py`)
-   - Uses both text and image description embeddings
-
 ## User Verification System
 
 ### Purpose
@@ -333,9 +320,10 @@ GROUP BY is_spam, manually_verified;
 
 ```json
 {
-    "agressive_antispam": true,    // Enable language/file filters
-    "ai_spam_check_enabled": true, // Enable ML spam detection
-    "ai_spamcheck_enabled": true   // Enable new ML model
+    "agressive_antispam": true,         // Enable language/file filters
+    "ai_spamcheck_enabled": true,       // Enable ML spam detection
+    "antispam_delete_threshold": 0.80,  // Probability threshold for deleting messages
+    "antispam_mute_threshold": 0.95     // Probability threshold for muting users
 }
 ```
 
@@ -354,7 +342,6 @@ GROUP BY is_spam, manually_verified;
             ↳ User: [123] - Name - @username
             ↳ Chat: Chat Name (chat_id)
             ↳ Action: delete
-            ↳ Engine: raw
             ↳ Msg-log-ID: 12345
 ```
 
