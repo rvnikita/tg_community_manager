@@ -771,9 +771,10 @@ async def delete_media_group_messages(bot, chat_id: int, message, delay_seconds:
     try:
         with db_helper.session_scope() as db_session:
             # Query messages with the same media_group_id from raw_message JSON
+            # Use ->> operator to extract JSON value as text
             messages = db_session.query(db_helper.Message_Log).filter(
                 db_helper.Message_Log.chat_id == chat_id,
-                db_helper.Message_Log.raw_message['media_group_id'].astext == media_group_id
+                db_helper.Message_Log.raw_message.op('->>')('media_group_id') == str(media_group_id)
             ).all()
 
             message_ids = [msg.message_id for msg in messages]
