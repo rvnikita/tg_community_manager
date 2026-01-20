@@ -96,32 +96,50 @@ async def train_spam_classifier():
             feature_start_time = time.time()
 
             # Calculate running spam/not_spam counts per user from database
-            # Count ALL messages (not just training set) to match production behavior
+            # Query ALL messages (not just training set) to match production behavior
             logger.info("Calculating spam counts from database per user...")
             count_start = time.time()
 
-            # Build cache: message_id -> (spam_count_before, not_spam_count_before)
-            # Query database to count all spam/not-spam messages before each message timestamp
+            # Get unique user_ids from training data
+            training_user_ids = set(msg.user_id for msg in messages_data)
+            logger.info(f"Found {len(training_user_ids)} unique users in training set")
+
+            # Query ALL messages for these users (where is_spam is not null) in ONE query
+            all_user_messages_query = (session.query(
+                                          db_helper.Message_Log.id,
+                                          db_helper.Message_Log.user_id,
+                                          db_helper.Message_Log.created_at,
+                                          db_helper.Message_Log.is_spam)
+                                      .filter(db_helper.Message_Log.user_id.in_(training_user_ids),
+                                              db_helper.Message_Log.is_spam != None)
+                                      .order_by(db_helper.Message_Log.user_id, db_helper.Message_Log.created_at))
+            all_user_messages = all_user_messages_query.all()
+            logger.info(f"Fetched {len(all_user_messages)} total messages for spam count calculation")
+
+            # Calculate running counts: for each message, count spam/not-spam BEFORE it
             running_counts = {}
-            for msg in messages_data:
-                # Count spam messages for this user BEFORE this message's timestamp
-                spam_count = (session.query(db_helper.Message_Log)
-                             .filter(db_helper.Message_Log.user_id == msg.user_id,
-                                     db_helper.Message_Log.is_spam == True,
-                                     db_helper.Message_Log.created_at < msg.message_created_at)
-                             .count())
+            current_user_id = None
+            spam_count = 0
+            not_spam_count = 0
 
-                # Count not-spam messages for this user BEFORE this message's timestamp
-                not_spam_count = (session.query(db_helper.Message_Log)
-                                 .filter(db_helper.Message_Log.user_id == msg.user_id,
-                                         db_helper.Message_Log.is_spam == False,
-                                         db_helper.Message_Log.created_at < msg.message_created_at)
-                                 .count())
+            for msg in all_user_messages:
+                # Reset counts when we encounter a new user
+                if msg.user_id != current_user_id:
+                    current_user_id = msg.user_id
+                    spam_count = 0
+                    not_spam_count = 0
 
+                # Store counts BEFORE this message
                 running_counts[msg.id] = (spam_count, not_spam_count)
 
+                # Update running counts for next message
+                if msg.is_spam:
+                    spam_count += 1
+                else:
+                    not_spam_count += 1
+
             count_time = time.time() - count_start
-            logger.info(f"Calculated running counts for {len(messages_data)} messages in {count_time:.2f} seconds")
+            logger.info(f"Calculated running counts for {len(all_user_messages)} messages in {count_time:.2f} seconds")
 
             # Get embedding dimension from first message with embedding
             embedding_dim = len(messages_data[0].embedding) if messages_data else 1536
