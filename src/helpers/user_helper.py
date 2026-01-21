@@ -132,9 +132,9 @@ def get_user_mention(
             if show_account_age:
                 if user.created_at:
                     days_old = (datetime.now(timezone.utc) - user.created_at).days
-                    mention += f" - <{days_old}d>"
+                    mention += f" - [{days_old}d]"
                 else:
-                    mention += " - <N/A>"
+                    mention += " - [N/A]"
 
             # ───────────── rating (optional) ─────────────
             if show_rating and chat_id is not None:
