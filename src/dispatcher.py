@@ -966,7 +966,7 @@ async def tg_spam(update, context):
         summary_text = "\n".join(summary_lines)
 
         try:
-            await chat_helper.send_message(context.bot, global_admin_id, summary_text)
+            await chat_helper.send_message(context.bot, global_admin_id, summary_text, parse_mode="HTML")
         except Exception as dm_exc:
             logger.error(f"Failed to send spam summary DM to admin: {dm_exc}")
 
