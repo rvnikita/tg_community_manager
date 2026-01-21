@@ -3018,7 +3018,7 @@ async def on_startup(app):
     logging.getLogger("apscheduler").setLevel(logging.WARNING) #get only warning messages from apscheduler
 
     # schedule heartbeat after application and JobQueue are ready
-    app.job_queue.run_repeating(tg_heartbeat, interval=60, first=60)
+    app.job_queue.run_repeating(tg_heartbeat, interval=60, first=60, job_kwargs={"misfire_grace_time": 8})
 
 @sentry_profile()
 async def tg_ping(update, context):
