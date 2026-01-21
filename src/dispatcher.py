@@ -216,7 +216,7 @@ async def tg_report(update, context):
             f"User {reported_user_mention} has been reported by {user_helper.get_user_mention(reporting_user_id, chat_id)} "
             f"in chat {chat_mention} {report_sum}/{number_of_reports_to_ban} times."
             f"{spam_prob_text}"
-            f"\nReported message: {reported_message_content}"
+            f"\nReported message (ID: {reported_message_id}): {reported_message_content}"
             f"{image_desc_text}"
         )
 
@@ -251,7 +251,7 @@ async def tg_report(update, context):
             ban_text = (
                 f"User {reported_user_mention} has been banned in chat {chat_mention} due to {report_sum}/{number_of_reports_to_ban} reports."
                 f"{spam_prob_text}"
-                f"\nReported message: {reported_message_content}"
+                f"\nReported message (ID: {reported_message_id}): {reported_message_content}"
                 f"{image_desc_text}"
             )
             await chat_helper.send_report_to_admin(
@@ -293,7 +293,7 @@ async def tg_report(update, context):
             warn_text = (
                 f"User {reported_user_mention} has been warned and muted in chat {chat_mention} due to {report_sum}/{number_of_reports_to_ban} reports."
                 f"{spam_prob_text}"
-                f"\nReported message: {reported_message_content}"
+                f"\nReported message (ID: {reported_message_id}): {reported_message_content}"
                 f"{image_desc_text}"
             )
 
@@ -989,7 +989,6 @@ async def tg_spam_callback(update, context):
     """Handle the 'Spam' button callback from report notifications."""
     try:
         query = update.callback_query
-        await query.answer()
 
         # Parse callback data: spam:{chat_id}:{user_id}:{message_id}
         data_parts = query.data.split(":")
@@ -2152,7 +2151,11 @@ async def tg_ai_spamcheck(update, context):
 
             text      = message.text or message.caption or None  # NULL for non-text messages
             reply_to  = message.reply_to_message.message_id if message.reply_to_message else None
-            forwarded = bool(getattr(message, "forward_from", None) or getattr(message, "forward_from_chat", None))
+            forwarded = bool(
+                getattr(message, "forward_from", None) or
+                getattr(message, "forward_from_chat", None) or
+                getattr(message, "forward_origin", None)  # Newer Telegram API field
+            )
 
             # Extract new spam detection features from message
             has_video = bool(getattr(message, "animation", None) or getattr(message, "video", None))
@@ -2201,6 +2204,8 @@ async def tg_ai_spamcheck(update, context):
                 chat_id=chat_id,
                 message_content=text,
                 embedding=embedding,
+                is_forwarded=forwarded,
+                reply_to_message_id=reply_to,
                 image_description_embedding=image_description_embedding,
                 has_video=has_video,
                 has_document=has_document,

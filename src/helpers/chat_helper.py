@@ -13,7 +13,7 @@ import sqlalchemy as sa
 
 
 from telegram import ChatPermissions
-from telegram.error import BadRequest, TelegramError
+from telegram.error import BadRequest, TelegramError, RetryAfter
 from datetime import datetime, timedelta, timezone
 import traceback
 import re
@@ -202,10 +202,12 @@ async def set_last_admin_permissions_check(chat_id, timestamp):
         return False
 
 @sentry_profile()
-async def get_chat_administrators(bot, chat_id, cache_ttl=3600):
+async def get_chat_administrators(bot, chat_id, cache_ttl=3600, max_retries=3):
     """
     Get chat administrators with caching. Caches per chat_id for cache_ttl seconds.
     Returns a list of dicts: [{user_id, is_bot, status}]
+
+    Handles RetryAfter exceptions with automatic retry logic.
     """
     # Validate chat_id (0 is not a valid Telegram chat ID)
     if chat_id == 0:
@@ -225,32 +227,44 @@ async def get_chat_administrators(bot, chat_id, cache_ttl=3600):
             logger.error(f"Error parsing cached admins for chat {chat_id}: {e}")
             cache_helper.delete_key(cache_key)
 
-    try:
-        admins = await bot.get_chat_administrators(chat_id)
-        admins_data = [
-            {
-                "user_id": admin.user.id,
-                "is_bot": admin.user.is_bot,
-                "status": admin.status
-            }
-            for admin in admins
-        ]
-        if not admins_data:
-            logger.error(f"Telegram API returned empty admin list for chat {chat_id}. This should not happen.")
-            # Optionally: Do not cache, or cache for 5 seconds to avoid rapid re-requests
-            cache_helper.set_key(cache_key, "[]", expire=5)
-        else:
-            cache_helper.set_key(cache_key, json.dumps(admins_data), expire=cache_ttl)
-        return admins_data
-    except BadRequest as e:
-        if "Topic_closed" in str(e):
-            logger.warning(f"Topic is closed in chat {chat_id}. Cannot get administrators. Returning empty list.")
-        else:
-            logger.error(f"BadRequest getting chat administrators for chat {chat_id}: {e}")
-        return []
-    except Exception as e:
-        logger.error(f"Error getting chat administrators for chat {chat_id}: {traceback.format_exc()}")
-        return []
+    # Retry logic for rate limiting
+    for attempt in range(max_retries):
+        try:
+            admins = await bot.get_chat_administrators(chat_id)
+            admins_data = [
+                {
+                    "user_id": admin.user.id,
+                    "is_bot": admin.user.is_bot,
+                    "status": admin.status
+                }
+                for admin in admins
+            ]
+            if not admins_data:
+                logger.error(f"Telegram API returned empty admin list for chat {chat_id}. This should not happen.")
+                # Optionally: Do not cache, or cache for 5 seconds to avoid rapid re-requests
+                cache_helper.set_key(cache_key, "[]", expire=5)
+            else:
+                cache_helper.set_key(cache_key, json.dumps(admins_data), expire=cache_ttl)
+            return admins_data
+        except RetryAfter as e:
+            retry_after = e.retry_after
+            logger.warning(f"Rate limit hit for chat {chat_id}. Retry after {retry_after} seconds. Attempt {attempt + 1}/{max_retries}")
+            if attempt < max_retries - 1:
+                await asyncio.sleep(retry_after)
+            else:
+                logger.error(f"Max retries reached for chat {chat_id} after rate limiting.")
+                return []
+        except BadRequest as e:
+            if "Topic_closed" in str(e):
+                logger.warning(f"Topic is closed in chat {chat_id}. Cannot get administrators. Returning empty list.")
+            else:
+                logger.error(f"BadRequest getting chat administrators for chat {chat_id}: {e}")
+            return []
+        except Exception as e:
+            logger.error(f"Error getting chat administrators for chat {chat_id}: {traceback.format_exc()}")
+            return []
+
+    return []
 
 
 @sentry_profile()
@@ -442,11 +456,19 @@ async def mute_user(
                 db_helper.Chat.active == True
             ).all()
             bot_info = await bot.get_me()
-            tasks = [
-                mute_in_chat(chat.id, db_session, bot_info)
-                for chat in all_active_chats
-            ]
-            await asyncio.gather(*tasks)
+
+            # Process chats in smaller batches to avoid overwhelming the API
+            batch_size = 10
+            for i in range(0, len(all_active_chats), batch_size):
+                batch = all_active_chats[i:i + batch_size]
+                tasks = [
+                    mute_in_chat(chat.id, db_session, bot_info)
+                    for chat in batch
+                ]
+                await asyncio.gather(*tasks)
+                # Small delay between batches to prevent rate limiting
+                if i + batch_size < len(all_active_chats):
+                    await asyncio.sleep(0.5)
 
         if chat_mentions:
             msg = (
@@ -555,6 +577,8 @@ async def ban_user(bot, chat_id, user_to_ban, global_ban=False, reason=None):
                             #logger.info("Bot is admin in chat")
                             #logger.info(f"Trying to ban user {user_to_ban} from chat {chat.id}")
                             await bot.ban_chat_member(chat.id, user_to_ban)
+                            # Add small delay to prevent rate limiting when processing many chats
+                            await asyncio.sleep(0.1)
                     except TelegramError as e:
                         if "Bot is not a member of the group chat" in e.message:
                             logger.info(f"Bot is not a member in chat {await chat_helper.get_chat_mention(bot, chat.id)}")
