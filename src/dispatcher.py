@@ -1,3 +1,4 @@
+import html
 import sentry_sdk
 import os
 
@@ -949,11 +950,12 @@ async def tg_spam(update, context):
         identical_messages_count = len(identical_embedding_logs_data)
         identical_deleted_count = len(recent_identical_data)
 
+        chat_mention = await chat_helper.get_chat_mention(context.bot, chat_id)
         summary_lines = [
             f"<b>Spam command executed</b>",
             f"",
-            f"User: {target_mention}",
-            f"Chat: {await chat_helper.get_chat_mention(context.bot, chat_id)}",
+            f"User: {html.escape(target_mention)}",
+            f"Chat: {html.escape(chat_mention)}",
             f"",
             f"Same user: {same_user_messages_count} marked, {same_user_deleted_count} deleted",
         ]
