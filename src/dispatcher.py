@@ -1010,7 +1010,7 @@ async def tg_spam_callback(update, context):
             chat_administrators = await chat_helper.get_chat_administrators(context.bot, chat_id)
             is_chat_admin = any(admin["user_id"] == admin_id for admin in chat_administrators)
             if not is_chat_admin:
-                await query.edit_message_text(query.message.text + "\n\n❌ You are not authorized to perform this action.")
+                await query.answer("❌ Not authorized", show_alert=True)
                 return
 
         # 1. Globally ban the user
@@ -1070,12 +1070,15 @@ async def tg_spam_callback(update, context):
         else:
             await query.edit_message_text(text=updated_text, reply_markup=None)
 
+        # Show alert popup for clear feedback
+        await query.answer(f"🚫 SPAM! User banned, {len(logs_data)} msg marked, {deleted_count} deleted", show_alert=True)
+
         logger.info(f"Admin {admin_id} marked user {target_user_id} as spam via report button. {len(logs_data)} messages marked, {deleted_count} deleted.")
 
     except Exception as e:
         logger.error(f"Error in tg_spam_callback: {traceback.format_exc()}")
         try:
-            await query.edit_message_text(query.message.text + "\n\n❌ An error occurred.")
+            await query.answer("❌ An error occurred", show_alert=True)
         except:
             pass
 
@@ -1085,7 +1088,6 @@ async def tg_notspam_callback(update, context):
     """Handle the 'Not Spam' button callback from report notifications."""
     try:
         query = update.callback_query
-        await query.answer()
 
         # Parse callback data: notspam:{chat_id}:{user_id}:{message_id}
         data_parts = query.data.split(":")
@@ -1107,7 +1109,7 @@ async def tg_notspam_callback(update, context):
             chat_administrators = await chat_helper.get_chat_administrators(context.bot, chat_id)
             is_chat_admin = any(admin["user_id"] == admin_id for admin in chat_administrators)
             if not is_chat_admin:
-                await query.edit_message_text(query.message.text + "\n\n❌ You are not authorized to perform this action.")
+                await query.answer("❌ Not authorized", show_alert=True)
                 return
 
         # Mark the specific reported message as NOT spam with manually_verified=True
@@ -1133,12 +1135,15 @@ async def tg_notspam_callback(update, context):
         else:
             await query.edit_message_text(text=updated_text, reply_markup=None)
 
+        # Show alert popup for clear feedback
+        await query.answer("✅ NOT SPAM! Reports cleared", show_alert=True)
+
         logger.info(f"Admin {admin_id} marked message {reported_message_id} from user {target_user_id} as NOT spam via report button.")
 
     except Exception as e:
         logger.error(f"Error in tg_notspam_callback: {traceback.format_exc()}")
         try:
-            await query.edit_message_text(query.message.text + "\n\n❌ An error occurred.")
+            await query.answer("❌ An error occurred", show_alert=True)
         except:
             pass
 
