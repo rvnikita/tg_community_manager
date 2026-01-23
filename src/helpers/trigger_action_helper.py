@@ -100,10 +100,14 @@ class RegexTrigger(BaseTrigger):
 
     async def evaluate(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
         """Check if message text matches regex pattern"""
-        if not update.message or not update.message.text:
+        if not update.message:
             return False
 
-        match = self.regex.search(update.message.text)
+        text = update.message.text or update.message.caption
+        if not text:
+            return False
+
+        match = self.regex.search(text)
         logger.debug(f"RegexTrigger {self.trigger_id}: pattern={self.regex.pattern}, matched={bool(match)}")
         return bool(match)
 
@@ -145,12 +149,16 @@ class LLMBooleanTrigger(BaseTrigger):
 
     async def evaluate(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
         """Use LLM with structured output to evaluate message"""
-        if not update.message or not update.message.text:
+        if not update.message:
+            return False
+
+        text = update.message.text or update.message.caption
+        if not text:
             return False
 
         try:
             # Build full prompt with message text
-            full_prompt = f"{self.prompt}\n\nMessage to evaluate: {update.message.text}"
+            full_prompt = f"{self.prompt}\n\nMessage to evaluate: {text}"
 
             # Call OpenAI with structured output
             result = await call_openai_structured(
