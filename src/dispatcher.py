@@ -987,33 +987,41 @@ async def tg_spam(update, context):
 @sentry_profile()
 async def tg_spam_callback(update, context):
     """Handle the 'Spam' button callback from report notifications."""
-    try:
-        query = update.callback_query
-        await query.answer("🚫 Processing...")
+    query = update.callback_query
+    await query.answer()
 
-        # Parse callback data: spam:{chat_id}:{user_id}:{message_id}
-        data_parts = query.data.split(":")
-        if len(data_parts) != 4:
-            await query.edit_message_text(query.message.text + "\n\n❌ Invalid callback data.")
+    # Parse callback data: spam:{chat_id}:{user_id}:{message_id}
+    data_parts = query.data.split(":")
+    if len(data_parts) != 4:
+        error_keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("❌ Invalid data", callback_data="noop")]])
+        await query.edit_message_reply_markup(reply_markup=error_keyboard)
+        return
+
+    _, chat_id_str, user_id_str, message_id_str = data_parts
+    chat_id = int(chat_id_str)
+    target_user_id = int(user_id_str)
+    reported_message_id = int(message_id_str)
+
+    # Check if the admin clicking the button is a global admin or admin of the chat
+    admin_id = query.from_user.id
+    global_admin_id = int(os.getenv('ENV_BOT_ADMIN_ID'))
+    is_global_admin = admin_id == global_admin_id
+
+    if not is_global_admin:
+        chat_administrators = await chat_helper.get_chat_administrators(context.bot, chat_id)
+        is_chat_admin = any(admin["user_id"] == admin_id for admin in chat_administrators)
+        if not is_chat_admin:
+            await query.answer("❌ Not authorized", show_alert=True)
             return
 
-        _, chat_id_str, user_id_str, message_id_str = data_parts
-        chat_id = int(chat_id_str)
-        target_user_id = int(user_id_str)
-        reported_message_id = int(message_id_str)
+    # Immediately show "Processing..." button for instant feedback
+    processing_keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("⏳ Processing...", callback_data="noop")]])
+    try:
+        await query.edit_message_reply_markup(reply_markup=processing_keyboard)
+    except Exception as e:
+        logger.warning(f"Could not update to processing state: {e}")
 
-        # Check if the admin clicking the button is a global admin or admin of the chat
-        admin_id = query.from_user.id
-        global_admin_id = int(os.getenv('ENV_BOT_ADMIN_ID'))
-        is_global_admin = admin_id == global_admin_id
-
-        if not is_global_admin:
-            chat_administrators = await chat_helper.get_chat_administrators(context.bot, chat_id)
-            is_chat_admin = any(admin["user_id"] == admin_id for admin in chat_administrators)
-            if not is_chat_admin:
-                await query.answer("❌ Not authorized", show_alert=True)
-                return
-
+    try:
         # 1. Globally ban the user
         await chat_helper.ban_user(
             context.bot,
@@ -1061,22 +1069,18 @@ async def tg_spam_callback(update, context):
             except Exception as exc:
                 logger.error(f"Error deleting message {log_data['message_id']} in chat {log_data['chat_id']}: {exc}")
 
-        # 4. Update the notification message to show action taken
+        # 4. Update button to show success
         admin_mention = user_helper.get_user_mention(admin_id, chat_id)
-        original_text = query.message.text or query.message.caption or ""
-        updated_text = f"{original_text}\n\n✅ Marked as SPAM by {admin_mention}\n({len(logs_data)} messages marked, {deleted_count} deleted)"
-
-        if query.message.photo:
-            await query.edit_message_caption(caption=updated_text[:1024], reply_markup=None)
-        else:
-            await query.edit_message_text(text=updated_text, reply_markup=None)
+        success_keyboard = InlineKeyboardMarkup([[InlineKeyboardButton(f"✅ Spam ({len(logs_data)} msgs, {deleted_count} del)", callback_data="noop")]])
+        await query.edit_message_reply_markup(reply_markup=success_keyboard)
 
         logger.info(f"Admin {admin_id} marked user {target_user_id} as spam via report button. {len(logs_data)} messages marked, {deleted_count} deleted.")
 
     except Exception as e:
         logger.error(f"Error in tg_spam_callback: {traceback.format_exc()}")
         try:
-            await query.edit_message_text(query.message.text + "\n\n❌ An error occurred.")
+            error_keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("❌ Error - try again", callback_data=query.data)]])
+            await query.edit_message_reply_markup(reply_markup=error_keyboard)
         except:
             pass
 
@@ -1084,33 +1088,41 @@ async def tg_spam_callback(update, context):
 @sentry_profile()
 async def tg_notspam_callback(update, context):
     """Handle the 'Not Spam' button callback from report notifications."""
-    try:
-        query = update.callback_query
-        await query.answer("✅ Processing...")
+    query = update.callback_query
+    await query.answer()
 
-        # Parse callback data: notspam:{chat_id}:{user_id}:{message_id}
-        data_parts = query.data.split(":")
-        if len(data_parts) != 4:
-            await query.edit_message_text(query.message.text + "\n\n❌ Invalid callback data.")
+    # Parse callback data: notspam:{chat_id}:{user_id}:{message_id}
+    data_parts = query.data.split(":")
+    if len(data_parts) != 4:
+        error_keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("❌ Invalid data", callback_data="noop")]])
+        await query.edit_message_reply_markup(reply_markup=error_keyboard)
+        return
+
+    _, chat_id_str, user_id_str, message_id_str = data_parts
+    chat_id = int(chat_id_str)
+    target_user_id = int(user_id_str)
+    reported_message_id = int(message_id_str)
+
+    # Check if the admin clicking the button is a global admin or admin of the chat
+    admin_id = query.from_user.id
+    global_admin_id = int(os.getenv('ENV_BOT_ADMIN_ID'))
+    is_global_admin = admin_id == global_admin_id
+
+    if not is_global_admin:
+        chat_administrators = await chat_helper.get_chat_administrators(context.bot, chat_id)
+        is_chat_admin = any(admin["user_id"] == admin_id for admin in chat_administrators)
+        if not is_chat_admin:
+            await query.answer("❌ Not authorized", show_alert=True)
             return
 
-        _, chat_id_str, user_id_str, message_id_str = data_parts
-        chat_id = int(chat_id_str)
-        target_user_id = int(user_id_str)
-        reported_message_id = int(message_id_str)
+    # Immediately show "Processing..." button for instant feedback
+    processing_keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("⏳ Processing...", callback_data="noop")]])
+    try:
+        await query.edit_message_reply_markup(reply_markup=processing_keyboard)
+    except Exception as e:
+        logger.warning(f"Could not update to processing state: {e}")
 
-        # Check if the admin clicking the button is a global admin or admin of the chat
-        admin_id = query.from_user.id
-        global_admin_id = int(os.getenv('ENV_BOT_ADMIN_ID'))
-        is_global_admin = admin_id == global_admin_id
-
-        if not is_global_admin:
-            chat_administrators = await chat_helper.get_chat_administrators(context.bot, chat_id)
-            is_chat_admin = any(admin["user_id"] == admin_id for admin in chat_administrators)
-            if not is_chat_admin:
-                await query.answer("❌ Not authorized", show_alert=True)
-                return
-
+    try:
         # Mark the specific reported message as NOT spam with manually_verified=True
         message_helper.insert_or_update_message_log(
             chat_id=chat_id,
@@ -1124,24 +1136,25 @@ async def tg_notspam_callback(update, context):
         # Clear reports for this user in this chat
         await reporting_helper.clear_reports(chat_id, target_user_id, admin_id)
 
-        # Update the notification message to show action taken
-        admin_mention = user_helper.get_user_mention(admin_id, chat_id)
-        original_text = query.message.text or query.message.caption or ""
-        updated_text = f"{original_text}\n\n✅ Marked as NOT SPAM by {admin_mention}\n(Reports cleared)"
-
-        if query.message.photo:
-            await query.edit_message_caption(caption=updated_text[:1024], reply_markup=None)
-        else:
-            await query.edit_message_text(text=updated_text, reply_markup=None)
+        # Update button to show success
+        success_keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("✅ Not Spam (reports cleared)", callback_data="noop")]])
+        await query.edit_message_reply_markup(reply_markup=success_keyboard)
 
         logger.info(f"Admin {admin_id} marked message {reported_message_id} from user {target_user_id} as NOT spam via report button.")
 
     except Exception as e:
         logger.error(f"Error in tg_notspam_callback: {traceback.format_exc()}")
         try:
-            await query.edit_message_text(query.message.text + "\n\n❌ An error occurred.")
+            error_keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("❌ Error - try again", callback_data=query.data)]])
+            await query.edit_message_reply_markup(reply_markup=error_keyboard)
         except:
             pass
+
+
+async def tg_noop_callback(update, context):
+    """Handle noop callbacks (status buttons that shouldn't do anything)."""
+    query = update.callback_query
+    await query.answer()
 
 
 @sentry_profile()
@@ -3060,6 +3073,7 @@ def create_application():
     application.add_handler(CommandHandler(["unspam", "us"], tg_unspam), group=6)
     application.add_handler(CallbackQueryHandler(tg_spam_callback, pattern="^spam:"), group=6)
     application.add_handler(CallbackQueryHandler(tg_notspam_callback, pattern="^notspam:"), group=6)
+    application.add_handler(CallbackQueryHandler(tg_noop_callback, pattern="^noop$"), group=6)
     application.add_handler(CommandHandler(["verify_user", "vu"], tg_verify_user), group=6)
     application.add_handler(CommandHandler(["unverify_user", "uvu"], tg_unverify_user), group=6)
     # Broadcast handlers support both text commands and commands with photos (captions)
