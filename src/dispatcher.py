@@ -126,7 +126,7 @@ async def tg_help(update, context):
             await chat_helper.schedule_message_deletion(chat_id, message.message_id, message.from_user.id, delay_seconds=5*60)
         else:
             # In private chats, show commands based on user permissions
-            is_global_admin = user_id == int(os.getenv('ENV_BOT_ADMIN_ID'))
+            is_global_admin = user_helper.is_global_admin(user_id)
 
             help_sections = ["<b>Available commands:</b>\n"]
             help_sections.append("<b>User commands:</b>")
@@ -788,8 +788,26 @@ async def tg_spam(update, context):
     try:
         message = update.message
         chat_id = update.effective_chat.id
+        invoker_user_id = message.from_user.id
 
         await chat_helper.delete_message(bot, chat_id, message.message_id)  # clean up the command message
+
+        # Permission check: must be either global admin or chat admin
+        is_global = user_helper.is_global_admin(invoker_user_id)
+        is_chat_admin = False
+
+        if not is_global:
+            chat_administrators = await chat_helper.get_chat_administrators(bot, chat_id)
+            is_chat_admin = invoker_user_id in [admin["user_id"] for admin in chat_administrators]
+
+        if not is_global and not is_chat_admin:
+            await chat_helper.send_message(
+                context.bot,
+                chat_id,
+                "You must be a chat admin or global bot admin to use this command.",
+                delete_after=120
+            )
+            return
 
         # 1. Determine target user.
         target_user_id = None
@@ -824,151 +842,222 @@ async def tg_spam(update, context):
             )
             return
 
-        # 2. Globally ban the user.
-        await chat_helper.ban_user(
-            context.bot,
-            chat_id,
-            target_user_id,
-            global_ban=True,
-            reason="Spam command issued by global admin"
-        )
-
-        # 3. Retrieve all message logs for the target user and update them.
-        with db_helper.session_scope() as session:
-            logs = session.query(db_helper.Message_Log).filter(
-                db_helper.Message_Log.user_id == target_user_id
-            ).all()
-            logs_data = [
-                {"chat_id": log.chat_id, "message_id": log.message_id}
-                for log in logs
-            ]
-        for log_data in logs_data:
-            message_helper.insert_or_update_message_log(
-                chat_id=log_data["chat_id"],
-                message_id=log_data["message_id"],
-                user_id=target_user_id,
-                is_spam=True,
-                manually_verified=True,
-                reason_for_action="User was globally banned due to /spam command issued by global admin"
+        # Determine scope based on who issued the command
+        # Global admin: global ban + mark as verified spam across all chats
+        # Chat admin: local ban only + mark as spam in this chat only (not verified)
+        if is_global:
+            # GLOBAL ADMIN: Full global spam handling
+            await chat_helper.ban_user(
+                context.bot,
+                chat_id,
+                target_user_id,
+                global_ban=True,
+                reason="Spam command issued by global admin"
             )
 
-        # 3.5. If triggered via reply, find and mark messages with identical embeddings from other users.
-        # IMPORTANT: Only do this if the message has text content to avoid matching empty media messages.
-        identical_embedding_logs_data = []
-        if replied_message_id and replied_chat_id:
+            # Mark ALL messages from this user as verified spam
             with db_helper.session_scope() as session:
-                # Get the embedding of the replied message
-                replied_log = session.query(db_helper.Message_Log).filter(
-                    db_helper.Message_Log.message_id == replied_message_id,
-                    db_helper.Message_Log.chat_id == replied_chat_id
-                ).first()
-
-                # Only match embeddings if the message has actual text content
-                has_text_content = (
-                    replied_log and
-                    replied_log.message_content and
-                    replied_log.message_content.strip()
-                )
-
-                if replied_log and replied_log.embedding is not None and has_text_content:
-                    # Find all messages with the exact same embedding from OTHER users
-                    matching_logs = session.query(db_helper.Message_Log).filter(
-                        db_helper.Message_Log.embedding == replied_log.embedding,
-                        db_helper.Message_Log.user_id != target_user_id
-                    ).all()
-
-                    identical_embedding_logs_data = [
-                        {"chat_id": log.chat_id, "message_id": log.message_id, "user_id": log.user_id}
-                        for log in matching_logs
-                    ]
-
-            # Mark messages with identical embeddings as spam
-            for log_data in identical_embedding_logs_data:
+                logs = session.query(db_helper.Message_Log).filter(
+                    db_helper.Message_Log.user_id == target_user_id
+                ).all()
+                logs_data = [
+                    {"chat_id": log.chat_id, "message_id": log.message_id}
+                    for log in logs
+                ]
+            for log_data in logs_data:
                 message_helper.insert_or_update_message_log(
                     chat_id=log_data["chat_id"],
                     message_id=log_data["message_id"],
-                    user_id=log_data["user_id"],
+                    user_id=target_user_id,
                     is_spam=True,
                     manually_verified=True,
-                    reason_for_action="Message has identical embedding to spam message marked via /spam command"
+                    reason_for_action="User was globally banned due to /spam command issued by global admin"
                 )
-            if identical_embedding_logs_data:
-                logger.info(f"Marked {len(identical_embedding_logs_data)} messages with identical embeddings as spam")
 
-        # 4. For messages less than 24 hours old, delete them from all chats.
-        cutoff = datetime.now() - timedelta(hours=24)
-        with db_helper.session_scope() as session:
-            recent_logs = session.query(db_helper.Message_Log).filter(
-                db_helper.Message_Log.user_id == target_user_id,
-                db_helper.Message_Log.created_at >= cutoff
-            ).all()
-            recent_logs_data = [
-                {"chat_id": log.chat_id, "message_id": log.message_id}
-                for log in recent_logs
-            ]
-        for log_data in recent_logs_data:
-            try:
-                await chat_helper.delete_message(context.bot, log_data["chat_id"], log_data["message_id"])
-            except Exception as exc:
-                logger.error(f"Error deleting message {log_data['message_id']} in chat {log_data['chat_id']}: {exc}")
+            # Find and mark messages with identical embeddings from other users (global admin only)
+            identical_embedding_logs_data = []
+            if replied_message_id and replied_chat_id:
+                with db_helper.session_scope() as session:
+                    replied_log = session.query(db_helper.Message_Log).filter(
+                        db_helper.Message_Log.message_id == replied_message_id,
+                        db_helper.Message_Log.chat_id == replied_chat_id
+                    ).first()
 
-        # 4.5. Also delete recent messages with identical embeddings from other users.
-        recent_identical_data = []
-        if identical_embedding_logs_data:
+                    has_text_content = (
+                        replied_log and
+                        replied_log.message_content and
+                        replied_log.message_content.strip()
+                    )
+
+                    if replied_log and replied_log.embedding is not None and has_text_content:
+                        matching_logs = session.query(db_helper.Message_Log).filter(
+                            db_helper.Message_Log.embedding == replied_log.embedding,
+                            db_helper.Message_Log.user_id != target_user_id
+                        ).all()
+
+                        identical_embedding_logs_data = [
+                            {"chat_id": log.chat_id, "message_id": log.message_id, "user_id": log.user_id}
+                            for log in matching_logs
+                        ]
+
+                for log_data in identical_embedding_logs_data:
+                    message_helper.insert_or_update_message_log(
+                        chat_id=log_data["chat_id"],
+                        message_id=log_data["message_id"],
+                        user_id=log_data["user_id"],
+                        is_spam=True,
+                        manually_verified=True,
+                        reason_for_action="Message has identical embedding to spam message marked via /spam command"
+                    )
+                if identical_embedding_logs_data:
+                    logger.info(f"Marked {len(identical_embedding_logs_data)} messages with identical embeddings as spam")
+
+            # Delete recent messages (last 24 hours) from all chats
+            cutoff = datetime.now() - timedelta(hours=24)
             with db_helper.session_scope() as session:
-                # Get message IDs that are recent (less than 24 hours old)
-                identical_message_ids = [log["message_id"] for log in identical_embedding_logs_data]
-                identical_chat_ids = [log["chat_id"] for log in identical_embedding_logs_data]
-
-                recent_identical_logs = session.query(db_helper.Message_Log).filter(
-                    db_helper.Message_Log.message_id.in_(identical_message_ids),
-                    db_helper.Message_Log.chat_id.in_(identical_chat_ids),
+                recent_logs = session.query(db_helper.Message_Log).filter(
+                    db_helper.Message_Log.user_id == target_user_id,
                     db_helper.Message_Log.created_at >= cutoff
                 ).all()
-
-                recent_identical_data = [
+                recent_logs_data = [
                     {"chat_id": log.chat_id, "message_id": log.message_id}
-                    for log in recent_identical_logs
+                    for log in recent_logs
                 ]
-
-            for log_data in recent_identical_data:
+            for log_data in recent_logs_data:
                 try:
                     await chat_helper.delete_message(context.bot, log_data["chat_id"], log_data["message_id"])
                 except Exception as exc:
-                    logger.error(f"Error deleting identical embedding message {log_data['message_id']} in chat {log_data['chat_id']}: {exc}")
+                    logger.error(f"Error deleting message {log_data['message_id']} in chat {log_data['chat_id']}: {exc}")
 
-            if recent_identical_data:
-                logger.info(f"Deleted {len(recent_identical_data)} recent messages with identical embeddings")
+            # Delete recent messages with identical embeddings
+            recent_identical_data = []
+            if identical_embedding_logs_data:
+                with db_helper.session_scope() as session:
+                    identical_message_ids = [log["message_id"] for log in identical_embedding_logs_data]
+                    identical_chat_ids = [log["chat_id"] for log in identical_embedding_logs_data]
 
-        target_mention = user_helper.get_user_mention(target_user_id, chat_id)
+                    recent_identical_logs = session.query(db_helper.Message_Log).filter(
+                        db_helper.Message_Log.message_id.in_(identical_message_ids),
+                        db_helper.Message_Log.chat_id.in_(identical_chat_ids),
+                        db_helper.Message_Log.created_at >= cutoff
+                    ).all()
 
-        # 5. Send summary DM to global admin
-        global_admin_id = int(os.getenv('ENV_BOT_ADMIN_ID'))
-        same_user_messages_count = len(logs_data)
-        same_user_deleted_count = len(recent_logs_data)
-        identical_messages_count = len(identical_embedding_logs_data)
-        identical_deleted_count = len(recent_identical_data)
+                    recent_identical_data = [
+                        {"chat_id": log.chat_id, "message_id": log.message_id}
+                        for log in recent_identical_logs
+                    ]
 
-        summary_lines = [
-            f"<b>Spam command executed</b>",
-            f"",
-            f"User: {target_mention}",
-            f"Chat: {await chat_helper.get_chat_mention(context.bot, chat_id)}",
-            f"",
-            f"Same user: {same_user_messages_count} marked, {same_user_deleted_count} deleted",
-        ]
+                for log_data in recent_identical_data:
+                    try:
+                        await chat_helper.delete_message(context.bot, log_data["chat_id"], log_data["message_id"])
+                    except Exception as exc:
+                        logger.error(f"Error deleting identical embedding message {log_data['message_id']} in chat {log_data['chat_id']}: {exc}")
 
-        if identical_messages_count > 0:
-            summary_lines.append(f"Identical (other users): {identical_messages_count} marked, {identical_deleted_count} deleted")
-        elif replied_message_id:
-            summary_lines.append(f"Identical (other users): none found")
+                if recent_identical_data:
+                    logger.info(f"Deleted {len(recent_identical_data)} recent messages with identical embeddings")
 
-        summary_text = "\n".join(summary_lines)
+            target_mention = user_helper.get_user_mention(target_user_id, chat_id)
 
-        try:
-            await chat_helper.send_message(context.bot, global_admin_id, summary_text, parse_mode="HTML")
-        except Exception as dm_exc:
-            logger.error(f"Failed to send spam summary DM to admin: {dm_exc}")
+            # Send summary DM to global admins
+            same_user_messages_count = len(logs_data)
+            same_user_deleted_count = len(recent_logs_data)
+            identical_messages_count = len(identical_embedding_logs_data)
+            identical_deleted_count = len(recent_identical_data)
+
+            summary_lines = [
+                f"<b>Spam command executed (global)</b>",
+                f"",
+                f"User: {target_mention}",
+                f"Chat: {await chat_helper.get_chat_mention(context.bot, chat_id)}",
+                f"Issued by: {user_helper.get_user_mention(invoker_user_id, chat_id)}",
+                f"",
+                f"Same user: {same_user_messages_count} marked, {same_user_deleted_count} deleted",
+            ]
+
+            if identical_messages_count > 0:
+                summary_lines.append(f"Identical (other users): {identical_messages_count} marked, {identical_deleted_count} deleted")
+            elif replied_message_id:
+                summary_lines.append(f"Identical (other users): none found")
+
+            summary_text = "\n".join(summary_lines)
+
+            # Send to all global admins
+            for admin_id in user_helper.get_global_admin_ids():
+                try:
+                    await chat_helper.send_message(context.bot, admin_id, summary_text, parse_mode="HTML")
+                except Exception as dm_exc:
+                    logger.error(f"Failed to send spam summary DM to admin {admin_id}: {dm_exc}")
+
+        else:
+            # CHAT ADMIN: Local spam handling only
+            await chat_helper.ban_user(
+                context.bot,
+                chat_id,
+                target_user_id,
+                global_ban=False,
+                reason="Spam command issued by chat admin"
+            )
+
+            # Mark messages from this user in THIS CHAT ONLY as spam (not verified)
+            with db_helper.session_scope() as session:
+                logs = session.query(db_helper.Message_Log).filter(
+                    db_helper.Message_Log.user_id == target_user_id,
+                    db_helper.Message_Log.chat_id == chat_id
+                ).all()
+                logs_data = [
+                    {"chat_id": log.chat_id, "message_id": log.message_id}
+                    for log in logs
+                ]
+            for log_data in logs_data:
+                message_helper.insert_or_update_message_log(
+                    chat_id=log_data["chat_id"],
+                    message_id=log_data["message_id"],
+                    user_id=target_user_id,
+                    is_spam=True,
+                    manually_verified=False,  # Chat admin spam is NOT verified
+                    reason_for_action="User was banned in chat due to /spam command issued by chat admin"
+                )
+
+            # Delete recent messages (last 24 hours) from THIS CHAT ONLY
+            cutoff = datetime.now() - timedelta(hours=24)
+            with db_helper.session_scope() as session:
+                recent_logs = session.query(db_helper.Message_Log).filter(
+                    db_helper.Message_Log.user_id == target_user_id,
+                    db_helper.Message_Log.chat_id == chat_id,
+                    db_helper.Message_Log.created_at >= cutoff
+                ).all()
+                recent_logs_data = [
+                    {"chat_id": log.chat_id, "message_id": log.message_id}
+                    for log in recent_logs
+                ]
+            for log_data in recent_logs_data:
+                try:
+                    await chat_helper.delete_message(context.bot, log_data["chat_id"], log_data["message_id"])
+                except Exception as exc:
+                    logger.error(f"Error deleting message {log_data['message_id']} in chat {log_data['chat_id']}: {exc}")
+
+            target_mention = user_helper.get_user_mention(target_user_id, chat_id)
+
+            # Send summary DM to global admins about chat admin action
+            summary_lines = [
+                f"<b>Spam command executed (chat-local)</b>",
+                f"",
+                f"User: {target_mention}",
+                f"Chat: {await chat_helper.get_chat_mention(context.bot, chat_id)}",
+                f"Issued by (chat admin): {user_helper.get_user_mention(invoker_user_id, chat_id)}",
+                f"",
+                f"Messages marked (not verified): {len(logs_data)}",
+                f"Messages deleted: {len(recent_logs_data)}",
+            ]
+
+            summary_text = "\n".join(summary_lines)
+
+            # Send to all global admins
+            for admin_id in user_helper.get_global_admin_ids():
+                try:
+                    await chat_helper.send_message(context.bot, admin_id, summary_text, parse_mode="HTML")
+                except Exception as dm_exc:
+                    logger.error(f"Failed to send spam summary DM to admin {admin_id}: {dm_exc}")
 
     except Exception as e:
         update_str = json.dumps(
@@ -1004,8 +1093,7 @@ async def tg_spam_callback(update, context):
 
     # Check if the admin clicking the button is a global admin or admin of the chat
     admin_id = query.from_user.id
-    global_admin_id = int(os.getenv('ENV_BOT_ADMIN_ID'))
-    is_global_admin = admin_id == global_admin_id
+    is_global_admin = user_helper.is_global_admin(admin_id)
 
     if not is_global_admin:
         chat_administrators = await chat_helper.get_chat_administrators(context.bot, chat_id)
@@ -1105,8 +1193,7 @@ async def tg_notspam_callback(update, context):
 
     # Check if the admin clicking the button is a global admin or admin of the chat
     admin_id = query.from_user.id
-    global_admin_id = int(os.getenv('ENV_BOT_ADMIN_ID'))
-    is_global_admin = admin_id == global_admin_id
+    is_global_admin = user_helper.is_global_admin(admin_id)
 
     if not is_global_admin:
         chat_administrators = await chat_helper.get_chat_administrators(context.bot, chat_id)
@@ -1164,7 +1251,7 @@ async def tg_unspam(update, context):
         chat_id = update.effective_chat.id
 
         # Only allow global admin to run this command.
-        if message.from_user.id != int(os.getenv('ENV_BOT_ADMIN_ID')):
+        if not user_helper.is_global_admin(message.from_user.id):
             await chat_helper.send_message(
                 context.bot,
                 chat_id,
@@ -1287,7 +1374,7 @@ async def tg_verify_user(update, context):
         chat_id = update.effective_chat.id
 
         # Only allow global admin
-        if message.from_user.id != int(os.getenv('ENV_BOT_ADMIN_ID')):
+        if not user_helper.is_global_admin(message.from_user.id):
             await chat_helper.send_message(
                 context.bot, chat_id,
                 "You must be a global admin to use this command.",
@@ -1343,7 +1430,7 @@ async def tg_unverify_user(update, context):
         chat_id = update.effective_chat.id
 
         # Only allow global admin
-        if message.from_user.id != int(os.getenv('ENV_BOT_ADMIN_ID')):
+        if not user_helper.is_global_admin(message.from_user.id):
             await chat_helper.send_message(
                 context.bot, chat_id,
                 "You must be a global admin to use this command.",
@@ -1403,7 +1490,7 @@ async def tg_gban(update, context):
 
             # Check if the command was sent by a global admin of the bot
             # TODO:MED: We should find the way how to identify admin if he answers from channel
-            if message.from_user.id != int(os.getenv('ENV_BOT_ADMIN_ID')):
+            if not user_helper.is_global_admin(message.from_user.id):
                 await message.reply_text("You must be a global bot admin to use this command.")
                 return
 
@@ -1540,7 +1627,7 @@ async def tg_broadcast_group(update, context):
         chat_id = update.effective_chat.id
 
         # Check if the command was sent by a global admin of the bot
-        if message.from_user.id != int(os.getenv('ENV_BOT_ADMIN_ID')):
+        if not user_helper.is_global_admin(message.from_user.id):
             await message.reply_text("You must be a global bot admin to use this command.")
             return
 
@@ -1664,7 +1751,7 @@ async def tg_broadcast_chat(update, context):
         chat_id = update.effective_chat.id
 
         # Check if the command was sent by a global admin of the bot
-        if message.from_user.id != int(os.getenv('ENV_BOT_ADMIN_ID')):
+        if not user_helper.is_global_admin(message.from_user.id):
             await message.reply_text("You must be a global bot admin to use this command.")
             return
 

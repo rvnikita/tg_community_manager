@@ -329,7 +329,7 @@ GROUP BY is_spam, manually_verified;
 
 ### Environment Variables
 
-- `ENV_BOT_ADMIN_ID` - Super admin user ID (can use /verify_user, /unspam, etc.)
+- `ENV_BOT_ADMIN_IDS` - Comma-separated list of global admin user IDs (e.g., `123456789,987654321`)
 
 ## Monitoring
 

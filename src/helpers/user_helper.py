@@ -1,6 +1,7 @@
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy import func
 import traceback
+import os
 from datetime import datetime, timezone
 
 import src.helpers.db_helper as db_helper
@@ -10,6 +11,31 @@ import src.helpers.rating_helper as rating_helper
 
 
 logger = logging_helper.get_logger()
+
+
+def get_global_admin_ids() -> list[int]:
+    """
+    Get list of all global bot admin user IDs.
+
+    ENV_BOT_ADMIN_IDS should be a comma-separated list of user IDs.
+    """
+    admin_ids_str = os.getenv('ENV_BOT_ADMIN_IDS', '')
+    if not admin_ids_str:
+        logger.warning("ENV_BOT_ADMIN_IDS is not set")
+        return []
+
+    try:
+        return [int(id.strip()) for id in admin_ids_str.split(',') if id.strip()]
+    except ValueError:
+        logger.warning(f"Invalid ENV_BOT_ADMIN_IDS format: {admin_ids_str}")
+        return []
+
+
+def is_global_admin(user_id: int) -> bool:
+    """
+    Check if user is a global bot admin.
+    """
+    return user_id in get_global_admin_ids()
 
 def get_user_id(username: str):
     with db_helper.session_scope() as session:
